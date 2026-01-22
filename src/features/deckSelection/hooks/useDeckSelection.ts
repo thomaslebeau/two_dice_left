@@ -21,10 +21,19 @@ export const useDeckSelection = (params?: UseDeckSelectionParams): UseDeckSelect
 
   // Build available cards list
   const availableCards = useMemo(() => {
-    const baseCards = CARD_DATABASE.slice(0, 5).map((card) => ({
-      ...card,
-      currentHp: card.maxHp,
-    }));
+    const baseCards = CARD_DATABASE.slice(0, 5).map((card) => {
+      // If this card exists in currentDeck, use its current state (including reduced HP)
+      const existingCard = currentDeck?.find(c => c.id === card.id);
+      if (existingCard) {
+        return existingCard;
+      }
+
+      // Otherwise, create new card with full HP
+      return {
+        ...card,
+        currentHp: card.maxHp,
+      };
+    });
 
     // Add reward card if provided and not already in the list
     if (rewardCard && !baseCards.some(c => c.id === rewardCard.id)) {
@@ -32,7 +41,7 @@ export const useDeckSelection = (params?: UseDeckSelectionParams): UseDeckSelect
     }
 
     return baseCards;
-  }, [rewardCard]);
+  }, [rewardCard, currentDeck]);
 
   // Initialize selected cards with current deck (excluding dead cards) if provided
   const [selectedCards, setSelectedCards] = useState<Card[]>(() => {

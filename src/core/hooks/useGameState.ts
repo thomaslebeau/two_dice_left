@@ -87,10 +87,12 @@ export const useGameState = (): UseGameStateReturn => {
     const finalPlayerCard = markCardAsDeadIfNeeded(updatedPlayerCard);
     setPlayerCard(finalPlayerCard);
 
-    // Update the deck with the potentially dead card
-    if (finalPlayerCard.isDead) {
-      setPlayerDeck((prevDeck) => markCardAsDeadInDeck(prevDeck, finalPlayerCard.id));
-    }
+    // ALWAYS update the deck with the updated card (HP changes persist throughout the act)
+    setPlayerDeck((prevDeck) =>
+      prevDeck.map((card) =>
+        card.id === finalPlayerCard.id ? finalPlayerCard : card
+      )
+    );
 
     if (!victory) {
       setGameState(GameState.GAMEOVER);
@@ -190,6 +192,27 @@ export const useGameState = (): UseGameStateReturn => {
     setPlayerDeck((prevDeck) => markCardAsDeadInDeck(prevDeck, cardId));
   };
 
+  /**
+   * Update card HP in real-time during combat
+   * Called after each round to immediately reflect HP changes in the deck and enemy
+   * @param updatedPlayer - The player card with updated HP
+   * @param updatedEnemy - The enemy card with updated HP
+   */
+  const handleCardUpdate = (updatedPlayer: Card, updatedEnemy: ReturnType<typeof generateEnemy>) => {
+    // Update the player card state
+    setPlayerCard(updatedPlayer);
+
+    // Update the enemy card state
+    setEnemyCard(updatedEnemy);
+
+    // Update the deck immediately
+    setPlayerDeck((prevDeck) =>
+      prevDeck.map((card) =>
+        card.id === updatedPlayer.id ? updatedPlayer : card
+      )
+    );
+  };
+
   return {
     gameState,
     currentCombat,
@@ -208,5 +231,6 @@ export const useGameState = (): UseGameStateReturn => {
     handleRewardModifyDeck,
     handleBackToMenu,
     markCardAsDead,
+    handleCardUpdate,
   };
 };

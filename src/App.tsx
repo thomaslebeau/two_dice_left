@@ -33,6 +33,7 @@ const App: React.FC = () => {
     handleRewardContinue,
     handleRewardModifyDeck,
     handleBackToMenu,
+    handleCardUpdate,
   } = useGameState();
 
   return (
@@ -63,6 +64,7 @@ const App: React.FC = () => {
             playerDeck={playerDeck}
             enemyCard={enemyCard}
             onCombatEnd={handleCombatEnd}
+            onCardUpdate={handleCardUpdate}
             combatNumber={currentCombat}
           />
         )}

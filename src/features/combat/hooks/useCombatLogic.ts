@@ -57,7 +57,7 @@ export const useCombatLogic = ({
 
         // Update HP in parent state immediately after each round
         if (onCardUpdate) {
-          onCardUpdate(updatedPlayer);
+          onCardUpdate(updatedPlayer, updatedEnemy);
         }
 
         if (updatedPlayer.currentHp <= 0 || updatedEnemy.currentHp <= 0) {

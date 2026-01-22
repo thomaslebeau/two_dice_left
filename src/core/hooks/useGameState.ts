@@ -194,17 +194,21 @@ export const useGameState = (): UseGameStateReturn => {
 
   /**
    * Update card HP in real-time during combat
-   * Called after each round to immediately reflect HP changes in the deck
-   * @param updatedCard - The card with updated HP
+   * Called after each round to immediately reflect HP changes in the deck and enemy
+   * @param updatedPlayer - The player card with updated HP
+   * @param updatedEnemy - The enemy card with updated HP
    */
-  const handleCardUpdate = (updatedCard: Card) => {
+  const handleCardUpdate = (updatedPlayer: Card, updatedEnemy: ReturnType<typeof generateEnemy>) => {
     // Update the player card state
-    setPlayerCard(updatedCard);
+    setPlayerCard(updatedPlayer);
+
+    // Update the enemy card state
+    setEnemyCard(updatedEnemy);
 
     // Update the deck immediately
     setPlayerDeck((prevDeck) =>
       prevDeck.map((card) =>
-        card.id === updatedCard.id ? updatedCard : card
+        card.id === updatedPlayer.id ? updatedPlayer : card
       )
     );
   };

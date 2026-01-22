@@ -23,5 +23,5 @@ export interface UseGameStateReturn {
   handleRewardModifyDeck: (selectedCard: Card) => void; // Modify deck with reward card
   handleBackToMenu: () => void;
   markCardAsDead: (cardId: number) => void;
-  handleCardUpdate: (updatedCard: Card) => void; // Update card HP in real-time during combat
+  handleCardUpdate: (updatedPlayer: Card, updatedEnemy: EnemyCard) => void; // Update card HP in real-time during combat
 }

@@ -11,7 +11,7 @@ interface CombatScreenProps {
   playerDeck: Card[];
   enemyCard: EnemyCard;
   onCombatEnd: (result: CombatEndResult) => void;
-  onCardUpdate: (updatedCard: Card) => void;
+  onCardUpdate: (updatedPlayer: Card, updatedEnemy: EnemyCard) => void;
   combatNumber: number;
 }
 
@@ -22,7 +22,7 @@ interface CombatWrapperProps {
   selectedCard: Card;
   enemyCard: EnemyCard;
   onCombatEnd: (result: CombatEndResult) => void;
-  onCardUpdate: (updatedCard: Card) => void;
+  onCardUpdate: (updatedPlayer: Card, updatedEnemy: EnemyCard) => void;
   combatNumber: number;
   onRoundResolved: (resolved: boolean) => void;
   onCombatFinished: (finished: boolean) => void;

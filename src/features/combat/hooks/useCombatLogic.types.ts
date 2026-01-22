@@ -8,7 +8,7 @@ export interface UseCombatLogicProps {
   playerCard: Card;
   enemyCard: EnemyCard;
   onCombatEnd: (result: CombatEndResult) => void;
-  onCardUpdate?: (updatedCard: Card) => void; // Called after each round to update HP in real-time
+  onCardUpdate?: (updatedPlayer: Card, updatedEnemy: EnemyCard) => void; // Called after each round to update HP in real-time
 }
 
 /**

@@ -87,10 +87,12 @@ export const useGameState = (): UseGameStateReturn => {
     const finalPlayerCard = markCardAsDeadIfNeeded(updatedPlayerCard);
     setPlayerCard(finalPlayerCard);
 
-    // Update the deck with the potentially dead card
-    if (finalPlayerCard.isDead) {
-      setPlayerDeck((prevDeck) => markCardAsDeadInDeck(prevDeck, finalPlayerCard.id));
-    }
+    // ALWAYS update the deck with the updated card (HP changes persist throughout the act)
+    setPlayerDeck((prevDeck) =>
+      prevDeck.map((card) =>
+        card.id === finalPlayerCard.id ? finalPlayerCard : card
+      )
+    );
 
     if (!victory) {
       setGameState(GameState.GAMEOVER);

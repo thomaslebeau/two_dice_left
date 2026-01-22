@@ -118,18 +118,36 @@ export const useGameState = (): UseGameStateReturn => {
   };
 
   /**
-   * Handler when user chooses to continue without adding the reward card
-   * The reward card is abandoned, and the player continues with their current deck
+   * Handler when user chooses to continue
+   * If a card is selected, it's added to the deck
+   * If no card is selected, continues with current deck
    * Transition: REWARD → COMBAT
    */
-  const handleRewardContinue = (selectedCard: Card) => {
-    console.log('Continuing without adding reward card:', selectedCard);
+  const handleRewardContinue = (selectedCard: Card | null) => {
+    console.log('Continuing with selected card:', selectedCard);
 
-    // The player keeps their current deck (reward card is abandoned)
-    setRewardCard(null); // Clear reward card
+    let updatedDeck = playerDeck;
+
+    // If a card was selected, add it to the deck
+    if (selectedCard) {
+      // Find next available position
+      const aliveCardsInDeck = playerDeck.filter(c => !c.isDead);
+      const usedPositions = aliveCardsInDeck.map(c => c.position || 0);
+      let nextPosition = 1;
+      while (usedPositions.includes(nextPosition)) {
+        nextPosition++;
+      }
+
+      const cardWithPosition = { ...selectedCard, position: nextPosition };
+      updatedDeck = [...playerDeck, cardWithPosition];
+      setPlayerDeck(updatedDeck);
+    }
+
+    // Clear reward card
+    setRewardCard(null);
 
     // Select the first alive card by position
-    const nextCard = getNextCombatCard(playerDeck);
+    const nextCard = getNextCombatCard(updatedDeck);
 
     if (!nextCard) {
       // No alive cards left

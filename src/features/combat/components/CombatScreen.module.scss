@@ -1,6 +1,6 @@
-@use '@styles/variables/colors' as *;
-@use '@styles/variables/spacing' as *;
-@use '@styles/mixins/effects' as *;
+@use "@styles/variables/colors" as *;
+@use "@styles/variables/spacing" as *;
+@use "@styles/mixins/effects" as *;
 
 .container {
   @include glass-container;
@@ -32,6 +32,8 @@
   background: $color-overlay-bg;
   border-radius: $radius-md;
   border: $border-width-thin solid $color-focus;
+  position: absolute;
+  width: 17rem;
 }
 
 .playerResults {
@@ -133,12 +135,13 @@
   border-radius: $radius-sm;
   font-size: 1.1em;
   font-weight: bold;
-  color: #FFD700;
+  color: #ffd700;
   animation: pulse 1s infinite;
 }
 
 @keyframes pulse {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 1;
     transform: scale(1);
   }

@@ -7,6 +7,7 @@ import type { Card } from "@/types/card.types";
 import styles from "./DeckManagementScreen.module.scss";
 
 export const DeckManagementScreen: React.FC<DeckManagementScreenProps> = ({
+  currentDeck: _currentDeck,
   onContinue,
   onModifyDeck,
   combatNumber,
@@ -22,15 +23,14 @@ export const DeckManagementScreen: React.FC<DeckManagementScreenProps> = ({
 
   const [selectedRewardCard, setSelectedRewardCard] = useState<Card | null>(null);
 
-  // Bouton Continuer
+  // Bouton Continuer (always enabled - adds card if selected, continues without if not)
   const continueButton = useFocusable({
     id: "deck-management-continue",
-    onActivate: () => selectedRewardCard && onContinue(selectedRewardCard),
-    disabled: !selectedRewardCard,
+    onActivate: () => onContinue(selectedRewardCard),
     priority: 100,
   });
 
-  // Bouton Modifier mon deck
+  // Bouton Modifier mon deck (disabled if no card selected)
   const modifyDeckButton = useFocusable({
     id: "deck-management-modify",
     onActivate: () => selectedRewardCard && onModifyDeck(selectedRewardCard),
@@ -69,12 +69,11 @@ export const DeckManagementScreen: React.FC<DeckManagementScreenProps> = ({
       <div className={styles.buttonGroup}>
         <button
           {...continueButton.focusProps}
-          onClick={() => selectedRewardCard && onContinue(selectedRewardCard)}
+          onClick={() => onContinue(selectedRewardCard)}
           className={`${styles.actionButton} ${styles.continueButton} ${
-            !selectedRewardCard ? styles.disabled : ""
-          } ${continueButton.isFocused ? styles.focused : ""}`}
-          disabled={!selectedRewardCard}
-          aria-label="Continuer avec la carte sélectionnée"
+            continueButton.isFocused ? styles.focused : ""
+          }`}
+          aria-label="Continuer (ajouter la carte si sélectionnée)"
         >
           Continuer
         </button>

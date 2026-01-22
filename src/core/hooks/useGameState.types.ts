@@ -19,7 +19,7 @@ export interface UseGameStateReturn {
   startNewRun: () => void;
   handleDeckConfirmed: (selectedCards: Card[]) => void;
   handleCombatEnd: (result: CombatEndResult) => void;
-  handleRewardContinue: (selectedCard: Card) => void; // Continue with reward card
+  handleRewardContinue: (selectedCard: Card | null) => void; // Continue with or without reward card
   handleRewardModifyDeck: (selectedCard: Card) => void; // Modify deck with reward card
   handleBackToMenu: () => void;
   markCardAsDead: (cardId: number) => void;

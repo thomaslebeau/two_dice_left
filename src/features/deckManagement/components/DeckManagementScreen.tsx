@@ -23,19 +23,18 @@ export const DeckManagementScreen: React.FC<DeckManagementScreenProps> = ({
 
   const [selectedRewardCard, setSelectedRewardCard] = useState<Card | null>(null);
 
-  // Count alive cards in current deck
-  const aliveCards = currentDeck.filter(c => !c.isDead);
-  const hasMaxCards = aliveCards.length >= 5;
+  // Count alive cards for display
+  const aliveCardsCount = currentDeck.filter(c => !c.isDead).length;
 
-  // Bouton Continuer (disabled if deck is full)
+  // Bouton Continuer (continue with current deck, abandoning the reward)
   const continueButton = useFocusable({
     id: "deck-management-continue",
-    onActivate: () => selectedRewardCard && !hasMaxCards && onContinue(selectedRewardCard),
-    disabled: !selectedRewardCard || hasMaxCards,
+    onActivate: () => selectedRewardCard && onContinue(selectedRewardCard),
+    disabled: !selectedRewardCard,
     priority: 100,
   });
 
-  // Bouton Modifier mon deck
+  // Bouton Modifier mon deck (go to deck selection with the reward card)
   const modifyDeckButton = useFocusable({
     id: "deck-management-modify",
     onActivate: () => selectedRewardCard && onModifyDeck(selectedRewardCard),
@@ -48,6 +47,19 @@ export const DeckManagementScreen: React.FC<DeckManagementScreenProps> = ({
       {/* Header */}
       <h2 className={styles.header}>🎉 Victoire ! 🎉</h2>
       <p className={styles.subheader}>Combat {combatNumber} terminé</p>
+
+      {/* Instructions Section */}
+      <section className={styles.section}>
+        <h3 className={styles.sectionTitle}>Que voulez-vous faire ?</h3>
+        <div className={styles.instructionsBox}>
+          <p className={styles.instructionItem}>
+            <strong>Continuer :</strong> Gardez votre deck actuel ({aliveCardsCount} cartes) et passez au combat suivant
+          </p>
+          <p className={styles.instructionItem}>
+            <strong>Modifier mon deck :</strong> Reconstruisez votre deck en choisissant 5 cartes parmi vos cartes actuelles + la nouvelle carte
+          </p>
+        </div>
+      </section>
 
       {/* Reward Cards Section */}
       <section className={styles.section}>
@@ -70,23 +82,16 @@ export const DeckManagementScreen: React.FC<DeckManagementScreenProps> = ({
         </div>
       </section>
 
-      {/* Info message if deck is full */}
-      {hasMaxCards && (
-        <div className={styles.infoMessage}>
-          ⚠️ Votre deck est complet (5 cartes vivantes). Utilisez "Modifier mon deck" pour ajouter cette carte.
-        </div>
-      )}
-
       {/* Action Buttons */}
       <div className={styles.buttonGroup}>
         <button
           {...continueButton.focusProps}
-          onClick={() => selectedRewardCard && !hasMaxCards && onContinue(selectedRewardCard)}
+          onClick={() => selectedRewardCard && onContinue(selectedRewardCard)}
           className={`${styles.actionButton} ${styles.continueButton} ${
-            !selectedRewardCard || hasMaxCards ? styles.disabled : ""
+            !selectedRewardCard ? styles.disabled : ""
           } ${continueButton.isFocused ? styles.focused : ""}`}
-          disabled={!selectedRewardCard || hasMaxCards}
-          aria-label="Continuer avec la carte sélectionnée"
+          disabled={!selectedRewardCard}
+          aria-label="Continuer avec le deck actuel (abandonner la récompense)"
         >
           Continuer
         </button>

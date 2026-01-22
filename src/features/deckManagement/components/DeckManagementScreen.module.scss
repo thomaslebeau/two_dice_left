@@ -56,6 +56,27 @@
   margin: 0 0 $spacing-md 0;
 }
 
+.instructionsBox {
+  display: flex;
+  flex-direction: column;
+  gap: $spacing-sm;
+  padding: $spacing-md;
+  background: rgba(0, 255, 255, 0.1);
+  border-radius: $radius-md;
+  border: 1px solid rgba(0, 255, 255, 0.3);
+}
+
+.instructionItem {
+  font-size: 1em;
+  color: rgba(255, 255, 255, 0.9);
+  margin: 0;
+  line-height: 1.5;
+
+  strong {
+    color: $color-focus;
+  }
+}
+
 // ==================
 // Card Grids
 // ==================

@@ -11,6 +11,7 @@ interface CombatScreenProps {
   playerDeck: Card[];
   enemyCard: EnemyCard;
   onCombatEnd: (result: CombatEndResult) => void;
+  onCardUpdate: (updatedCard: Card) => void;
   combatNumber: number;
 }
 
@@ -21,6 +22,7 @@ interface CombatWrapperProps {
   selectedCard: Card;
   enemyCard: EnemyCard;
   onCombatEnd: (result: CombatEndResult) => void;
+  onCardUpdate: (updatedCard: Card) => void;
   combatNumber: number;
   onRoundResolved: (resolved: boolean) => void;
   onCombatFinished: (finished: boolean) => void;
@@ -30,6 +32,7 @@ const CombatWrapper: React.FC<CombatWrapperProps> = ({
   selectedCard,
   enemyCard,
   onCombatEnd,
+  onCardUpdate,
   combatNumber,
   onRoundResolved,
   onCombatFinished,
@@ -48,7 +51,8 @@ const CombatWrapper: React.FC<CombatWrapperProps> = ({
   } = useCombatLogic({
     playerCard: selectedCard,
     enemyCard,
-    onCombatEnd
+    onCombatEnd,
+    onCardUpdate
   });
 
   // Notify parent of state changes
@@ -157,6 +161,7 @@ export const CombatScreen: React.FC<CombatScreenProps> = ({
   playerDeck,
   enemyCard,
   onCombatEnd,
+  onCardUpdate,
   combatNumber,
 }) => {
   const [selectedCard, setSelectedCard] = useState<Card | null>(null);
@@ -231,6 +236,7 @@ export const CombatScreen: React.FC<CombatScreenProps> = ({
           selectedCard={selectedCard}
           enemyCard={enemyCard}
           onCombatEnd={onCombatEnd}
+          onCardUpdate={onCardUpdate}
           combatNumber={combatNumber}
           onRoundResolved={setRoundResolved}
           onCombatFinished={setCombatFinished}

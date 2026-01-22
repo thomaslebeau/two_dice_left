@@ -192,6 +192,23 @@ export const useGameState = (): UseGameStateReturn => {
     setPlayerDeck((prevDeck) => markCardAsDeadInDeck(prevDeck, cardId));
   };
 
+  /**
+   * Update card HP in real-time during combat
+   * Called after each round to immediately reflect HP changes in the deck
+   * @param updatedCard - The card with updated HP
+   */
+  const handleCardUpdate = (updatedCard: Card) => {
+    // Update the player card state
+    setPlayerCard(updatedCard);
+
+    // Update the deck immediately
+    setPlayerDeck((prevDeck) =>
+      prevDeck.map((card) =>
+        card.id === updatedCard.id ? updatedCard : card
+      )
+    );
+  };
+
   return {
     gameState,
     currentCombat,
@@ -210,5 +227,6 @@ export const useGameState = (): UseGameStateReturn => {
     handleRewardModifyDeck,
     handleBackToMenu,
     markCardAsDead,
+    handleCardUpdate,
   };
 };

@@ -11,6 +11,7 @@ export const useCombatLogic = ({
   playerCard,
   enemyCard,
   onCombatEnd,
+  onCardUpdate,
 }: UseCombatLogicProps): UseCombatLogicReturn => {
   const [roundNumber, setRoundNumber] = useState(1);
   const [diceKey, setDiceKey] = useState(0);
@@ -54,6 +55,11 @@ export const useCombatLogic = ({
         setCurrentPlayerCard(updatedPlayer);
         setCurrentEnemyCard(updatedEnemy);
 
+        // Update HP in parent state immediately after each round
+        if (onCardUpdate) {
+          onCardUpdate(updatedPlayer);
+        }
+
         if (updatedPlayer.currentHp <= 0 || updatedEnemy.currentHp <= 0) {
           setCombatFinished(true);
           setTimeout(() => {
@@ -67,7 +73,7 @@ export const useCombatLogic = ({
         setRoundResolved(true);
       }, 1000);
     }
-  }, [showResults, roundResolved, combatFinished, diceResults, currentPlayerCard, currentEnemyCard, onCombatEnd]);
+  }, [showResults, roundResolved, combatFinished, diceResults, currentPlayerCard, currentEnemyCard, onCombatEnd, onCardUpdate]);
 
   const handleNextRound = () => {
     setRoundNumber((prev) => prev + 1);

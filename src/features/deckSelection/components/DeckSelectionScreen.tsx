@@ -11,6 +11,8 @@ import styles from "./DeckSelectionScreen.module.scss";
 export const DeckSelectionScreen: React.FC<DeckSelectionScreenProps> = ({
   onDeckConfirmed,
   onBackToMenu,
+  rewardCard,
+  currentDeck,
 }) => {
   const {
     availableCards,
@@ -19,7 +21,7 @@ export const DeckSelectionScreen: React.FC<DeckSelectionScreenProps> = ({
     isCardSelected,
     getSelectionOrder,
     canStartCombat,
-  } = useDeckSelection();
+  } = useDeckSelection({ rewardCard, currentDeck });
 
   // Hook pour gérer les cartes vivantes/mortes
   const { aliveCardsCount, totalCards } = useAliveCards(availableCards);

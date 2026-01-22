@@ -24,13 +24,14 @@ const App: React.FC = () => {
   const {
     gameState,
     currentCombat,
-    playerCard,
     enemyCard,
     playerDeck,
+    rewardCard,
     startNewRun,
     handleDeckConfirmed,
     handleCombatEnd,
-    handleDeckManagementConfirmed,
+    handleRewardContinue,
+    handleRewardModifyDeck,
     handleBackToMenu,
   } = useGameState();
 
@@ -52,6 +53,8 @@ const App: React.FC = () => {
           <DeckSelectionScreen
             onDeckConfirmed={handleDeckConfirmed}
             onBackToMenu={handleBackToMenu}
+            rewardCard={rewardCard || undefined}
+            currentDeck={playerDeck.length > 0 ? playerDeck : undefined}
           />
         )}
 
@@ -67,7 +70,8 @@ const App: React.FC = () => {
         {gameState === GameState.REWARD && playerDeck && (
           <DeckManagementScreen
             currentDeck={playerDeck}
-            onDeckConfirmed={handleDeckManagementConfirmed}
+            onContinue={handleRewardContinue}
+            onModifyDeck={handleRewardModifyDeck}
             combatNumber={currentCombat}
           />
         )}

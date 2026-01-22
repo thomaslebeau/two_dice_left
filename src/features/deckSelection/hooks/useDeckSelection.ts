@@ -1,6 +1,11 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import type { Card } from '@/types/card.types';
 import { CARD_DATABASE } from '@shared/constants/cards';
+
+interface UseDeckSelectionParams {
+  rewardCard?: Card;
+  currentDeck?: Card[];
+}
 
 interface UseDeckSelectionReturn {
   availableCards: Card[];
@@ -11,14 +16,31 @@ interface UseDeckSelectionReturn {
   canStartCombat: boolean;
 }
 
-export const useDeckSelection = (): UseDeckSelectionReturn => {
-  // Les 5 premières cartes de la database sont disponibles
-  const availableCards = CARD_DATABASE.slice(0, 5).map((card) => ({
-    ...card,
-    currentHp: card.maxHp,
-  }));
+export const useDeckSelection = (params?: UseDeckSelectionParams): UseDeckSelectionReturn => {
+  const { rewardCard, currentDeck } = params || {};
 
-  const [selectedCards, setSelectedCards] = useState<Card[]>([]);
+  // Build available cards list
+  const availableCards = useMemo(() => {
+    const baseCards = CARD_DATABASE.slice(0, 5).map((card) => ({
+      ...card,
+      currentHp: card.maxHp,
+    }));
+
+    // Add reward card if provided and not already in the list
+    if (rewardCard && !baseCards.some(c => c.id === rewardCard.id)) {
+      return [...baseCards, rewardCard];
+    }
+
+    return baseCards;
+  }, [rewardCard]);
+
+  // Initialize selected cards with current deck (excluding dead cards) if provided
+  const [selectedCards, setSelectedCards] = useState<Card[]>(() => {
+    if (currentDeck) {
+      return currentDeck.filter(c => !c.isDead);
+    }
+    return [];
+  });
 
   /**
    * Toggle card selection (select/deselect)

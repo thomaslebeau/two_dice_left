@@ -10,4 +10,15 @@ export interface DeckSelectionScreenProps {
    * Callback to return to main menu
    */
   onBackToMenu: () => void;
+
+  /**
+   * Optional reward card to add to the available cards pool
+   * This card will be pre-selected if provided
+   */
+  rewardCard?: Card;
+
+  /**
+   * Optional current deck to restore selection when coming from reward screen
+   */
+  currentDeck?: Card[];
 }

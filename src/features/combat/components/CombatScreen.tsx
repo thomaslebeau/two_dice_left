@@ -165,9 +165,6 @@ export const CombatScreen: React.FC<CombatScreenProps> = ({
   const [roundResolved, setRoundResolved] = useState(false);
   const [combatFinished, setCombatFinished] = useState(false);
 
-  // Get alive cards
-  const aliveCards = playerDeck.filter(card => !card.isDead);
-
   // Drag handlers
   const handleDragStart = (card: Card) => {
     if (!card.isDead) {

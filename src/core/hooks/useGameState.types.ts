@@ -11,6 +11,7 @@ export interface UseGameStateReturn {
   playerCard: Card | null;
   enemyCard: EnemyCard | null;
   playerDeck: Card[];
+  rewardCard: Card | null; // Temporary reward card for deck modification
   aliveCards: Card[];
   deadCards: Card[];
   aliveCardsCount: number;
@@ -18,7 +19,8 @@ export interface UseGameStateReturn {
   startNewRun: () => void;
   handleDeckConfirmed: (selectedCards: Card[]) => void;
   handleCombatEnd: (result: CombatEndResult) => void;
-  handleDeckManagementConfirmed: (updatedDeck: Card[]) => void;
+  handleRewardContinue: (selectedCard: Card) => void; // Continue with reward card
+  handleRewardModifyDeck: (selectedCard: Card) => void; // Modify deck with reward card
   handleBackToMenu: () => void;
   markCardAsDead: (cardId: number) => void;
 }

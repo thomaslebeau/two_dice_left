@@ -20,6 +20,7 @@ export const useGameState = (): UseGameStateReturn => {
   const [playerCard, setPlayerCard] = useState<Card | null>(null);
   const [enemyCard, setEnemyCard] = useState<ReturnType<typeof generateEnemy> | null>(null);
   const [playerDeck, setPlayerDeck] = useState<Card[]>([]);
+  const [rewardCard, setRewardCard] = useState<Card | null>(null); // Temporary reward card
 
   // Use the alive cards hook to get card statistics
   const { aliveCards, deadCards, aliveCardsCount, deadCardsCount } = useAliveCards(playerDeck);
@@ -57,12 +58,22 @@ export const useGameState = (): UseGameStateReturn => {
     // Store the deck
     setPlayerDeck(deckWithPositions);
 
+    // Clear the reward card
+    setRewardCard(null);
+
     // The first card (position 1) becomes the active card
     setPlayerCard(deckWithPositions[0]);
 
-    // Start the first combat
-    setCurrentCombat(1);
-    startCombat(deckWithPositions[0], 1);
+    // If we're coming from a reward (currentCombat > 0), continue to next combat
+    // Otherwise, start the first combat
+    if (currentCombat > 0) {
+      const nextCombat = currentCombat + 1;
+      setCurrentCombat(nextCombat);
+      startCombat(deckWithPositions[0], nextCombat);
+    } else {
+      setCurrentCombat(1);
+      startCombat(deckWithPositions[0], 1);
+    }
   };
 
   const startCombat = (_pCard: Card, combatNum: number) => {
@@ -107,14 +118,26 @@ export const useGameState = (): UseGameStateReturn => {
   };
 
   /**
-   * Handler for deck management confirmation (post-combat)
+   * Handler when user chooses to continue with reward card
    * Transition: REWARD → COMBAT
    */
-  const handleDeckManagementConfirmed = (updatedDeck: Card[]) => {
-    console.log('Deck management confirmed:', updatedDeck);
+  const handleRewardContinue = (selectedCard: Card) => {
+    console.log('Continuing with reward card:', selectedCard);
+
+    // Add the reward card to the deck with the next available position
+    const aliveCardsInDeck = playerDeck.filter(c => !c.isDead);
+    const usedPositions = aliveCardsInDeck.map(c => c.position || 0);
+    let nextPosition = 1;
+    while (usedPositions.includes(nextPosition) && nextPosition <= 5) {
+      nextPosition++;
+    }
+
+    const cardWithPosition = { ...selectedCard, position: nextPosition };
+    const updatedDeck = [...playerDeck, cardWithPosition];
 
     // Update the deck
     setPlayerDeck(updatedDeck);
+    setRewardCard(null); // Clear reward card
 
     // Select the first alive card by position
     const nextCard = getNextCombatCard(updatedDeck);
@@ -129,6 +152,20 @@ export const useGameState = (): UseGameStateReturn => {
     setPlayerCard(nextCard);
     setCurrentCombat(nextCombat);
     startCombat(nextCard, nextCombat);
+  };
+
+  /**
+   * Handler when user chooses to modify deck with reward card
+   * Transition: REWARD → DECK_SELECTION
+   */
+  const handleRewardModifyDeck = (selectedCard: Card) => {
+    console.log('Modifying deck with reward card:', selectedCard);
+
+    // Store the reward card temporarily
+    setRewardCard(selectedCard);
+
+    // Go to deck selection screen
+    setGameState(GameState.DECK_SELECTION);
   };
 
   const handleBackToMenu = () => {
@@ -152,6 +189,7 @@ export const useGameState = (): UseGameStateReturn => {
     playerCard,
     enemyCard,
     playerDeck,
+    rewardCard,
     aliveCards,
     deadCards,
     aliveCardsCount,
@@ -159,7 +197,8 @@ export const useGameState = (): UseGameStateReturn => {
     startNewRun,
     handleDeckConfirmed,
     handleCombatEnd,
-    handleDeckManagementConfirmed,
+    handleRewardContinue,
+    handleRewardModifyDeck,
     handleBackToMenu,
     markCardAsDead,
   };

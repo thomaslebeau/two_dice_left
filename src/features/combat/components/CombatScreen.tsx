@@ -26,6 +26,7 @@ interface CombatWrapperProps {
   combatNumber: number;
   onRoundResolved: (resolved: boolean) => void;
   onCombatFinished: (finished: boolean) => void;
+  onNextRoundReady: (handler: () => void) => void;
 }
 
 const CombatWrapper: React.FC<CombatWrapperProps> = ({
@@ -36,6 +37,7 @@ const CombatWrapper: React.FC<CombatWrapperProps> = ({
   combatNumber,
   onRoundResolved,
   onCombatFinished,
+  onNextRoundReady,
 }) => {
   const {
     roundNumber,
@@ -55,6 +57,11 @@ const CombatWrapper: React.FC<CombatWrapperProps> = ({
     onCardUpdate
   });
 
+  // Expose handleNextRound to parent
+  useEffect(() => {
+    onNextRoundReady(handleNextRound);
+  }, [handleNextRound, onNextRoundReady]);
+
   // Notify parent of state changes
   useEffect(() => {
     onRoundResolved(roundResolved);
@@ -63,18 +70,6 @@ const CombatWrapper: React.FC<CombatWrapperProps> = ({
   useEffect(() => {
     onCombatFinished(combatFinished);
   }, [combatFinished, onCombatFinished]);
-
-  const nextRoundButton = useFocusable({
-    id: "combat-next-round",
-    onActivate: handleNextRound,
-    disabled: !roundResolved || combatFinished,
-  });
-
-  useEffect(() => {
-    if (roundResolved && !combatFinished) {
-      nextRoundButton.focus();
-    }
-  }, [roundResolved, combatFinished, nextRoundButton]);
 
   return (
     <>
@@ -133,17 +128,6 @@ const CombatWrapper: React.FC<CombatWrapperProps> = ({
             </div>
           </div>
 
-          {roundResolved && !combatFinished && (
-            <button
-              {...nextRoundButton.focusProps}
-              className={`${styles.nextRoundButton} ${
-                nextRoundButton.isFocused ? styles.focused : ""
-              }`}
-            >
-              ⚔️ Round Suivant
-            </button>
-          )}
-
           {combatFinished && (
             <div className={styles.finalResult}>
               {currentEnemyCard.currentHp <= 0
@@ -169,6 +153,7 @@ export const CombatScreen: React.FC<CombatScreenProps> = ({
   const [isDropZoneActive, setIsDropZoneActive] = useState(false);
   const [roundResolved, setRoundResolved] = useState(false);
   const [combatFinished, setCombatFinished] = useState(false);
+  const [nextRoundHandler, setNextRoundHandler] = useState<(() => void) | null>(null);
 
   // Drag handlers
   const handleDragStart = (card: Card) => {
@@ -198,8 +183,14 @@ export const CombatScreen: React.FC<CombatScreenProps> = ({
     setIsDropZoneActive(false);
 
     if (draggedCard && !draggedCard.isDead && !combatFinished) {
-      // First card selection or changing card for next round
-      setSelectedCard(draggedCard);
+      if (!selectedCard) {
+        // First card selection - start combat
+        setSelectedCard(draggedCard);
+      } else if (roundResolved && nextRoundHandler) {
+        // Round is resolved, user dragged any card to trigger next round
+        // Keep using the same selectedCard for the entire combat
+        nextRoundHandler();
+      }
     }
   };
 
@@ -240,6 +231,7 @@ export const CombatScreen: React.FC<CombatScreenProps> = ({
           combatNumber={combatNumber}
           onRoundResolved={setRoundResolved}
           onCombatFinished={setCombatFinished}
+          onNextRoundReady={(handler) => setNextRoundHandler(() => handler)}
         />
       )}
 

@@ -7,6 +7,7 @@ import type { Card } from "@/types/card.types";
 import styles from "./DeckManagementScreen.module.scss";
 
 export const DeckManagementScreen: React.FC<DeckManagementScreenProps> = ({
+  currentDeck,
   onContinue,
   onModifyDeck,
   combatNumber,
@@ -22,11 +23,15 @@ export const DeckManagementScreen: React.FC<DeckManagementScreenProps> = ({
 
   const [selectedRewardCard, setSelectedRewardCard] = useState<Card | null>(null);
 
-  // Bouton Continuer
+  // Count alive cards in current deck
+  const aliveCards = currentDeck.filter(c => !c.isDead);
+  const hasMaxCards = aliveCards.length >= 5;
+
+  // Bouton Continuer (disabled if deck is full)
   const continueButton = useFocusable({
     id: "deck-management-continue",
-    onActivate: () => selectedRewardCard && onContinue(selectedRewardCard),
-    disabled: !selectedRewardCard,
+    onActivate: () => selectedRewardCard && !hasMaxCards && onContinue(selectedRewardCard),
+    disabled: !selectedRewardCard || hasMaxCards,
     priority: 100,
   });
 
@@ -65,15 +70,22 @@ export const DeckManagementScreen: React.FC<DeckManagementScreenProps> = ({
         </div>
       </section>
 
+      {/* Info message if deck is full */}
+      {hasMaxCards && (
+        <div className={styles.infoMessage}>
+          ⚠️ Votre deck est complet (5 cartes vivantes). Utilisez "Modifier mon deck" pour ajouter cette carte.
+        </div>
+      )}
+
       {/* Action Buttons */}
       <div className={styles.buttonGroup}>
         <button
           {...continueButton.focusProps}
-          onClick={() => selectedRewardCard && onContinue(selectedRewardCard)}
+          onClick={() => selectedRewardCard && !hasMaxCards && onContinue(selectedRewardCard)}
           className={`${styles.actionButton} ${styles.continueButton} ${
-            !selectedRewardCard ? styles.disabled : ""
+            !selectedRewardCard || hasMaxCards ? styles.disabled : ""
           } ${continueButton.isFocused ? styles.focused : ""}`}
-          disabled={!selectedRewardCard}
+          disabled={!selectedRewardCard || hasMaxCards}
           aria-label="Continuer avec la carte sélectionnée"
         >
           Continuer

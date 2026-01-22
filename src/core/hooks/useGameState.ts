@@ -124,16 +124,22 @@ export const useGameState = (): UseGameStateReturn => {
   const handleRewardContinue = (selectedCard: Card) => {
     console.log('Continuing with reward card:', selectedCard);
 
-    // Add the reward card to the deck with the next available position
+    // Count alive cards in the current deck
     const aliveCardsInDeck = playerDeck.filter(c => !c.isDead);
-    const usedPositions = aliveCardsInDeck.map(c => c.position || 0);
-    let nextPosition = 1;
-    while (usedPositions.includes(nextPosition) && nextPosition <= 5) {
-      nextPosition++;
-    }
 
-    const cardWithPosition = { ...selectedCard, position: nextPosition };
-    const updatedDeck = [...playerDeck, cardWithPosition];
+    let updatedDeck = playerDeck;
+
+    // Only add the reward card if we have less than 5 alive cards
+    if (aliveCardsInDeck.length < 5) {
+      const usedPositions = aliveCardsInDeck.map(c => c.position || 0);
+      let nextPosition = 1;
+      while (usedPositions.includes(nextPosition) && nextPosition <= 5) {
+        nextPosition++;
+      }
+
+      const cardWithPosition = { ...selectedCard, position: nextPosition };
+      updatedDeck = [...playerDeck, cardWithPosition];
+    }
 
     // Update the deck
     setPlayerDeck(updatedDeck);

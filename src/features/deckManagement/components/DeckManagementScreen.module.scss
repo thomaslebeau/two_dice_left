@@ -347,7 +347,83 @@
 }
 
 // ==================
-// Confirm Button
+// Info Message
+// ==================
+
+.infoMessage {
+  padding: $spacing-md;
+  background: rgba(255, 165, 0, 0.2);
+  border: 2px solid rgba(255, 165, 0, 0.6);
+  border-radius: $radius-md;
+  color: rgba(255, 165, 0, 1);
+  font-size: 1em;
+  text-align: center;
+  font-weight: 600;
+}
+
+// ==================
+// Action Buttons
+// ==================
+
+.buttonGroup {
+  display: flex;
+  gap: $spacing-md;
+  margin-top: $spacing-md;
+}
+
+.actionButton {
+  flex: 1;
+  padding: 16px 24px;
+  font-size: 1.2em;
+  font-weight: 600;
+  border-radius: $radius-md;
+  border: $border-width-thin solid $color-focus;
+  color: white;
+  cursor: pointer;
+  transition: all 0.3s ease;
+
+  &:hover:not(.disabled) {
+    transform: translateY(-2px);
+  }
+
+  &.disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    background: rgba(100, 100, 100, 0.5);
+
+    &:hover {
+      transform: none;
+      box-shadow: none;
+    }
+  }
+
+  &.focused {
+    border-color: $color-focus;
+    box-shadow: $shadow-glow;
+    transform: scale(1.05);
+  }
+}
+
+.continueButton {
+  background: linear-gradient(135deg, #00c853 0%, #00e676 100%);
+
+  &:hover:not(.disabled) {
+    background: linear-gradient(135deg, #00e676 0%, #00ff88 100%);
+    box-shadow: 0 8px 16px rgba(0, 255, 0, 0.3);
+  }
+}
+
+.modifyButton {
+  background: linear-gradient(135deg, #2196f3 0%, #42a5f5 100%);
+
+  &:hover:not(.disabled) {
+    background: linear-gradient(135deg, #42a5f5 0%, #64b5f6 100%);
+    box-shadow: 0 8px 16px rgba(33, 150, 243, 0.3);
+  }
+}
+
+// ==================
+// Confirm Button (Legacy)
 // ==================
 
 .confirmButton {

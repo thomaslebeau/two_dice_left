@@ -3,7 +3,7 @@ import { useFocusable } from "@/external_lib";
 import type { DeckSelectionScreenProps } from "./DeckSelectionScreen.types";
 import { useDeckSelection } from "../hooks/useDeckSelection";
 import { CardDisplay } from "@shared/components/CardDisplay/CardDisplay";
-import { RARITY_COLORS } from "@shared/constants/cards";
+import { RARITY_COLORS, MAX_CARD_QUANTITY } from "@shared/constants/cards";
 import type { Card } from "@/types/card.types";
 import { useAliveCards } from "@shared/hooks/useAliveCards";
 import styles from "./DeckSelectionScreen.module.scss";
@@ -145,7 +145,6 @@ const SelectableCard: React.FC<SelectableCardProps> = ({
 }) => {
   const [isShaking, setIsShaking] = useState(false);
   const isDead = card.isDead === true;
-  const maxQuantity = card.quantity || 1;
 
   const cardFocus = useFocusable({
     id: `deck-card-${card.id}`,
@@ -220,9 +219,9 @@ const SelectableCard: React.FC<SelectableCardProps> = ({
       </div>
 
       {/* Badge de quantité - shows selected/total */}
-      {maxQuantity > 1 && (
+      {selectedCount > 0 && (
         <div className={styles.quantityBadge}>
-          {selectedCount}/{maxQuantity}
+          {selectedCount}/{MAX_CARD_QUANTITY}
         </div>
       )}
     </div>

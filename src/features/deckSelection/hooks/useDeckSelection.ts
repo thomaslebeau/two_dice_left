@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo } from 'react';
 import type { Card } from '@/types/card.types';
-import { CARD_DATABASE } from '@shared/constants/cards';
+import { CARD_DATABASE, MAX_CARD_QUANTITY } from '@shared/constants/cards';
 
 interface UseDeckSelectionParams {
   rewardCard?: Card;
@@ -62,16 +62,15 @@ export const useDeckSelection = (params?: UseDeckSelectionParams): UseDeckSelect
   });
 
   /**
-   * Toggle card selection - allows selecting the same card multiple times (up to quantity)
-   * Each click adds a copy until quantity is reached, then removes one copy
+   * Toggle card selection - allows selecting the same card multiple times (up to MAX_CARD_QUANTITY)
+   * Each click adds a copy until MAX_CARD_QUANTITY is reached, then removes one copy
    */
   const toggleCardSelection = useCallback((card: Card) => {
     setSelectedCards(prev => {
       const selectedCount = prev.filter(c => c.id === card.id).length;
-      const maxQuantity = card.quantity || 1;
 
-      // If we've selected all copies of this card, remove one instance
-      if (selectedCount >= maxQuantity) {
+      // If we've selected all allowed copies of this card, remove one instance
+      if (selectedCount >= MAX_CARD_QUANTITY) {
         const indexToRemove = prev.findIndex(c => c.id === card.id);
         if (indexToRemove !== -1) {
           return prev.filter((_, index) => index !== indexToRemove);

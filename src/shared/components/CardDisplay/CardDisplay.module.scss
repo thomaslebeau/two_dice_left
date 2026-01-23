@@ -29,6 +29,13 @@
   margin-bottom: $spacing-sm;
 }
 
+.quantity {
+  font-size: 0.8em;
+  opacity: 0.9;
+  margin-left: $spacing-xs;
+  color: #ffd700;
+}
+
 .cardHp {
   font-size: 1.5em;
   color: $color-hp;

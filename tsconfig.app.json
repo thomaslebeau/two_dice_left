@@ -35,5 +35,6 @@
       "@styles/*": ["./src/styles/*"]
     }
   },
-  "include": ["src"]
+  "include": ["src"],
+  "exclude": ["src/examples"]
 }

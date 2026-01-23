@@ -17,6 +17,9 @@ export const CardDisplay: React.FC<CardDisplayProps> = ({ card, isPlayer: _isPla
     >
       <div className={styles.cardName} style={{ color: rarityColor }}>
         {card.name}
+        {card.quantity && card.quantity > 1 && (
+          <span className={styles.quantity}> x{card.quantity}</span>
+        )}
       </div>
       <div className={styles.cardHp}>
         ❤️ {card.currentHp}/{card.maxHp}

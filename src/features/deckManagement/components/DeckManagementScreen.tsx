@@ -7,7 +7,7 @@ import type { Card } from "@/types/card.types";
 import styles from "./DeckManagementScreen.module.scss";
 
 export const DeckManagementScreen: React.FC<DeckManagementScreenProps> = ({
-  currentDeck: _currentDeck,
+  currentDeck,
   onContinue,
   onModifyDeck,
   combatNumber,
@@ -18,10 +18,16 @@ export const DeckManagementScreen: React.FC<DeckManagementScreenProps> = ({
     return shuffled.slice(0, 3).map((card) => ({
       ...card,
       currentHp: card.maxHp,
+      quantity: 1,
     }));
   });
 
   const [selectedRewardCard, setSelectedRewardCard] = useState<Card | null>(null);
+
+  // Helper to check if player already has a card
+  const getCardInDeck = (cardId: number): Card | undefined => {
+    return currentDeck?.find((c) => c.id === cardId);
+  };
 
   // Bouton Continuer (always enabled - adds card if selected, continues without if not)
   const continueButton = useFocusable({
@@ -60,6 +66,7 @@ export const DeckManagementScreen: React.FC<DeckManagementScreenProps> = ({
               onSelect={() => setSelectedRewardCard(card)}
               isSelected={selectedRewardCard?.id === card.id}
               autoFocus={index === 0}
+              existingCard={getCardInDeck(card.id)}
             />
           ))}
         </div>
@@ -104,6 +111,7 @@ interface RewardCardProps {
   onSelect: () => void;
   isSelected: boolean;
   autoFocus?: boolean;
+  existingCard?: Card;
 }
 
 const RewardCard: React.FC<RewardCardProps> = ({
@@ -111,6 +119,7 @@ const RewardCard: React.FC<RewardCardProps> = ({
   onSelect,
   isSelected,
   autoFocus,
+  existingCard,
 }) => {
   const cardFocus = useFocusable({
     id: `reward-card-${card.id}`,
@@ -120,6 +129,8 @@ const RewardCard: React.FC<RewardCardProps> = ({
   });
 
   const rarityColor = RARITY_COLORS[card.rarity];
+  const isDuplicate = !!existingCard;
+  const newQuantity = existingCard ? (existingCard.quantity || 1) + 1 : 1;
 
   return (
     <div
@@ -129,12 +140,15 @@ const RewardCard: React.FC<RewardCardProps> = ({
       }`}
       style={{ borderColor: isSelected ? "#00ff00" : rarityColor }}
       onClick={onSelect}
-      aria-label={`${card.name} - ${card.currentHp} HP (Nouvelle carte) ${
-        isSelected ? "(Sélectionnée)" : ""
-      }`}
+      aria-label={`${card.name} - ${card.currentHp} HP ${
+        isDuplicate ? `(Doublon - deviendra x${newQuantity})` : "(Nouvelle carte)"
+      } ${isSelected ? "(Sélectionnée)" : ""}`}
     >
       {isSelected && (
         <div className={styles.selectedBadge}>⭐ SÉLECTIONNÉE</div>
+      )}
+      {isDuplicate && (
+        <div className={styles.duplicateBadge}>🔁 Doublon (x{newQuantity})</div>
       )}
       <CardDisplay card={card} />
     </div>

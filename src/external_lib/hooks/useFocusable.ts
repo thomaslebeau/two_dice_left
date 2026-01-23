@@ -45,17 +45,6 @@ export const useFocusable = ({
   const isFocused = context.focusedId === id;
 
   /**
-   * Get the current position of the element
-   */
-  const getPosition = useCallback((): DOMRect => {
-    if (ref.current) {
-      return ref.current.getBoundingClientRect();
-    }
-    // Return empty rect if element not mounted
-    return new DOMRect(0, 0, 0, 0);
-  }, []);
-
-  /**
    * Store callbacks in refs to avoid re-registration
    */
   const onActivateRef = useRef(onActivate);

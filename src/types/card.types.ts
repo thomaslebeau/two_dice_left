@@ -20,6 +20,7 @@ export interface Card extends CardBase {
   currentHp: number;
   isDead?: boolean;
   position?: number; // Combat order position (1-5)
+  quantity?: number; // Number of copies of this card (default: 1)
 }
 
 /**

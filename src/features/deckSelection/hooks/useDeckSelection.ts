@@ -22,22 +22,23 @@ export const useDeckSelection = (params?: UseDeckSelectionParams): UseDeckSelect
   // Build available cards list
   const availableCards = useMemo(() => {
     const baseCards = CARD_DATABASE.slice(0, 5).map((card) => {
-      // If this card exists in currentDeck, use its current state (including reduced HP)
+      // If this card exists in currentDeck, use its current state (including reduced HP and quantity)
       const existingCard = currentDeck?.find(c => c.id === card.id);
       if (existingCard) {
         return existingCard;
       }
 
-      // Otherwise, create new card with full HP
+      // Otherwise, create new card with full HP and quantity 1
       return {
         ...card,
         currentHp: card.maxHp,
+        quantity: 1,
       };
     });
 
     // Add reward card if provided and not already in the list
     if (rewardCard && !baseCards.some(c => c.id === rewardCard.id)) {
-      return [...baseCards, rewardCard];
+      return [...baseCards, { ...rewardCard, quantity: rewardCard.quantity || 1 }];
     }
 
     return baseCards;

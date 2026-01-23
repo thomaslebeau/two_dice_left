@@ -121,7 +121,7 @@ export const useGameState = (): UseGameStateReturn => {
 
   /**
    * Handler when user chooses to continue
-   * If a card is selected, it's added to the deck
+   * If a card is selected, it's added to the deck (or quantity increased if duplicate)
    * If no card is selected, continues with current deck
    * Transition: REWARD → COMBAT
    */
@@ -130,18 +130,39 @@ export const useGameState = (): UseGameStateReturn => {
 
     let updatedDeck = playerDeck;
 
-    // If a card was selected, add it to the deck
+    // If a card was selected, add it to the deck or increase quantity if duplicate
     if (selectedCard) {
-      // Find next available position
-      const aliveCardsInDeck = playerDeck.filter(c => !c.isDead);
-      const usedPositions = aliveCardsInDeck.map(c => c.position || 0);
-      let nextPosition = 1;
-      while (usedPositions.includes(nextPosition)) {
-        nextPosition++;
+      // Check if the player already has this card
+      const existingCardIndex = playerDeck.findIndex(c => c.id === selectedCard.id);
+
+      if (existingCardIndex !== -1) {
+        // Player already has this card - increment quantity
+        updatedDeck = playerDeck.map((card, index) => {
+          if (index === existingCardIndex) {
+            return {
+              ...card,
+              quantity: (card.quantity || 1) + 1,
+            };
+          }
+          return card;
+        });
+      } else {
+        // New card - add it to the deck with position and quantity 1
+        const aliveCardsInDeck = playerDeck.filter(c => !c.isDead);
+        const usedPositions = aliveCardsInDeck.map(c => c.position || 0);
+        let nextPosition = 1;
+        while (usedPositions.includes(nextPosition)) {
+          nextPosition++;
+        }
+
+        const cardWithPosition = {
+          ...selectedCard,
+          position: nextPosition,
+          quantity: 1,
+        };
+        updatedDeck = [...playerDeck, cardWithPosition];
       }
 
-      const cardWithPosition = { ...selectedCard, position: nextPosition };
-      updatedDeck = [...playerDeck, cardWithPosition];
       setPlayerDeck(updatedDeck);
     }
 

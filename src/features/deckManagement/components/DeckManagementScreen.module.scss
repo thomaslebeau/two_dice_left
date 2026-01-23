@@ -210,6 +210,19 @@
   z-index: 10;
 }
 
+.duplicateBadge {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  padding: 4px 8px;
+  background: rgba(255, 215, 0, 0.9);
+  color: black;
+  border-radius: $radius-sm;
+  font-size: 0.9em;
+  font-weight: bold;
+  z-index: 10;
+}
+
 // ==================
 // Position Grid
 // ==================

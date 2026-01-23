@@ -195,6 +195,16 @@
     box-shadow: $shadow-glow;
     transform: scale(1.05);
   }
+
+  &.disabled {
+    opacity: 0.5;
+    filter: grayscale(70%);
+    cursor: not-allowed;
+
+    &:hover {
+      transform: none;
+    }
+  }
 }
 
 .selectedBadge {
@@ -217,6 +227,19 @@
   padding: 4px 8px;
   background: rgba(255, 215, 0, 0.9);
   color: black;
+  border-radius: $radius-sm;
+  font-size: 0.9em;
+  font-weight: bold;
+  z-index: 10;
+}
+
+.maxQuantityBadge {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  padding: 4px 8px;
+  background: rgba(255, 68, 68, 0.9);
+  color: white;
   border-radius: $radius-sm;
   font-size: 0.9em;
   font-weight: bold;

@@ -3,7 +3,7 @@ import type { UseGameStateReturn } from './useGameState.types';
 import type { Card } from '@/types/card.types';
 import type { CombatEndResult } from '@/types/combat.types';
 import { GameState } from '@enums/GameState.enum';
-import { MAX_COMBATS } from '@shared/constants/cards';
+import { MAX_COMBATS, MAX_CARD_QUANTITY } from '@shared/constants/cards';
 import { generateEnemy } from '@shared/utils/enemyGenerator';
 import { useAliveCards } from '@/shared/hooks/useAliveCards';
 import {
@@ -136,16 +136,24 @@ export const useGameState = (): UseGameStateReturn => {
       const existingCardIndex = playerDeck.findIndex(c => c.id === selectedCard.id);
 
       if (existingCardIndex !== -1) {
-        // Player already has this card - increment quantity
-        updatedDeck = playerDeck.map((card, index) => {
-          if (index === existingCardIndex) {
-            return {
-              ...card,
-              quantity: (card.quantity || 1) + 1,
-            };
-          }
-          return card;
-        });
+        // Player already has this card - increment quantity only if below max
+        const existingCard = playerDeck[existingCardIndex];
+        const currentQuantity = existingCard.quantity || 1;
+
+        if (currentQuantity < MAX_CARD_QUANTITY) {
+          updatedDeck = playerDeck.map((card, index) => {
+            if (index === existingCardIndex) {
+              return {
+                ...card,
+                quantity: currentQuantity + 1,
+              };
+            }
+            return card;
+          });
+        } else {
+          // Card is already at max quantity - do nothing
+          console.log(`Card ${selectedCard.name} is already at max quantity (${MAX_CARD_QUANTITY})`);
+        }
       } else {
         // New card - add it to the deck with position and quantity 1
         const aliveCardsInDeck = playerDeck.filter(c => !c.isDead);
@@ -163,7 +171,10 @@ export const useGameState = (): UseGameStateReturn => {
         updatedDeck = [...playerDeck, cardWithPosition];
       }
 
-      setPlayerDeck(updatedDeck);
+      // Only update the deck if it has changed
+      if (updatedDeck !== playerDeck) {
+        setPlayerDeck(updatedDeck);
+      }
     }
 
     // Clear reward card

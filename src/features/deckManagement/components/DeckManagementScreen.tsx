@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useFocusable } from "@/external_lib";
 import type { DeckManagementScreenProps } from "../types/deckManagement.types";
 import { CardDisplay } from "@shared/components/CardDisplay/CardDisplay";
-import { RARITY_COLORS, CARD_DATABASE } from "@shared/constants/cards";
+import { RARITY_COLORS, CARD_DATABASE, MAX_CARD_QUANTITY } from "@shared/constants/cards";
 import type { Card } from "@/types/card.types";
 import styles from "./DeckManagementScreen.module.scss";
 
@@ -121,33 +121,44 @@ const RewardCard: React.FC<RewardCardProps> = ({
   autoFocus,
   existingCard,
 }) => {
+  const isDuplicate = !!existingCard;
+  const currentQuantity = existingCard ? (existingCard.quantity || 1) : 0;
+  const newQuantity = currentQuantity + 1;
+  const isAtMaxQuantity = currentQuantity >= MAX_CARD_QUANTITY;
+
   const cardFocus = useFocusable({
     id: `reward-card-${card.id}`,
     group: "reward-cards",
-    onActivate: onSelect,
+    onActivate: isAtMaxQuantity ? undefined : onSelect,
     autoFocus,
+    disabled: isAtMaxQuantity,
   });
 
   const rarityColor = RARITY_COLORS[card.rarity];
-  const isDuplicate = !!existingCard;
-  const newQuantity = existingCard ? (existingCard.quantity || 1) + 1 : 1;
 
   return (
     <div
       {...cardFocus.focusProps}
       className={`${styles.rewardCard} ${isSelected ? styles.selected : ""} ${
         cardFocus.isFocused ? styles.focused : ""
-      }`}
+      } ${isAtMaxQuantity ? styles.disabled : ""}`}
       style={{ borderColor: isSelected ? "#00ff00" : rarityColor }}
-      onClick={onSelect}
+      onClick={isAtMaxQuantity ? undefined : onSelect}
       aria-label={`${card.name} - ${card.currentHp} HP ${
-        isDuplicate ? `(Doublon - deviendra x${newQuantity})` : "(Nouvelle carte)"
+        isAtMaxQuantity
+          ? `(Maximum atteint - x${MAX_CARD_QUANTITY})`
+          : isDuplicate
+          ? `(Doublon - deviendra x${newQuantity})`
+          : "(Nouvelle carte)"
       } ${isSelected ? "(Sélectionnée)" : ""}`}
     >
       {isSelected && (
         <div className={styles.selectedBadge}>⭐ SÉLECTIONNÉE</div>
       )}
-      {isDuplicate && (
+      {isAtMaxQuantity && (
+        <div className={styles.maxQuantityBadge}>🚫 Maximum (x{MAX_CARD_QUANTITY})</div>
+      )}
+      {!isAtMaxQuantity && isDuplicate && (
         <div className={styles.duplicateBadge}>🔁 Doublon (x{newQuantity})</div>
       )}
       <CardDisplay card={card} />

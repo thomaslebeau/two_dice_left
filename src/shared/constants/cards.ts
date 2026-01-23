@@ -111,3 +111,8 @@ export const RARITY_COLORS: Record<string, string> = {
  * Max number of combats to win
  */
 export const MAX_COMBATS = 5;
+
+/**
+ * Maximum quantity of identical cards a player can have
+ */
+export const MAX_CARD_QUANTITY = 2;

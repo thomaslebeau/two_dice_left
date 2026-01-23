@@ -63,13 +63,13 @@ export const useDeckSelection = (params?: UseDeckSelectionParams): UseDeckSelect
 
   /**
    * Toggle card selection - allows selecting the same card multiple times (up to MAX_CARD_QUANTITY)
-   * Each click adds a copy until MAX_CARD_QUANTITY is reached, then removes one copy
+   * Clicking cycles through: 0 → 1 → 2 → 1 → 0 (for each card)
    */
   const toggleCardSelection = useCallback((card: Card) => {
     setSelectedCards(prev => {
       const selectedCount = prev.filter(c => c.id === card.id).length;
 
-      // If we've selected all allowed copies of this card, remove one instance
+      // If we've selected all allowed copies, remove one instance
       if (selectedCount >= MAX_CARD_QUANTITY) {
         const indexToRemove = prev.findIndex(c => c.id === card.id);
         if (indexToRemove !== -1) {
@@ -78,7 +78,16 @@ export const useDeckSelection = (params?: UseDeckSelectionParams): UseDeckSelect
         return prev;
       }
 
-      // If we've reached the deck limit (5 cards), can't add more
+      // If card is already selected and we're at deck limit, remove one copy to make space
+      if (selectedCount > 0 && prev.length >= 5) {
+        const indexToRemove = prev.findIndex(c => c.id === card.id);
+        if (indexToRemove !== -1) {
+          return prev.filter((_, index) => index !== indexToRemove);
+        }
+        return prev;
+      }
+
+      // If we've reached the deck limit and card not selected, can't add
       if (prev.length >= 5) {
         console.log('Maximum 5 cards already selected');
         return prev;

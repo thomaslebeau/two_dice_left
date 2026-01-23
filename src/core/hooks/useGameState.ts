@@ -181,13 +181,19 @@ export const useGameState = (): UseGameStateReturn => {
 
   /**
    * Handler when user chooses to modify deck with reward card
+   * Adds the reward card to the deck temporarily, then goes to deck selection
    * Transition: REWARD → DECK_SELECTION
    */
   const handleRewardModifyDeck = (selectedCard: Card) => {
     console.log('Modifying deck with reward card:', selectedCard);
 
-    // Store the reward card temporarily
-    setRewardCard(selectedCard);
+    // Add the reward card to the deck temporarily (without position)
+    // It will be properly positioned when the deck is confirmed in DeckSelection
+    const cardWithoutPosition = { ...selectedCard, position: undefined };
+    setPlayerDeck((prevDeck) => [...prevDeck, cardWithoutPosition]);
+
+    // Clear reward card since it's now in the deck
+    setRewardCard(null);
 
     // Go to deck selection screen
     setGameState(GameState.DECK_SELECTION);

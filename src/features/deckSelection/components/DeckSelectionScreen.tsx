@@ -213,6 +213,13 @@ const SelectableCard: React.FC<SelectableCardProps> = ({
       >
         {card.rarity}
       </div>
+
+      {/* Badge de quantité */}
+      {card.quantity && card.quantity > 1 && (
+        <div className={styles.quantityBadge}>
+          x{card.quantity}
+        </div>
+      )}
     </div>
   );
 };

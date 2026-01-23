@@ -24,9 +24,10 @@ export const DeckManagementScreen: React.FC<DeckManagementScreenProps> = ({
 
   const [selectedRewardCard, setSelectedRewardCard] = useState<Card | null>(null);
 
-  // Helper to check if player already has a card
-  const getCardInDeck = (cardId: number): Card | undefined => {
-    return currentDeck?.find((c) => c.id === cardId);
+  // Helper to count how many copies of a card the player has
+  const getCardCount = (cardId: number): number => {
+    if (!currentDeck) return 0;
+    return currentDeck.filter((c) => c.id === cardId).length;
   };
 
   // Bouton Continuer (always enabled - adds card if selected, continues without if not)
@@ -66,7 +67,7 @@ export const DeckManagementScreen: React.FC<DeckManagementScreenProps> = ({
               onSelect={() => setSelectedRewardCard(card)}
               isSelected={selectedRewardCard?.id === card.id}
               autoFocus={index === 0}
-              existingCard={getCardInDeck(card.id)}
+              currentCount={getCardCount(card.id)}
             />
           ))}
         </div>
@@ -111,7 +112,7 @@ interface RewardCardProps {
   onSelect: () => void;
   isSelected: boolean;
   autoFocus?: boolean;
-  existingCard?: Card;
+  currentCount: number; // How many copies of this card the player already has
 }
 
 const RewardCard: React.FC<RewardCardProps> = ({
@@ -119,12 +120,11 @@ const RewardCard: React.FC<RewardCardProps> = ({
   onSelect,
   isSelected,
   autoFocus,
-  existingCard,
+  currentCount,
 }) => {
-  const isDuplicate = !!existingCard;
-  const currentQuantity = existingCard ? (existingCard.quantity || 1) : 0;
-  const newQuantity = currentQuantity + 1;
-  const isAtMaxQuantity = currentQuantity >= MAX_CARD_QUANTITY;
+  const isDuplicate = currentCount > 0;
+  const newQuantity = currentCount + 1;
+  const isAtMaxQuantity = currentCount >= MAX_CARD_QUANTITY;
 
   const cardFocus = useFocusable({
     id: `reward-card-${card.id}`,

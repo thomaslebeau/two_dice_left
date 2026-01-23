@@ -13,6 +13,7 @@ interface UseDeckSelectionReturn {
   toggleCardSelection: (card: Card) => void;
   isCardSelected: (cardId: number) => boolean;
   getSelectionOrder: (cardId: number) => number;
+  getSelectedCount: (cardId: number) => number;
   canStartCombat: boolean;
 }
 
@@ -22,10 +23,17 @@ export const useDeckSelection = (params?: UseDeckSelectionParams): UseDeckSelect
   // Build available cards list
   const availableCards = useMemo(() => {
     const baseCards = CARD_DATABASE.slice(0, 5).map((card) => {
-      // If this card exists in currentDeck, use its current state (including reduced HP and quantity)
-      const existingCard = currentDeck?.find(c => c.id === card.id);
-      if (existingCard) {
-        return existingCard;
+      if (currentDeck) {
+        // Count how many instances of this card exist in the deck (excluding dead cards)
+        const instances = currentDeck.filter(c => c.id === card.id && !c.isDead);
+        if (instances.length > 0) {
+          // Use the first instance as the base, but set quantity to the count
+          const firstInstance = instances[0];
+          return {
+            ...firstInstance,
+            quantity: instances.length,
+          };
+        }
       }
 
       // Otherwise, create new card with full HP and quantity 1
@@ -45,6 +53,7 @@ export const useDeckSelection = (params?: UseDeckSelectionParams): UseDeckSelect
   }, [rewardCard, currentDeck]);
 
   // Initialize selected cards with current deck (excluding dead cards) if provided
+  // currentDeck already contains multiple instances of the same card if quantity > 1
   const [selectedCards, setSelectedCards] = useState<Card[]>(() => {
     if (currentDeck) {
       return currentDeck.filter(c => !c.isDead);
@@ -53,28 +62,36 @@ export const useDeckSelection = (params?: UseDeckSelectionParams): UseDeckSelect
   });
 
   /**
-   * Toggle card selection (select/deselect)
+   * Toggle card selection - allows selecting the same card multiple times (up to quantity)
+   * Each click adds a copy until quantity is reached, then removes one copy
    */
   const toggleCardSelection = useCallback((card: Card) => {
     setSelectedCards(prev => {
-      const isAlreadySelected = prev.some(c => c.id === card.id);
+      const selectedCount = prev.filter(c => c.id === card.id).length;
+      const maxQuantity = card.quantity || 1;
 
-      if (isAlreadySelected) {
-        // Deselect
-        return prev.filter(c => c.id !== card.id);
-      } else {
-        // Select (max 5)
-        if (prev.length >= 5) {
-          console.log('Maximum 5 cards already selected');
-          return prev;
+      // If we've selected all copies of this card, remove one instance
+      if (selectedCount >= maxQuantity) {
+        const indexToRemove = prev.findIndex(c => c.id === card.id);
+        if (indexToRemove !== -1) {
+          return prev.filter((_, index) => index !== indexToRemove);
         }
-        return [...prev, card];
+        return prev;
       }
+
+      // If we've reached the deck limit (5 cards), can't add more
+      if (prev.length >= 5) {
+        console.log('Maximum 5 cards already selected');
+        return prev;
+      }
+
+      // Add another copy of this card
+      return [...prev, { ...card }];
     });
   }, []);
 
   /**
-   * Check if a card is selected
+   * Check if a card is selected (at least once)
    */
   const isCardSelected = useCallback(
     (cardId: number): boolean => {
@@ -84,7 +101,17 @@ export const useDeckSelection = (params?: UseDeckSelectionParams): UseDeckSelect
   );
 
   /**
-   * Get selection order (1-based index) for a card, or 0 if not selected
+   * Get how many copies of a card are selected
+   */
+  const getSelectedCount = useCallback(
+    (cardId: number): number => {
+      return selectedCards.filter(c => c.id === cardId).length;
+    },
+    [selectedCards]
+  );
+
+  /**
+   * Get selection order (1-based index) for the FIRST instance of a card, or 0 if not selected
    */
   const getSelectionOrder = useCallback(
     (cardId: number): number => {
@@ -105,6 +132,7 @@ export const useDeckSelection = (params?: UseDeckSelectionParams): UseDeckSelect
     toggleCardSelection,
     isCardSelected,
     getSelectionOrder,
+    getSelectedCount,
     canStartCombat,
   };
 };

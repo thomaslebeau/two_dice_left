@@ -130,32 +130,16 @@ export const useGameState = (): UseGameStateReturn => {
 
     let updatedDeck = playerDeck;
 
-    // If a card was selected, add it to the deck or increase quantity if duplicate
+    // If a card was selected, add it to the deck as a new instance
     if (selectedCard) {
-      // Check if the player already has this card
-      const existingCardIndex = playerDeck.findIndex(c => c.id === selectedCard.id);
+      // Count how many copies of this card already exist in the deck
+      const existingCount = playerDeck.filter(c => c.id === selectedCard.id).length;
 
-      if (existingCardIndex !== -1) {
-        // Player already has this card - increment quantity only if below max
-        const existingCard = playerDeck[existingCardIndex];
-        const currentQuantity = existingCard.quantity || 1;
-
-        if (currentQuantity < MAX_CARD_QUANTITY) {
-          updatedDeck = playerDeck.map((card, index) => {
-            if (index === existingCardIndex) {
-              return {
-                ...card,
-                quantity: currentQuantity + 1,
-              };
-            }
-            return card;
-          });
-        } else {
-          // Card is already at max quantity - do nothing
-          console.log(`Card ${selectedCard.name} is already at max quantity (${MAX_CARD_QUANTITY})`);
-        }
+      if (existingCount >= MAX_CARD_QUANTITY) {
+        // Already at max quantity - do nothing
+        console.log(`Card ${selectedCard.name} is already at max quantity (${MAX_CARD_QUANTITY})`);
       } else {
-        // New card - add it to the deck with position and quantity 1
+        // Add a new instance of this card with a new position
         const aliveCardsInDeck = playerDeck.filter(c => !c.isDead);
         const usedPositions = aliveCardsInDeck.map(c => c.position || 0);
         let nextPosition = 1;

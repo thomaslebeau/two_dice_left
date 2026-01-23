@@ -20,6 +20,7 @@ export const DeckSelectionScreen: React.FC<DeckSelectionScreenProps> = ({
     toggleCardSelection,
     isCardSelected,
     getSelectionOrder,
+    getSelectedCount,
     canStartCombat,
   } = useDeckSelection({ rewardCard, currentDeck });
 
@@ -108,6 +109,7 @@ export const DeckSelectionScreen: React.FC<DeckSelectionScreenProps> = ({
             card={card}
             isSelected={isCardSelected(card.id)}
             selectionOrder={getSelectionOrder(card.id)}
+            selectedCount={getSelectedCount(card.id)}
             onToggle={() => toggleCardSelection(card)}
           />
         ))}
@@ -130,6 +132,7 @@ interface SelectableCardProps {
   card: Card;
   isSelected: boolean;
   selectionOrder: number; // 1-5 pour l'ordre de sélection, 0 si non sélectionnée
+  selectedCount: number; // Nombre de copies sélectionnées
   onToggle: () => void;
 }
 
@@ -137,10 +140,12 @@ const SelectableCard: React.FC<SelectableCardProps> = ({
   card,
   isSelected,
   selectionOrder,
+  selectedCount,
   onToggle,
 }) => {
   const [isShaking, setIsShaking] = useState(false);
   const isDead = card.isDead === true;
+  const maxQuantity = card.quantity || 1;
 
   const cardFocus = useFocusable({
     id: `deck-card-${card.id}`,
@@ -214,10 +219,10 @@ const SelectableCard: React.FC<SelectableCardProps> = ({
         {card.rarity}
       </div>
 
-      {/* Badge de quantité */}
-      {card.quantity && card.quantity > 1 && (
+      {/* Badge de quantité - shows selected/total */}
+      {maxQuantity > 1 && (
         <div className={styles.quantityBadge}>
-          x{card.quantity}
+          {selectedCount}/{maxQuantity}
         </div>
       )}
     </div>

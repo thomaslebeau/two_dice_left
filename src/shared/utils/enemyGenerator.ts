@@ -65,7 +65,7 @@ export const generateEnemy = (combatNumber: number): EnemyCard => {
 
   return {
     ...enemyBase,
-    name: isBoss ? `👑 BOSS - ${enemyBase.name}` : enemyBase.name,
+    name: isBoss ? `BOSS - ${enemyBase.name}` : enemyBase.name,
     maxHp: Math.floor(enemyBase.maxHp * hpMultiplier),
     currentHp: Math.floor(enemyBase.maxHp * hpMultiplier),
     attackMod: enemyBase.attackMod + statBoost,

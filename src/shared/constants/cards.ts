@@ -101,10 +101,10 @@ export const CARD_DATABASE: CardBase[] = [
  * Rarity color mapping
  */
 export const RARITY_COLORS: Record<string, string> = {
-  common: '#9CA3AF',
-  uncommon: '#22C55E',
-  rare: '#3B82F6',
-  epic: '#A855F7',
+  common: '#B0A894',
+  uncommon: '#4A9E32',
+  rare: '#D4A030',
+  epic: '#A8E060',
 };
 
 /**

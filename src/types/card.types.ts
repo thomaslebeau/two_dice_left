@@ -29,11 +29,3 @@ export interface EnemyCard extends Card {
   isBoss?: boolean;
 }
 
-/**
- * Card display component props
- */
-export interface CardDisplayProps {
-  card: Card;
-  isPlayer?: boolean;
-  isDead?: boolean;
-}

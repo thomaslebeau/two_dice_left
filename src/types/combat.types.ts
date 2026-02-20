@@ -1,3 +1,5 @@
+import type { Card } from '@/types/card.types';
+
 /**
  * Dice roll results for both players
  */
@@ -25,13 +27,5 @@ export interface CombatCalculation {
  */
 export interface CombatEndResult {
   victory: boolean;
-  playerCard: import('@/types/card.types').Card;
-}
-
-/**
- * Dice display component props
- */
-export interface DiceDisplayProps {
-  results: DiceResults;
-  diceKey: number;
+  playerCard: Card;
 }

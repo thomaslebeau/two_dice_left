@@ -3,7 +3,7 @@
  */
 export const GameState = {
   MENU: 'menu',
-  DECK_SELECTION: 'deck_selection',
+  CARD_SELECTION: 'card_selection',
   COMBAT: 'combat',
   REWARD: 'reward',
   GAMEOVER: 'gameover',

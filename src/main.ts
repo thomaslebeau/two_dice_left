@@ -3,6 +3,7 @@ import { SceneManager } from '@engine/SceneManager.ts';
 import { GameStateManager } from '@engine/GameStateManager.ts';
 import type { GameStateSnapshot } from '@engine/GameStateManager.ts';
 import { InputManager } from '@/input/InputManager.ts';
+import { DatabaseManager } from '@/db/DatabaseManager.ts';
 import { GameState } from '@enums/GameState.enum';
 import { colors } from './theme.ts';
 
@@ -25,6 +26,17 @@ async function main() {
   document.body.appendChild(app.canvas);
 
   const game = new GameStateManager();
+
+  // Initialize combat logging database (non-blocking — game works without it)
+  try {
+    const dbManager = new DatabaseManager();
+    await dbManager.init();
+    game.setDatabase(dbManager);
+    console.log('[CombatLog] Database initialized');
+  } catch (err) {
+    console.warn('[CombatLog] Database init failed, logging disabled:', err);
+  }
+
   const input = new InputManager();
   const scenes = new SceneManager(app);
 

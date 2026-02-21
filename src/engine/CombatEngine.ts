@@ -1,5 +1,6 @@
 import type { Card, EnemyCard } from '@/types/card.types';
 import type { DiceResults, CombatCalculation, CombatEndResult } from '@/types/combat.types';
+import type { RoundLogEntry } from '@/db/types.ts';
 import { rollDice } from '@shared/constants/dice';
 import { calculateCombatResult, applyDamage } from '@shared/utils/combatCalculations';
 import { timings } from '@/theme.ts';
@@ -48,6 +49,9 @@ export class CombatEngine {
   private _currentPlayerCard: Card;
   private _currentEnemyCard: EnemyCard;
 
+  // --- Round log ---
+  private _roundsLog: RoundLogEntry[] = [];
+
   // --- Callbacks ---
   private onCombatEnd: CombatConfig['onCombatEnd'];
   private onCardUpdate: CombatConfig['onCardUpdate'];
@@ -86,6 +90,8 @@ export class CombatEngine {
   get combatFinished(): boolean { return this._combatFinished; }
   get currentPlayerCard(): Card { return this._currentPlayerCard; }
   get currentEnemyCard(): EnemyCard { return this._currentEnemyCard; }
+
+  get roundsLog(): readonly RoundLogEntry[] { return this._roundsLog; }
 
   get combatResult(): CombatCalculation | null {
     if (!this._showResults) return null;
@@ -161,6 +167,23 @@ export class CombatEngine {
       this._currentEnemyCard = updatedEnemy as EnemyCard;
       this._roundResolved = true;
 
+      // Log round data
+      this._roundsLog.push({
+        roundNumber: this._roundNumber,
+        playerAttackRoll: this._diceResults.playerAttack,
+        playerDefenseRoll: this._diceResults.playerDefense,
+        enemyAttackRoll: this._diceResults.enemyAttack,
+        enemyDefenseRoll: this._diceResults.enemyDefense,
+        playerAttackTotal: calculation.playerAttack,
+        playerDefenseTotal: calculation.playerDefense,
+        enemyAttackTotal: calculation.enemyAttack,
+        enemyDefenseTotal: calculation.enemyDefense,
+        damageToPlayer: calculation.damageToPlayer,
+        damageToEnemy: calculation.damageToEnemy,
+        playerHpAfter: updatedPlayer.currentHp,
+        enemyHpAfter: updatedEnemy.currentHp,
+      });
+
       // Notify parent of HP changes
       this.onCardUpdate?.(updatedPlayer, updatedEnemy as EnemyCard);
 
@@ -181,7 +204,7 @@ export class CombatEngine {
    */
   private scheduleCombatEnd(victory: boolean, playerCard: Card): void {
     const t = setTimeout(() => {
-      this.onCombatEnd({ victory, playerCard });
+      this.onCombatEnd({ victory, playerCard, roundsLog: this._roundsLog });
     }, timings.combatEndDelay);
     this.timers.push(t);
   }

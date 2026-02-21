@@ -1,4 +1,5 @@
 import type { Card } from '@/types/card.types';
+import type { RoundLogEntry } from '@/db/types.ts';
 
 /**
  * Dice roll results for both players
@@ -28,4 +29,5 @@ export interface CombatCalculation {
 export interface CombatEndResult {
   victory: boolean;
   playerCard: Card;
+  roundsLog: readonly RoundLogEntry[];
 }

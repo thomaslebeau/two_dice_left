@@ -4,9 +4,10 @@ import type { GameStateManager } from '@engine/GameStateManager.ts';
 import type { InputManager } from '@/input/InputManager.ts';
 import type { Card } from '@/types/card.types';
 import { generateRewardCards } from '@shared/utils/rewardGenerator';
-import { CardSprite, CARD_WIDTH, CARD_HEIGHT } from '@/sprites/CardSprite.ts';
+import { CardSprite } from '@/sprites/CardSprite.ts';
 import { ButtonSprite } from '@/sprites/ButtonSprite.ts';
 import { colors, fonts, spacing } from '@/theme.ts';
+import { getLayout } from '@/layout.ts';
 
 export interface RewardData {
   combatNumber: number;
@@ -132,22 +133,33 @@ export function createRewardScene(game: GameStateManager, input: InputManager): 
   }
 
   function layout() {
-    titleText.position.set(sw / 2, spacing.xl);
-    subText.position.set(sw / 2, spacing.xl + 55);
-    instructionText.position.set(sw / 2, spacing.xl + 80);
+    const rl = getLayout(sw, sh);
 
-    // Cards
-    const gap = spacing.lg;
-    const totalW = rewardSprites.length * CARD_WIDTH + (rewardSprites.length - 1) * gap;
+    titleText.style.fontSize = fonts.sizes.h1 * rl.fontScale;
+    subText.style.fontSize = fonts.sizes.body * rl.fontScale;
+    instructionText.style.fontSize = fonts.sizes.small * rl.fontScale;
+
+    titleText.position.set(sw / 2, spacing.xl);
+    subText.position.set(sw / 2, spacing.xl + 55 * rl.fontScale);
+    instructionText.position.set(sw / 2, spacing.xl + 80 * rl.fontScale);
+
+    // Cards — scaled
+    const gap = rl.isMobile ? spacing.xs : spacing.lg;
+
+    for (const cs of rewardSprites) {
+      cs.scale.set(rl.cardScale);
+    }
+
+    const totalW = rewardSprites.length * rl.cardW + (rewardSprites.length - 1) * gap;
     const startX = (sw - totalW) / 2;
-    const cardY = sh / 2 - CARD_HEIGHT / 2;
+    const cardY = sh / 2 - rl.cardH / 2;
 
     for (let i = 0; i < rewardSprites.length; i++) {
-      rewardSprites[i].position.set(startX + i * (CARD_WIDTH + gap), cardY);
+      rewardSprites[i].position.set(startX + i * (rl.cardW + gap), cardY);
     }
 
     // Buttons
-    const btnY = sh / 2 + CARD_HEIGHT / 2 + spacing.xl;
+    const btnY = cardY + rl.cardH + spacing.xl;
     const btnGap = spacing.lg;
     const totalBtnW = pickBtn.buttonWidth + skipBtn.buttonWidth + btnGap;
     pickBtn.position.set(sw / 2 - totalBtnW / 2, btnY);

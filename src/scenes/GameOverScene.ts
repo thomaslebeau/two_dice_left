@@ -4,6 +4,7 @@ import type { GameStateManager } from '@engine/GameStateManager.ts';
 import type { InputManager } from '@/input/InputManager.ts';
 import { ButtonSprite } from '@/sprites/ButtonSprite.ts';
 import { colors, fonts, spacing } from '@/theme.ts';
+import { getLayout } from '@/layout.ts';
 
 export interface GameOverData {
   victory: boolean;
@@ -85,6 +86,11 @@ export function createGameOverScene(game: GameStateManager, input: InputManager)
   };
 
   function layout() {
+    const { fontScale } = getLayout(sw, sh);
+    titleText.style.fontSize = fonts.sizes.h1 * fontScale;
+    descText.style.fontSize = fonts.sizes.h3 * fontScale;
+    descText.style.wordWrapWidth = Math.min(600, sw - 40);
+
     titleText.position.set(sw / 2, sh / 2 - 60);
     descText.position.set(sw / 2, sh / 2);
     menuBtn.position.set(sw / 2 - menuBtn.buttonWidth / 2, sh / 2 + spacing.xxl);

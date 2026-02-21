@@ -4,9 +4,10 @@ import type { GameStateManager } from '@engine/GameStateManager.ts';
 import type { InputManager } from '@/input/InputManager.ts';
 import { CardSelector } from '@engine/CardSelector.ts';
 import type { Card } from '@/types/card.types';
-import { CardSprite, CARD_WIDTH, CARD_HEIGHT } from '@/sprites/CardSprite.ts';
+import { CardSprite } from '@/sprites/CardSprite.ts';
 import { ButtonSprite } from '@/sprites/ButtonSprite.ts';
 import { colors, fonts, spacing } from '@/theme.ts';
+import { getLayout } from '@/layout.ts';
 
 export interface CardSelectionData {
   collection: Card[];
@@ -136,22 +137,59 @@ export function createCardSelectionScene(game: GameStateManager, input: InputMan
   }
 
   function layoutCards() {
-    const gap = spacing.md;
-    const totalW = cardSprites.length * CARD_WIDTH + (cardSprites.length - 1) * gap;
-    const startX = (sw - totalW) / 2;
-    const startY = sh / 2 - CARD_HEIGHT / 2 + 10;
+    const rl = getLayout(sw, sh);
+    const gap = rl.isMobile ? spacing.xs : spacing.md;
 
-    for (let i = 0; i < cardSprites.length; i++) {
-      cardSprites[i].position.set(startX + i * (CARD_WIDTH + gap), startY);
+    for (const cs of cardSprites) {
+      cs.scale.set(rl.cardScale);
+    }
+
+    if (rl.isMobile && cardSprites.length > 3) {
+      // Wrap into 2 rows: top row gets ceil(n/2), bottom row gets the rest
+      const topCount = Math.ceil(cardSprites.length / 2);
+      const bottomCount = cardSprites.length - topCount;
+      const rowGap = gap;
+
+      // Top row
+      const topW = topCount * rl.cardW + (topCount - 1) * gap;
+      const topStartX = (sw - topW) / 2;
+      const topY = sh / 2 - rl.cardH - rowGap / 2;
+
+      for (let i = 0; i < topCount; i++) {
+        cardSprites[i].position.set(topStartX + i * (rl.cardW + gap), topY);
+      }
+
+      // Bottom row
+      const botW = bottomCount * rl.cardW + (bottomCount - 1) * gap;
+      const botStartX = (sw - botW) / 2;
+      const botY = sh / 2 + rowGap / 2;
+
+      for (let i = 0; i < bottomCount; i++) {
+        cardSprites[topCount + i].position.set(botStartX + i * (rl.cardW + gap), botY);
+      }
+    } else {
+      // Single row
+      const totalW = cardSprites.length * rl.cardW + (cardSprites.length - 1) * gap;
+      const startX = (sw - totalW) / 2;
+      const startY = sh / 2 - rl.cardH / 2 + 10;
+
+      for (let i = 0; i < cardSprites.length; i++) {
+        cardSprites[i].position.set(startX + i * (rl.cardW + gap), startY);
+      }
     }
   }
 
   function layout() {
+    const { fontScale } = getLayout(sw, sh);
+
+    titleText.style.fontSize = fonts.sizes.h2 * fontScale;
+    instructionText.style.fontSize = fonts.sizes.small * fontScale;
+
     titleText.position.set(sw / 2, spacing.lg);
     backBtn.position.set(spacing.lg, spacing.lg);
     fightBtn.position.set(sw - spacing.lg - fightBtn.buttonWidth, spacing.lg);
 
-    instructionText.position.set(sw / 2, spacing.lg + 40);
+    instructionText.position.set(sw / 2, spacing.lg + 40 * fontScale);
 
     layoutCards();
   }

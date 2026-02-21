@@ -5,6 +5,7 @@ import type { InputManager } from '@/input/InputManager.ts';
 import { ButtonSprite } from '@/sprites/ButtonSprite.ts';
 import { VineBackground } from '@/sprites/VineBackground.ts';
 import { colors, fonts } from '@/theme.ts';
+import { getLayout } from '@/layout.ts';
 
 /**
  * Main menu scene: vine background, title, subtitle, and start button.
@@ -56,8 +57,12 @@ export function createMainMenuScene(game: GameStateManager, input: InputManager)
   root.addChild(input.focusIndicator);
 
   function layout() {
-    title.position.set(sw / 2, sh / 2 - 70);
-    subtitle.position.set(sw / 2, sh / 2 - 20);
+    const { fontScale } = getLayout(sw, sh);
+    title.style.fontSize = fonts.sizes.h1 * fontScale;
+    subtitle.style.fontSize = fonts.sizes.body * fontScale;
+
+    title.position.set(sw / 2, sh / 2 - 70 * fontScale);
+    subtitle.position.set(sw / 2, sh / 2 - 20 * fontScale);
     startBtn.position.set(sw / 2 - startBtn.buttonWidth / 2, sh / 2 + 20);
   }
 

@@ -5,10 +5,11 @@ import type { InputManager } from '@/input/InputManager.ts';
 import { CombatEngine } from '@engine/CombatEngine.ts';
 import type { CombatSnapshot } from '@engine/CombatEngine.ts';
 import type { Card, EnemyCard } from '@/types/card.types';
-import { CardSprite, CARD_WIDTH, CARD_HEIGHT } from '@/sprites/CardSprite.ts';
+import { CardSprite } from '@/sprites/CardSprite.ts';
 import { DiceSprite, DICE_SIZE } from '@/sprites/DiceSprite.ts';
 import { ButtonSprite } from '@/sprites/ButtonSprite.ts';
 import { colors, fonts, spacing } from '@/theme.ts';
+import { getLayout } from '@/layout.ts';
 
 export interface CombatData {
   playerCard: Card;
@@ -290,39 +291,84 @@ export function createCombatScene(game: GameStateManager, input: InputManager): 
   // --- Layout ---
 
   function layout() {
+    const rl = getLayout(sw, sh);
     const centerX = sw / 2;
+
+    headerText.style.fontSize = fonts.sizes.h3 * rl.fontScale;
+    statusText.style.fontSize = fonts.sizes.body * rl.fontScale;
+    vsText.style.fontSize = fonts.sizes.h1 * rl.fontScale;
 
     headerText.position.set(centerX, spacing.sm);
 
-    // Card positions: enemy top, player bottom, VS in middle
-    const cardAreaTop = spacing.sm + 40;
-    const cardAreaBottom = sh - CARD_HEIGHT - spacing.lg;
-    const midY = (cardAreaTop + CARD_HEIGHT + cardAreaBottom) / 2;
+    // Scale cards and dice
+    if (enemySprite) enemySprite.scale.set(rl.cardScale);
+    if (playerSprite) playerSprite.scale.set(rl.cardScale);
+    dicePanel.scale.set(rl.diceScale);
 
-    if (enemySprite) {
-      enemySprite.position.set(centerX - CARD_WIDTH / 2, cardAreaTop);
+    if (rl.isMobile) {
+      // Mobile: everything stacked vertically, centered
+      const topY = spacing.sm + 30 * rl.fontScale;
+
+      if (enemySprite) {
+        enemySprite.position.set(centerX - rl.cardW / 2, topY);
+      }
+
+      const vsY = topY + rl.cardH + spacing.xs;
+      vsText.position.set(centerX, vsY + 10);
+
+      const playerY = vsY + 24;
+      if (playerSprite) {
+        playerSprite.position.set(centerX - rl.cardW / 2, playerY);
+      }
+
+      const belowCards = playerY + rl.cardH + spacing.sm;
+
+      // Dice panel centered below cards
+      const scaledPanelW = dicePanel.panelWidth * rl.diceScale;
+      dicePanel.position.set(centerX - scaledPanelW / 2, belowCards);
+
+      const scaledPanelH = dicePanel.panelHeight * rl.diceScale;
+
+      // Results below dice
+      resultsPanel.position.set(0, 0);
+      resultsPanel.layoutAt(centerX, belowCards + scaledPanelH + spacing.sm);
+
+      // Status + button below results
+      statusText.position.set(centerX, belowCards + scaledPanelH + spacing.sm + 60);
+      nextRoundBtn.position.set(centerX - nextRoundBtn.buttonWidth / 2, belowCards + scaledPanelH + spacing.sm + 85);
+    } else {
+      // Desktop: original side-by-side layout
+      const cardAreaTop = spacing.sm + 40;
+      const cardAreaBottom = sh - rl.cardH - spacing.lg;
+      const midY = (cardAreaTop + rl.cardH + cardAreaBottom) / 2;
+
+      if (enemySprite) {
+        enemySprite.position.set(centerX - rl.cardW / 2, cardAreaTop);
+      }
+
+      if (playerSprite) {
+        playerSprite.position.set(centerX - rl.cardW / 2, cardAreaBottom);
+      }
+
+      vsText.position.set(centerX, midY);
+
+      // Dice panel to the left of center
+      const scaledPanelW = dicePanel.panelWidth * rl.diceScale;
+      const diceX = centerX - scaledPanelW - spacing.xl;
+      const scaledPanelH = dicePanel.panelHeight * rl.diceScale;
+      dicePanel.position.set(Math.max(spacing.md, diceX), midY - scaledPanelH / 2);
+
+      // Results panel to the right of center
+      const resultsX = centerX + spacing.xl;
+      resultsPanel.position.set(0, 0);
+      resultsPanel.layoutAt(Math.min(sw - spacing.md, resultsX + 80), midY - 40);
+
+      // Status text below VS
+      statusText.position.set(centerX, midY + 30);
+
+      // Next round button below status
+      nextRoundBtn.position.set(centerX - nextRoundBtn.buttonWidth / 2, midY + 55);
     }
-
-    if (playerSprite) {
-      playerSprite.position.set(centerX - CARD_WIDTH / 2, cardAreaBottom);
-    }
-
-    vsText.position.set(centerX, midY);
-
-    // Dice panel to the left of center
-    const diceX = centerX - dicePanel.panelWidth - spacing.xl;
-    dicePanel.position.set(Math.max(spacing.md, diceX), midY - dicePanel.panelHeight / 2);
-
-    // Results panel to the right of center
-    const resultsX = centerX + spacing.xl;
-    resultsPanel.position.set(0, 0);
-    resultsPanel.layoutAt(Math.min(sw - spacing.md, resultsX + 80), midY - 40);
-
-    // Status text below VS
-    statusText.position.set(centerX, midY + 30);
-
-    // Next round button below status
-    nextRoundBtn.position.set(centerX - nextRoundBtn.buttonWidth / 2, midY + 55);
   }
 
   // --- Scene lifecycle ---

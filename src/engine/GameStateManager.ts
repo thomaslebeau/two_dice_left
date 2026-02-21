@@ -89,7 +89,7 @@ export class GameStateManager {
    * MENU -> CARD_SELECTION
    */
   startNewRun(): void {
-    this._collection = CARD_DATABASE.slice(0, 5).map((c) => ({
+    this._collection = CARD_DATABASE.slice(0, 3).map((c) => ({
       ...c,
       currentHp: c.maxHp,
     }));

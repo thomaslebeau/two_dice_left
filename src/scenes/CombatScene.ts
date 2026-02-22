@@ -867,8 +867,8 @@ export function createCombatScene(game: GameStateManager, input: InputManager): 
       const slotsY = y + dieScaled + gap;
       allocPanel.layoutAt(centerX, y, mobileDiceScale, slotsY);
 
-      // Confirm button near bottom
-      const confirmY = sh * 0.90;
+      // Confirm button near bottom (above safe area)
+      const confirmY = sh * 0.82;
       allocPanel.confirmBtn.position.set(
         centerX - allocPanel.confirmBtn.buttonWidth / 2,
         confirmY,

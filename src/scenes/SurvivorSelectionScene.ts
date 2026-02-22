@@ -211,16 +211,15 @@ export function createSurvivorSelectionScene(game: GameStateManager, input: Inpu
     titleText.style.fontSize = rl.fontSize.h2;
     instructionText.style.fontSize = rl.fontSize.small;
 
-    // Buttons: fixed top corners
+    // Buttons: top row
     backBtn.position.set(16, 16);
     fightBtn.position.set(sw - 16 - fightBtn.buttonWidth, 16);
 
-    // Title centered below button row
-    const titleY = sh * 0.05;
-    titleText.position.set(sw / 2, titleY);
+    // Title below buttons
+    titleText.position.set(sw / 2, 70);
 
     // Instruction below title
-    instructionText.position.set(sw / 2, titleY + titleText.height + 8);
+    instructionText.position.set(sw / 2, 70 + titleText.height + 8);
 
     layoutCards();
   }

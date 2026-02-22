@@ -4,7 +4,7 @@ import type { GameStateManager } from '@engine/GameStateManager.ts';
 import type { InputManager } from '@/input/InputManager.ts';
 import type { Card } from '@/types/card.types';
 import { generateRewardCards } from '@shared/utils/rewardGenerator';
-import { CardSprite } from '@/sprites/CardSprite.ts';
+import { CardSprite, CARD_WIDTH } from '@/sprites/CardSprite.ts';
 import { ButtonSprite } from '@/sprites/ButtonSprite.ts';
 import { colors, fonts, spacing } from '@/theme.ts';
 import { getLayout } from '@/layout.ts';
@@ -134,32 +134,45 @@ export function createRewardScene(game: GameStateManager, input: InputManager): 
 
   function layout() {
     const rl = getLayout(sw, sh);
+    const n = rewardSprites.length;
 
-    titleText.style.fontSize = fonts.sizes.h1 * rl.fontScale;
-    subText.style.fontSize = fonts.sizes.body * rl.fontScale;
-    instructionText.style.fontSize = fonts.sizes.small * rl.fontScale;
+    titleText.style.fontSize = rl.fontSize.h1;
+    subText.style.fontSize = rl.fontSize.body;
+    instructionText.style.fontSize = rl.fontSize.small;
 
-    titleText.position.set(sw / 2, spacing.xl);
-    subText.position.set(sw / 2, spacing.xl + 55 * rl.fontScale);
-    instructionText.position.set(sw / 2, spacing.xl + 80 * rl.fontScale);
+    // Header at top
+    const titleY = sh * 0.04;
+    titleText.position.set(sw / 2, titleY);
+    subText.position.set(sw / 2, titleY + rl.fontSize.h1 + spacing.xs);
+    instructionText.position.set(sw / 2, titleY + rl.fontSize.h1 + rl.fontSize.body + spacing.sm);
 
-    // Cards — scaled
+    // Cards — scaled to fit, allow bigger on mobile
     const gap = rl.isMobile ? spacing.xs : spacing.lg;
+    const margin = spacing.lg * 2;
+    const fitScale = n > 0 ? (sw - margin - (n - 1) * gap) / (n * CARD_WIDTH) : rl.cardScale;
+    const maxScale = rl.isMobile ? 1.5 : 1.0;
+    const cardScale = Math.min(Math.max(0.5, fitScale), maxScale);
+    const cardW = CARD_WIDTH * cardScale;
+    const CARD_HEIGHT = 230;
+    const cardH = CARD_HEIGHT * cardScale;
 
     for (const cs of rewardSprites) {
-      cs.scale.set(rl.cardScale);
+      cs.scale.set(cardScale);
     }
 
-    const totalW = rewardSprites.length * rl.cardW + (rewardSprites.length - 1) * gap;
+    const totalW = n * cardW + (n - 1) * gap;
     const startX = (sw - totalW) / 2;
-    const cardY = sh / 2 - rl.cardH / 2;
+    // Center cards in middle zone
+    const topReserved = sh * 0.18;
+    const bottomReserved = sh * 0.15;
+    const cardY = topReserved + (sh - topReserved - bottomReserved - cardH) / 2;
 
-    for (let i = 0; i < rewardSprites.length; i++) {
-      rewardSprites[i].position.set(startX + i * (rl.cardW + gap), cardY);
+    for (let i = 0; i < n; i++) {
+      rewardSprites[i].position.set(startX + i * (cardW + gap), cardY);
     }
 
-    // Buttons
-    const btnY = cardY + rl.cardH + spacing.xl;
+    // Buttons below cards
+    const btnY = cardY + cardH + spacing.lg;
     const btnGap = spacing.lg;
     const totalBtnW = pickBtn.buttonWidth + skipBtn.buttonWidth + btnGap;
     pickBtn.position.set(sw / 2 - totalBtnW / 2, btnY);

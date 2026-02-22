@@ -8,7 +8,7 @@ import type { AllocationResult } from '@/core/DiceAllocator.ts';
 import type { Card, EnemyCard } from '@/types/card.types';
 import type { CombatCalculation } from '@/types/combat.types.ts';
 import type { DiceModifier } from '@/types/diceModifier.types';
-import { CardSprite } from '@/sprites/CardSprite.ts';
+import { CardSprite, CARD_WIDTH, CARD_HEIGHT_COMPACT } from '@/sprites/CardSprite.ts';
 import { DiceSprite, DICE_SIZE } from '@/sprites/DiceSprite.ts';
 import { ButtonSprite } from '@/sprites/ButtonSprite.ts';
 import { colors, fonts, spacing } from '@/theme.ts';
@@ -251,9 +251,9 @@ class AllocationPanel extends Container {
 
   // --- Layout (called externally when screen resizes) ---
 
-  layoutAt(centerX: number, topY: number, scale: number): void {
+  layoutAt(centerX: number, topY: number, scale: number, slotsTopY?: number): void {
     const gap = spacing.lg;
-    const slotGap = spacing.xl * 2;
+    const slotGap = slotsTopY !== undefined ? spacing.lg : spacing.xl * 2;
     const dieScaled = DICE_SIZE * scale;
     const slotScaled = SLOT_SIZE * scale;
 
@@ -262,8 +262,8 @@ class AllocationPanel extends Container {
     this.poolPositions[0] = { x: centerX - poolTotalW / 2, y: topY };
     this.poolPositions[1] = { x: centerX - poolTotalW / 2 + dieScaled + gap, y: topY };
 
-    // Slots below pool
-    const slotY = topY + dieScaled + gap + 20 * scale;
+    // Slots below pool (or at explicit Y when provided)
+    const slotY = slotsTopY ?? (topY + dieScaled + gap + 20 * scale);
     const slotsTotalW = slotScaled * 2 + slotGap;
     this.atkSlotPos = { x: centerX - slotsTotalW / 2, y: slotY };
     this.defSlotPos = { x: centerX - slotsTotalW / 2 + slotScaled + slotGap, y: slotY };
@@ -277,15 +277,15 @@ class AllocationPanel extends Container {
     this.drawSlot(this.defSlotBg, this.defSlotPos.x, this.defSlotPos.y, slotScaled, this._defDieIdx !== null);
 
     // Slot labels above
-    this.atkLabel.style.fontSize = fonts.sizes.body * scale;
-    this.defLabel.style.fontSize = fonts.sizes.body * scale;
+    this.atkLabel.style.fontSize = Math.max(16, fonts.sizes.body * scale);
+    this.defLabel.style.fontSize = Math.max(16, fonts.sizes.body * scale);
     this.atkLabel.position.set(this.atkSlotPos.x + slotScaled / 2, this.atkSlotPos.y - 22 * scale);
     this.defLabel.position.set(this.defSlotPos.x + slotScaled / 2, this.defSlotPos.y - 22 * scale);
 
     // Preview text below slots
     const previewY = slotY + slotScaled + spacing.sm;
-    this.previewDealText.style.fontSize = fonts.sizes.small * scale;
-    this.previewTakeText.style.fontSize = fonts.sizes.small * scale;
+    this.previewDealText.style.fontSize = Math.max(16, fonts.sizes.small * scale);
+    this.previewTakeText.style.fontSize = Math.max(16, fonts.sizes.small * scale);
     this.previewDealText.position.set(centerX, previewY);
     this.previewTakeText.position.set(centerX, previewY + 16 * scale);
 
@@ -439,16 +439,16 @@ class EnemyDicePanel extends Container {
   constructor() {
     super();
 
-    const labelStyle = { fontFamily: fonts.body, fontSize: fonts.sizes.small, fill: colors.text };
+    const labelStyle = { fontFamily: fonts.heading, fontSize: fonts.sizes.body, fontWeight: 'bold' as const, fill: colors.enemyAccent };
 
-    this.atkLabel = new Text({ text: 'ATK', style: { ...labelStyle, fill: colors.enemyAccent } });
+    this.atkLabel = new Text({ text: 'ATK', style: labelStyle });
     this.atkLabel.anchor.set(0.5, 0);
     this.addChild(this.atkLabel);
 
     this.atkDice = new DiceSprite(false);
     this.addChild(this.atkDice);
 
-    this.defLabel = new Text({ text: 'DEF', style: { ...labelStyle, fill: colors.enemyAccent } });
+    this.defLabel = new Text({ text: 'DEF', style: labelStyle });
     this.defLabel.anchor.set(0.5, 0);
     this.addChild(this.defLabel);
 
@@ -475,14 +475,15 @@ class EnemyDicePanel extends Container {
     this.atkDice.scale.set(scale);
     this.defDice.scale.set(scale);
 
-    this.atkLabel.style.fontSize = fonts.sizes.small * scale;
-    this.defLabel.style.fontSize = fonts.sizes.small * scale;
+    this.atkLabel.style.fontSize = Math.max(16, fonts.sizes.body * scale);
+    this.defLabel.style.fontSize = Math.max(16, fonts.sizes.body * scale);
 
+    const labelOffset = Math.max(20, 18 * scale);
     this.atkLabel.position.set(startX + dieScaled / 2, y);
-    this.atkDice.position.set(startX, y + 16 * scale);
+    this.atkDice.position.set(startX, y + labelOffset);
 
     this.defLabel.position.set(startX + dieScaled + gap + dieScaled / 2, y);
-    this.defDice.position.set(startX + dieScaled + gap, y + 16 * scale);
+    this.defDice.position.set(startX + dieScaled + gap, y + labelOffset);
   }
 }
 
@@ -518,10 +519,15 @@ class ResultsPanel extends Container {
     this.addChild(this.finishText);
   }
 
-  layoutAt(centerX: number, startY: number): void {
+  layoutAt(centerX: number, startY: number, scale = 1): void {
+    const lineGap = 24 * scale;
+    const finishGap = 40 * scale;
+    this.playerDmgText.style.fontSize = Math.max(16, fonts.sizes.body * scale);
+    this.enemyDmgText.style.fontSize = Math.max(16, fonts.sizes.body * scale);
+    this.finishText.style.fontSize = Math.max(16, fonts.sizes.h3 * scale);
     this.playerDmgText.position.set(centerX, startY);
-    this.enemyDmgText.position.set(centerX, startY + 24);
-    this.finishText.position.set(centerX, startY + 56);
+    this.enemyDmgText.position.set(centerX, startY + lineGap);
+    this.finishText.position.set(centerX, startY + lineGap + finishGap);
   }
 
   update(combatResult: CombatCalculation, finished: boolean, enemyHp: number): void {
@@ -805,51 +811,84 @@ export function createCombatScene(game: GameStateManager, input: InputManager): 
     const rl = getLayout(sw, sh);
     const centerX = sw / 2;
 
-    headerText.style.fontSize = fonts.sizes.h3 * rl.fontScale;
-    statusText.style.fontSize = fonts.sizes.body * rl.fontScale;
-    vsText.style.fontSize = fonts.sizes.h1 * rl.fontScale;
+    // All text: minimum 16px
+    headerText.style.fontSize = Math.max(16, rl.fontSize.h3);
+    statusText.style.fontSize = Math.max(16, rl.fontSize.body);
+    vsText.style.fontSize = Math.max(16, rl.fontSize.h1);
 
-    headerText.position.set(centerX, spacing.sm);
-
-    // Scale cards
-    if (enemySprite) enemySprite.scale.set(rl.cardScale);
-    if (playerSprite) playerSprite.scale.set(rl.cardScale);
+    // Combat title
+    headerText.position.set(centerX, sh * 0.03);
 
     if (rl.isMobile) {
-      // Mobile: stacked vertically
-      const topY = spacing.sm + 30 * rl.fontScale;
+      // Mobile: compact cards, enemy dice below card, no VS text
+      const mobileCardScale = Math.min(1.2, (sw * 0.5) / CARD_WIDTH);
+      if (enemySprite) { enemySprite.scale.set(mobileCardScale); enemySprite.setCompact(true); }
+      if (playerSprite) { playerSprite.scale.set(mobileCardScale); playerSprite.setCompact(true); }
+      const mCardW = CARD_WIDTH * mobileCardScale;
+      const mCardH = CARD_HEIGHT_COMPACT * mobileCardScale;
 
+      // Same dice scale for enemy and player
+      const mobileDiceScale = Math.max(44, sw * 0.12) / DICE_SIZE;
+      const dieScaled = DICE_SIZE * mobileDiceScale;
+      const labelOffset = Math.max(20, 18 * mobileDiceScale);
+
+      // Hide VS on mobile
+      vsText.visible = false;
+
+      // --- Compute vertical positions top-down ---
+      const gap = spacing.sm;
+      let y = sh * 0.02;
+
+      // Title
+      headerText.position.set(centerX, y);
+      y += Math.max(16, rl.fontSize.h3) + gap;
+
+      // Enemy card centered
       if (enemySprite) {
-        enemySprite.position.set(centerX - rl.cardW / 2, topY);
+        enemySprite.position.set(centerX - mCardW / 2, y);
       }
+      y += mCardH + gap;
 
-      const vsY = topY + rl.cardH + spacing.xs;
-      vsText.position.set(centerX, vsY + 10);
+      // Enemy dice — centered below enemy card, same scale as player
+      enemyDicePanel.layoutAt(centerX, y, mobileDiceScale);
+      y += labelOffset + dieScaled + gap;
 
-      const playerY = vsY + 24;
+      // Player card
       if (playerSprite) {
-        playerSprite.position.set(centerX - rl.cardW / 2, playerY);
+        playerSprite.position.set(centerX - mCardW / 2, y);
       }
+      y += mCardH + gap;
 
-      const belowCards = playerY + rl.cardH + spacing.sm;
+      // Status text ("Assign your dice!")
+      statusText.position.set(centerX, y);
+      y += Math.max(16, rl.fontSize.body) + gap;
 
-      // Enemy dice to the right of enemy card
-      enemyDicePanel.layoutAt(centerX, topY - 10, rl.diceScale * 0.7);
+      // Allocation panel: dice pool, then slots below
+      const slotsY = y + dieScaled + gap;
+      allocPanel.layoutAt(centerX, y, mobileDiceScale, slotsY);
 
-      // Allocation panel below cards
-      allocPanel.layoutAt(centerX, belowCards, rl.diceScale);
+      // Confirm button near bottom
+      const confirmY = sh * 0.90;
+      allocPanel.confirmBtn.position.set(
+        centerX - allocPanel.confirmBtn.buttonWidth / 2,
+        confirmY,
+      );
 
-      // Results panel
+      // Results panel (same area as alloc panel when visible)
       resultsPanel.position.set(0, 0);
-      resultsPanel.layoutAt(centerX, belowCards);
+      resultsPanel.layoutAt(centerX, y, mobileDiceScale);
 
-      // Status + next round
-      statusText.position.set(centerX, belowCards - 20);
-      nextRoundBtn.position.set(centerX - nextRoundBtn.buttonWidth / 2, belowCards + 80);
+      // Next round button
+      nextRoundBtn.position.set(centerX - nextRoundBtn.buttonWidth / 2, confirmY);
     } else {
-      // Desktop layout
-      const cardAreaTop = spacing.sm + 40;
-      const cardAreaBottom = sh - rl.cardH - spacing.lg;
+      // Desktop layout — full cards, dice panels to sides
+      if (enemySprite) { enemySprite.scale.set(rl.cardScale); enemySprite.setCompact(false); }
+      if (playerSprite) { playerSprite.scale.set(rl.cardScale); playerSprite.setCompact(false); }
+      vsText.visible = true;
+      vsText.alpha = 1;
+
+      const cardAreaTop = sh * 0.08;
+      const cardAreaBottom = sh - rl.cardH - sh * 0.05;
       const midY = (cardAreaTop + rl.cardH + cardAreaBottom) / 2;
 
       if (enemySprite) {
@@ -873,13 +912,13 @@ export function createCombatScene(game: GameStateManager, input: InputManager): 
       // Results panel — to the right of center
       const resultsX = centerX + spacing.xl;
       resultsPanel.position.set(0, 0);
-      resultsPanel.layoutAt(Math.min(sw - spacing.md, resultsX + 80), midY - 40);
+      resultsPanel.layoutAt(Math.min(sw - spacing.md, resultsX + 80), midY - 40, rl.fontScale);
 
       // Status text below VS
-      statusText.position.set(centerX, midY + 30);
+      statusText.position.set(centerX, midY + rl.fontSize.h1 * 0.6);
 
       // Next round button below status
-      nextRoundBtn.position.set(centerX - nextRoundBtn.buttonWidth / 2, midY + 55);
+      nextRoundBtn.position.set(centerX - nextRoundBtn.buttonWidth / 2, midY + rl.fontSize.h1 * 0.6 + rl.fontSize.body + spacing.sm);
     }
   }
 

@@ -303,8 +303,7 @@ export function createEventScene(game: GameStateManager, input: InputManager): S
   function buildChoices(event: GameEvent): void {
     clearChoices();
     const accent = CATEGORY_COLORS[event.category] ?? colors.focus;
-    const { fontScale } = getLayout(sw, sh);
-    const panelW = Math.min(PANEL_WIDTH, sw - spacing.xl * 2);
+    const panelW = Math.min(PANEL_WIDTH, sw * 0.85);
 
     event.choices.forEach((choice, i) => {
       const panel = new ChoicePanel(choice, accent);
@@ -320,7 +319,7 @@ export function createEventScene(game: GameStateManager, input: InputManager): S
       });
     });
 
-    layoutChoices(fontScale);
+    layoutChoices();
   }
 
   function handleChoice(index: number): void {
@@ -370,37 +369,38 @@ export function createEventScene(game: GameStateManager, input: InputManager): S
 
   // --- Layout ---
 
-  function layoutChoices(fontScale: number): void {
+  function layoutChoices(): void {
     let yOff = 0;
     for (const p of choicePanels) {
       const px = (sw - p.panelWidth) / 2;
       p.position.set(px, yOff);
       yOff += p.panelHeight + spacing.sm;
     }
-    // Center the choices container vertically
+    // Center the choices container vertically in available area
     const totalH = yOff - spacing.sm;
-    const topArea = sh * 0.30 * fontScale; // space used by title + flavor
-    const availH = sh - topArea - 60; // 60 for bottom HUD
+    const topArea = sh * 0.18;
+    const bottomArea = sh * 0.06;
+    const availH = sh - topArea - bottomArea;
     const startY = topArea + Math.max(0, (availH - totalH) / 2);
     choicesContainer.position.set(0, startY);
   }
 
   function layoutAll(): void {
-    const { fontScale } = getLayout(sw, sh);
+    const rl = getLayout(sw, sh);
     const cx = sw / 2;
 
-    categoryText.style.fontSize = fonts.sizes.h2 * fontScale;
-    flavorText.style.fontSize = fonts.sizes.body * fontScale;
-    hudText.style.fontSize = fonts.sizes.small * fontScale;
-    flavorText.style.wordWrapWidth = Math.min(500, sw - 40);
+    categoryText.style.fontSize = Math.max(16, rl.fontSize.h2);
+    flavorText.style.fontSize = Math.max(16, rl.fontSize.body);
+    hudText.style.fontSize = Math.max(16, rl.fontSize.small);
+    flavorText.style.wordWrapWidth = Math.min(500, sw * 0.85);
 
-    categoryText.position.set(cx, spacing.xl * fontScale);
-    flavorText.position.set(cx, spacing.xl * fontScale + categoryText.height + spacing.sm);
+    categoryText.position.set(cx, sh * 0.05);
+    flavorText.position.set(cx, sh * 0.05 + rl.fontSize.h2 + spacing.sm);
 
-    hudText.position.set(cx, sh - 30 * fontScale);
+    hudText.position.set(cx, sh - sh * 0.05);
 
-    resultText.style.fontSize = fonts.sizes.h3 * fontScale;
-    resultText.style.wordWrapWidth = Math.min(400, sw - 40);
+    resultText.style.fontSize = Math.max(16, rl.fontSize.h3);
+    resultText.style.wordWrapWidth = Math.min(400, sw * 0.85);
     // Position result text and continue button below choices
     if (resultText.visible) {
       const choicesBottom = choicesContainer.y + choicesContainer.height;
@@ -412,7 +412,7 @@ export function createEventScene(game: GameStateManager, input: InputManager): S
       }
     }
 
-    layoutChoices(fontScale);
+    layoutChoices();
   }
 
   // --- Scene lifecycle ---

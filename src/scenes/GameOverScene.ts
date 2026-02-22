@@ -3,7 +3,7 @@ import type { Scene } from '@engine/SceneManager.ts';
 import type { GameStateManager } from '@engine/GameStateManager.ts';
 import type { InputManager } from '@/input/InputManager.ts';
 import { ButtonSprite } from '@/sprites/ButtonSprite.ts';
-import { colors, fonts, spacing } from '@/theme.ts';
+import { colors, fonts } from '@/theme.ts';
 import { getLayout } from '@/layout.ts';
 
 export interface GameOverData {
@@ -86,14 +86,14 @@ export function createGameOverScene(game: GameStateManager, input: InputManager)
   };
 
   function layout() {
-    const { fontScale } = getLayout(sw, sh);
-    titleText.style.fontSize = fonts.sizes.h1 * fontScale;
-    descText.style.fontSize = fonts.sizes.h3 * fontScale;
-    descText.style.wordWrapWidth = Math.min(600, sw - 40);
+    const rl = getLayout(sw, sh);
+    titleText.style.fontSize = Math.max(16, rl.fontSize.h1);
+    descText.style.fontSize = Math.max(16, rl.fontSize.h3);
+    descText.style.wordWrapWidth = Math.min(600, sw * 0.85);
 
-    titleText.position.set(sw / 2, sh / 2 - 60);
-    descText.position.set(sw / 2, sh / 2);
-    menuBtn.position.set(sw / 2 - menuBtn.buttonWidth / 2, sh / 2 + spacing.xxl);
+    titleText.position.set(sw / 2, sh * 0.35);
+    descText.position.set(sw / 2, sh * 0.50);
+    menuBtn.position.set(sw / 2 - menuBtn.buttonWidth / 2, sh * 0.65);
   }
 
   return root;

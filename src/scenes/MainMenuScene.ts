@@ -57,13 +57,13 @@ export function createMainMenuScene(game: GameStateManager, input: InputManager)
   root.addChild(input.focusIndicator);
 
   function layout() {
-    const { fontScale } = getLayout(sw, sh);
-    title.style.fontSize = fonts.sizes.h1 * fontScale;
-    subtitle.style.fontSize = fonts.sizes.body * fontScale;
+    const rl = getLayout(sw, sh);
+    title.style.fontSize = rl.fontSize.h1;
+    subtitle.style.fontSize = rl.fontSize.body;
 
-    title.position.set(sw / 2, sh / 2 - 70 * fontScale);
-    subtitle.position.set(sw / 2, sh / 2 - 20 * fontScale);
-    startBtn.position.set(sw / 2 - startBtn.buttonWidth / 2, sh / 2 + 20);
+    title.position.set(sw / 2, sh * 0.38);
+    subtitle.position.set(sw / 2, sh * 0.38 + rl.fontSize.h1 * 0.8);
+    startBtn.position.set(sw / 2 - startBtn.buttonWidth / 2, sh * 0.55);
   }
 
   root.onEnter = () => {

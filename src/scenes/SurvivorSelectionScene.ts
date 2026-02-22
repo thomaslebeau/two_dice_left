@@ -139,28 +139,47 @@ export function createSurvivorSelectionScene(game: GameStateManager, input: Inpu
     const rl = getLayout(sw, sh);
     const gap = rl.isMobile ? spacing.xs : spacing.md;
 
-    // Compute card scale based on how many cards need to fit.
-    // Use the smaller of: responsive scale, or the scale that fits N cards in the available width.
-    const margin = spacing.xl * 2;
-    const fitScale = (sw - margin - (n - 1) * gap) / (n * CARD_WIDTH);
-    const cardScale = Math.min(rl.cardScale, Math.max(0.5, fitScale), 1.0);
+    // Top area reserved for title/buttons
+    const topReserved = sh * 0.18;
+    // Bottom margin
+    const bottomMargin = sh * 0.05;
+    // Available height for cards
+    const availH = sh - topReserved - bottomMargin;
+
+    const CARD_HEIGHT = 230;
+    const fitScaleH = availH * 0.85 / CARD_HEIGHT;
+
+    let cardScale: number;
+    if (n === 1) {
+      // Single card: fill ~70% of screen width, up to 2x
+      cardScale = Math.min(2.0, (sw * 0.7) / CARD_WIDTH, fitScaleH);
+    } else {
+      // Multiple cards: fit N cards horizontally, allow up to 1.5x on mobile
+      const margin = spacing.lg * 2;
+      const fitScaleW = (sw - margin - (n - 1) * gap) / (n * CARD_WIDTH);
+      const maxScale = rl.isMobile ? 1.5 : 1.0;
+      cardScale = Math.min(rl.cardScale, Math.max(0.5, fitScaleW), fitScaleH, maxScale);
+    }
+
     const cardW = CARD_WIDTH * cardScale;
-    const cardH = rl.cardH / rl.cardScale * cardScale;
+    const cardH = CARD_HEIGHT * cardScale;
 
     for (const cs of cardSprites) {
       cs.scale.set(cardScale);
     }
 
     if (rl.isMobile && n > 3) {
-      // Wrap into 2 rows: top row gets ceil(n/2), bottom row gets the rest
+      // Wrap into 2 rows
       const topCount = Math.ceil(n / 2);
       const bottomCount = n - topCount;
       const rowGap = gap;
 
+      const centerY = topReserved + availH / 2;
+
       // Top row
       const topW = topCount * cardW + (topCount - 1) * gap;
       const topStartX = (sw - topW) / 2;
-      const topY = sh / 2 - cardH - rowGap / 2;
+      const topY = centerY - cardH - rowGap / 2;
 
       for (let i = 0; i < topCount; i++) {
         cardSprites[i].position.set(topStartX + i * (cardW + gap), topY);
@@ -169,16 +188,16 @@ export function createSurvivorSelectionScene(game: GameStateManager, input: Inpu
       // Bottom row
       const botW = bottomCount * cardW + (bottomCount - 1) * gap;
       const botStartX = (sw - botW) / 2;
-      const botY = sh / 2 + rowGap / 2;
+      const botY = centerY + rowGap / 2;
 
       for (let i = 0; i < bottomCount; i++) {
         cardSprites[topCount + i].position.set(botStartX + i * (cardW + gap), botY);
       }
     } else {
-      // Single row — centered horizontally and vertically
+      // Single row — centered in available area
       const totalW = n * cardW + (n - 1) * gap;
       const startX = (sw - totalW) / 2;
-      const startY = sh / 2 - cardH / 2;
+      const startY = topReserved + (availH - cardH) / 2;
 
       for (let i = 0; i < n; i++) {
         cardSprites[i].position.set(startX + i * (cardW + gap), startY);
@@ -187,16 +206,21 @@ export function createSurvivorSelectionScene(game: GameStateManager, input: Inpu
   }
 
   function layout() {
-    const { fontScale } = getLayout(sw, sh);
+    const rl = getLayout(sw, sh);
 
-    titleText.style.fontSize = fonts.sizes.h2 * fontScale;
-    instructionText.style.fontSize = fonts.sizes.small * fontScale;
+    titleText.style.fontSize = rl.fontSize.h2;
+    instructionText.style.fontSize = rl.fontSize.small;
 
-    titleText.position.set(sw / 2, spacing.lg);
-    backBtn.position.set(spacing.lg, spacing.lg);
-    fightBtn.position.set(sw - spacing.lg - fightBtn.buttonWidth, spacing.lg);
+    // Buttons: fixed top corners
+    backBtn.position.set(16, 16);
+    fightBtn.position.set(sw - 16 - fightBtn.buttonWidth, 16);
 
-    instructionText.position.set(sw / 2, spacing.lg + 40 * fontScale);
+    // Title centered below button row
+    const titleY = sh * 0.05;
+    titleText.position.set(sw / 2, titleY);
+
+    // Instruction below title
+    instructionText.position.set(sw / 2, titleY + titleText.height + 8);
 
     layoutCards();
   }

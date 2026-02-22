@@ -70,7 +70,8 @@ export function createUnlockScene(game: GameStateManager, input: InputManager): 
 
     let yOff = 0;
     const cx = sw / 2;
-    const { fontScale } = getLayout(sw, sh);
+    const rl = getLayout(sw, sh);
+    const cardDisplayScale = Math.min(1.0, (sw * 0.5) / 160);
 
     for (const unlock of unlocks) {
       if (unlock.type === 'survivor') {
@@ -79,11 +80,11 @@ export function createUnlockScene(game: GameStateManager, input: InputManager): 
         if (cardBase) {
           const card: Card = { ...cardBase, currentHp: cardBase.maxHp };
           const cs = new CardSprite(card);
-          cs.scale.set(0.5);
-          cs.position.set(cx - (160 * 0.5) / 2, yOff);
+          cs.scale.set(cardDisplayScale);
+          cs.position.set(cx - (160 * cardDisplayScale) / 2, yOff);
           unlockSprites.push(cs);
           itemsContainer.addChild(cs);
-          yOff += 230 * 0.5 + spacing.sm;
+          yOff += 230 * cardDisplayScale + spacing.sm;
         }
 
         // Name + description text
@@ -91,7 +92,7 @@ export function createUnlockScene(game: GameStateManager, input: InputManager): 
           text: unlock.name,
           style: {
             fontFamily: fonts.heading,
-            fontSize: fonts.sizes.h3 * fontScale,
+            fontSize: rl.fontSize.h3,
             fontWeight: 'bold',
             fill: colors.focus,
           },
@@ -105,7 +106,7 @@ export function createUnlockScene(game: GameStateManager, input: InputManager): 
           text: unlock.description,
           style: {
             fontFamily: fonts.body,
-            fontSize: fonts.sizes.body * fontScale,
+            fontSize: rl.fontSize.body,
             fill: colors.text,
           },
         });
@@ -119,7 +120,7 @@ export function createUnlockScene(game: GameStateManager, input: InputManager): 
           text: unlock.name,
           style: {
             fontFamily: fonts.heading,
-            fontSize: fonts.sizes.h3 * fontScale,
+            fontSize: rl.fontSize.h3,
             fontWeight: 'bold',
             fill: 0xD4A030,
           },
@@ -133,7 +134,7 @@ export function createUnlockScene(game: GameStateManager, input: InputManager): 
           text: unlock.description,
           style: {
             fontFamily: fonts.body,
-            fontSize: fonts.sizes.body * fontScale,
+            fontSize: rl.fontSize.body,
             fill: colors.text,
           },
         });
@@ -146,14 +147,14 @@ export function createUnlockScene(game: GameStateManager, input: InputManager): 
   }
 
   function layout() {
-    const { fontScale } = getLayout(sw, sh);
+    const rl = getLayout(sw, sh);
 
-    titleText.style.fontSize = fonts.sizes.h1 * fontScale;
-    titleText.position.set(sw / 2, spacing.xl);
+    titleText.style.fontSize = rl.fontSize.h1;
+    titleText.position.set(sw / 2, sh * 0.06);
 
     // Center items container vertically
-    const titleBottom = spacing.xl + titleText.height + spacing.lg;
-    const btnTop = sh - spacing.xl - continueBtn.buttonHeight;
+    const titleBottom = sh * 0.06 + titleText.height + spacing.lg;
+    const btnTop = sh - sh * 0.08 - continueBtn.buttonHeight;
     const availableH = btnTop - titleBottom;
     const itemsH = itemsContainer.height;
     const itemsY = titleBottom + Math.max(0, (availableH - itemsH) / 2);

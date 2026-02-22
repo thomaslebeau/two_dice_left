@@ -5,6 +5,7 @@ import { colors, fonts, spacing } from '@/theme.ts';
 
 export const CARD_WIDTH = 160;
 export const CARD_HEIGHT = 230;
+export const CARD_HEIGHT_COMPACT = 68;
 const PADDING = 10;
 const CONTENT_W = CARD_WIDTH - PADDING * 2;
 const HP_BAR_H = 12;
@@ -34,6 +35,7 @@ export class CardSprite extends Container {
   private _card: Card;
   private _isDead = false;
   private _isSelected = false;
+  private _compact = false;
 
   constructor(card: Card) {
     super();
@@ -154,6 +156,13 @@ export class CardSprite extends Container {
     this.draw();
   }
 
+  /** Toggle compact mode — hides description, shortens card height. */
+  setCompact(compact: boolean): void {
+    if (this._compact === compact) return;
+    this._compact = compact;
+    this.draw();
+  }
+
   private getRarityColor(): number {
     const hex = RARITY_COLORS[this._card.rarity];
     if (!hex) return 0xB0A894;
@@ -163,10 +172,11 @@ export class CardSprite extends Container {
   private draw(): void {
     const rarityColor = this.getRarityColor();
     const card = this._card;
+    const h = this._compact ? CARD_HEIGHT_COMPACT : CARD_HEIGHT;
 
     // Background
     this.bg.clear();
-    this.bg.rect(0, 0, CARD_WIDTH, CARD_HEIGHT);
+    this.bg.rect(0, 0, CARD_WIDTH, h);
     this.bg.fill({ color: colors.cardBg, alpha: colors.cardBgAlpha });
 
     // Border
@@ -191,21 +201,25 @@ export class CardSprite extends Container {
       this.hpBarFill.fill({ color: colors.hpBar });
     }
 
-    // Stats
+    // Stats (hidden in compact mode — dice totals already include mods)
     const fmtMod = (v: number) => (v >= 0 ? `+${v}` : `${v}`);
     this.atkText.text = `ATK: ${fmtMod(card.attackMod)}`;
     this.defText.text = `DEF: ${fmtMod(card.defenseMod)}`;
+    this.atkText.visible = !this._compact;
+    this.defText.visible = !this._compact;
 
-    // Description
+    // Description (hidden in compact mode)
     this.descText.text = card.description;
+    this.descText.visible = !this._compact;
 
     // Death
     this.deathOverlay.clear();
     if (this._isDead) {
-      this.deathOverlay.rect(0, 0, CARD_WIDTH, CARD_HEIGHT);
+      this.deathOverlay.rect(0, 0, CARD_WIDTH, h);
       this.deathOverlay.fill({ color: 0x000000, alpha: 0.5 });
       this.deathOverlay.visible = true;
       this.deathLabel.visible = true;
+      this.deathLabel.position.set(CARD_WIDTH / 2, h / 2);
     } else {
       this.deathOverlay.visible = false;
       this.deathLabel.visible = false;
@@ -216,9 +230,10 @@ export class CardSprite extends Container {
     const rarityColor = this.getRarityColor();
     const borderColor = this._isSelected ? colors.focus : rarityColor;
     const borderW = this._isSelected ? 3 : 2;
+    const h = this._compact ? CARD_HEIGHT_COMPACT : CARD_HEIGHT;
 
     this.border.clear();
-    this.border.rect(0, 0, CARD_WIDTH, CARD_HEIGHT);
+    this.border.rect(0, 0, CARD_WIDTH, h);
     this.border.stroke({ color: borderColor, width: borderW });
   }
 

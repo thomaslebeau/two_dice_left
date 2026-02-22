@@ -3,10 +3,12 @@
  */
 export const GameState = {
   MENU: 'menu',
-  CARD_SELECTION: 'card_selection',
+  SURVIVOR_SELECTION: 'survivor_selection',
   COMBAT: 'combat',
+  EVENT: 'event',
   REWARD: 'reward',
   GAMEOVER: 'gameover',
+  UNLOCK: 'unlock',
 } as const;
 
 export type GameState = typeof GameState[keyof typeof GameState];

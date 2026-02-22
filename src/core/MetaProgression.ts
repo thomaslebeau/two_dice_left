@@ -1,0 +1,201 @@
+/**
+ * Meta-progression system — persists stats and unlocks across runs via localStorage.
+ * Pure logic, no Pixi imports.
+ */
+import { CARD_DATABASE } from '@shared/constants/cards';
+
+// --- Interfaces ---
+
+export interface MetaState {
+  totalRuns: number;
+  totalWins: number;
+  perSurvivorWins: Record<number, number>;
+  unlockedSurvivorIds: number[];
+  unlockedDiceModifierIds: string[];
+  maxDifficultyReached: number;
+}
+
+export interface UnlockResult {
+  type: 'survivor' | 'diceModifier';
+  id: number | string;
+  name: string;
+  description: string;
+}
+
+// --- Constants ---
+
+const STORAGE_KEY = 'dice_and_cards_meta';
+
+const DEFAULT_SURVIVOR_IDS = [1, 2, 3, 4, 5];
+const DEFAULT_MODIFIER_IDS = ['rusty', 'heavy', 'broken'];
+
+function defaultState(): MetaState {
+  return {
+    totalRuns: 0,
+    totalWins: 0,
+    perSurvivorWins: {},
+    unlockedSurvivorIds: [...DEFAULT_SURVIVOR_IDS],
+    unlockedDiceModifierIds: [...DEFAULT_MODIFIER_IDS],
+    maxDifficultyReached: 0,
+  };
+}
+
+// --- Unlock condition helpers ---
+
+interface UnlockCondition {
+  type: 'survivor' | 'diceModifier';
+  id: number | string;
+  check: (state: MetaState, won: boolean, finalHP: number) => boolean;
+}
+
+const UNLOCK_CONDITIONS: UnlockCondition[] = [
+  // Survivor unlocks
+  { type: 'survivor', id: 6, check: (s) => s.totalWins >= 3 },
+  { type: 'survivor', id: 7, check: (_s, won, finalHP) => won && finalHP < 3 },
+  { type: 'survivor', id: 8, check: (s) => Object.keys(s.perSurvivorWins).length >= 7 },
+  // Dice modifier unlocks
+  { type: 'diceModifier', id: 'ivy', check: (s) => s.totalRuns >= 5 },
+  { type: 'diceModifier', id: 'needle', check: (s) => s.totalRuns >= 5 },
+  { type: 'diceModifier', id: 'root', check: (s) => s.totalRuns >= 10 },
+];
+
+// Modifier display info (for unlock notifications)
+const MODIFIER_INFO: Record<string, { name: string; description: string }> = {
+  rusty: { name: 'Rusty Die', description: 'Min 2 damage when used as ATK' },
+  heavy: { name: 'Heavy Die', description: "Can't exceed 5, but consistent" },
+  broken: { name: 'Broken Die', description: 'Extreme variance — all or nothing' },
+  ivy: { name: 'Ivy Die', description: 'On 6: poison (1 dmg/turn x2)' },
+  needle: { name: 'Needle Die', description: 'Pierces 2 enemy DEF' },
+  root: { name: 'Root Die', description: 'If used as DEF: +1 HP' },
+};
+
+// --- Class ---
+
+export class MetaProgression {
+  private state: MetaState;
+
+  constructor() {
+    this.state = this.load();
+  }
+
+  // --- Public API ---
+
+  /**
+   * Record a completed run. Increments stats, checks for new unlocks, saves.
+   * Returns any newly unlocked items.
+   */
+  recordRun(survivorId: number, won: boolean, finalHP: number): UnlockResult[] {
+    this.state.totalRuns++;
+    if (won) {
+      this.state.totalWins++;
+      this.state.perSurvivorWins[survivorId] = (this.state.perSurvivorWins[survivorId] ?? 0) + 1;
+    }
+
+    const newUnlocks = this.checkUnlocks(won, finalHP);
+    this.save();
+    return newUnlocks;
+  }
+
+  getUnlockedSurvivorIds(): number[] {
+    return [...this.state.unlockedSurvivorIds];
+  }
+
+  getUnlockedDiceModifierIds(): string[] {
+    return [...this.state.unlockedDiceModifierIds];
+  }
+
+  getStats(): Readonly<MetaState> {
+    return { ...this.state, perSurvivorWins: { ...this.state.perSurvivorWins } };
+  }
+
+  /**
+   * Dynamic unlock condition text for locked survivor cards.
+   */
+  getUnlockConditionText(cardId: number): string {
+    switch (cardId) {
+      case 6: {
+        const remaining = Math.max(0, 3 - this.state.totalWins);
+        return remaining > 0 ? `Win ${remaining} more run(s)` : 'Unlocked!';
+      }
+      case 7:
+        return 'Win a run with < 3 HP';
+      case 8: {
+        const uniqueWinners = Object.keys(this.state.perSurvivorWins).length;
+        const remaining = Math.max(0, 7 - uniqueWinners);
+        return remaining > 0 ? `Win with ${remaining} more survivor(s)` : 'Unlocked!';
+      }
+      default:
+        return 'Unknown condition';
+    }
+  }
+
+  /** Reset all meta-progression to defaults. */
+  reset(): void {
+    this.state = defaultState();
+    this.save();
+  }
+
+  // --- Private ---
+
+  private checkUnlocks(won: boolean, finalHP: number): UnlockResult[] {
+    const results: UnlockResult[] = [];
+
+    for (const cond of UNLOCK_CONDITIONS) {
+      if (!cond.check(this.state, won, finalHP)) continue;
+
+      if (cond.type === 'survivor') {
+        const id = cond.id as number;
+        if (this.state.unlockedSurvivorIds.includes(id)) continue;
+        this.state.unlockedSurvivorIds.push(id);
+        const card = CARD_DATABASE.find(c => c.id === id);
+        results.push({
+          type: 'survivor',
+          id,
+          name: card?.name ?? `Survivor #${id}`,
+          description: card?.description ?? '',
+        });
+      } else {
+        const id = cond.id as string;
+        if (this.state.unlockedDiceModifierIds.includes(id)) continue;
+        this.state.unlockedDiceModifierIds.push(id);
+        const info = MODIFIER_INFO[id];
+        results.push({
+          type: 'diceModifier',
+          id,
+          name: info?.name ?? id,
+          description: info?.description ?? '',
+        });
+      }
+    }
+
+    return results;
+  }
+
+  private load(): MetaState {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return defaultState();
+      const parsed = JSON.parse(raw) as Partial<MetaState>;
+      // Merge with defaults for schema safety
+      const defaults = defaultState();
+      return {
+        totalRuns: parsed.totalRuns ?? defaults.totalRuns,
+        totalWins: parsed.totalWins ?? defaults.totalWins,
+        perSurvivorWins: parsed.perSurvivorWins ?? defaults.perSurvivorWins,
+        unlockedSurvivorIds: parsed.unlockedSurvivorIds ?? defaults.unlockedSurvivorIds,
+        unlockedDiceModifierIds: parsed.unlockedDiceModifierIds ?? defaults.unlockedDiceModifierIds,
+        maxDifficultyReached: parsed.maxDifficultyReached ?? defaults.maxDifficultyReached,
+      };
+    } catch {
+      return defaultState();
+    }
+  }
+
+  private save(): void {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(this.state));
+    } catch {
+      // Storage full or unavailable — silently ignore
+    }
+  }
+}

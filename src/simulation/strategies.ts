@@ -1,84 +1,143 @@
-import type { Card, EnemyCard } from '../types/card.types.ts';
-import { filterAliveCards } from '../shared/utils/cardDeathUtils.ts';
+/**
+ * V5 simulation strategies: dice allocation + event choice.
+ *
+ * AllocationStrategy decides how to assign 2 rolled dice to ATK/DEF.
+ * EventStrategy decides which event choice to pick between combats.
+ */
+import type { GameEvent } from '../types/event.types.ts';
+import type { DiceModifier } from '../types/diceModifier.types.ts';
 
-export interface PlayerStrategy {
-  name: string;
-  chooseCard(collection: Card[], combatNumber: number, enemyCard: EnemyCard): Card;
-  chooseReward(rewards: Card[], collection: Card[], combatNumber: number): Card | null;
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+export type AllocationStrategy =
+  | 'aggressive'    // always max die → ATK
+  | 'defensive'     // always max die → DEF
+  | 'hpThreshold'   // aggressive above 50% HP, defensive below
+  | 'killPressure'  // aggressive when enemy HP < expected 2-round kill
+  | 'random';       // 50/50 (baseline floor)
+
+export type EventStrategy =
+  | 'alwaysHp'      // always pick HP repair
+  | 'alwaysAtk'     // always pick ATK boost
+  | 'alwaysDef'     // always pick DEF boost
+  | 'balanced'      // pick what's most needed based on current state
+  | 'diceHunter'    // always pick dice modifiers when available
+  | 'random';       // random choice
+
+export interface AllocationResult {
+  atkDie: number;
+  defDie: number;
 }
 
-export const prudentStrategy: PlayerStrategy = {
-  name: 'Prudent',
+export interface SimRunState {
+  hp: number;
+  maxHp: number;
+  atkBonus: number;
+  defBonus: number;
+  diceModifiers: DiceModifier[];
+}
 
-  chooseCard(collection, _combatNumber, _enemyCard) {
-    const alive = filterAliveCards(collection);
-    return alive.reduce((best, c) => c.currentHp > best.currentHp ? c : best, alive[0]);
-  },
+// ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
 
-  chooseReward(rewards, collection, _combatNumber) {
-    const avgMaxHp = collection.reduce((sum, c) => sum + c.maxHp, 0) / collection.length;
-    const best = rewards.reduce((b, c) => c.maxHp > b.maxHp ? c : b, rewards[0]);
-    if (best.maxHp < avgMaxHp) return null;
-    return best;
-  },
-};
-
-export const aggressiveStrategy: PlayerStrategy = {
-  name: 'Aggressive',
-
-  chooseCard(collection, _combatNumber, _enemyCard) {
-    const alive = filterAliveCards(collection);
-    return alive.reduce((best, c) => {
-      if (c.attackMod > best.attackMod) return c;
-      // Tiebreaker: lowest HP (expendable)
-      if (c.attackMod === best.attackMod && c.currentHp < best.currentHp) return c;
-      return best;
-    }, alive[0]);
-  },
-
-  chooseReward(rewards, _collection, _combatNumber) {
-    return rewards.reduce((best, c) => c.attackMod > best.attackMod ? c : best, rewards[0]);
-  },
-};
-
-export const economistStrategy: PlayerStrategy = {
-  name: 'Economist',
-
-  chooseCard(collection, combatNumber, _enemyCard) {
-    const alive = filterAliveCards(collection);
-    if (combatNumber <= 2) {
-      // Sacrifice the weakest
-      return alive.reduce((worst, c) => c.maxHp < worst.maxHp ? c : worst, alive[0]);
-    }
-    // Pick highest combined stats
-    const score = (c: Card) => c.attackMod + c.defenseMod;
-    return alive.reduce((best, c) => score(c) > score(best) ? c : best, alive[0]);
-  },
-
-  chooseReward(rewards, _collection, _combatNumber) {
-    // Always take — pick highest overall stat sum
-    const score = (c: Card) => c.attackMod + c.defenseMod + c.maxHp / 10;
-    return rewards.reduce((best, c) => score(c) > score(best) ? c : best, rewards[0]);
-  },
-};
-
-export const naiveStrategy: PlayerStrategy = {
-  name: 'Naive',
-
-  chooseCard(collection, _combatNumber, _enemyCard) {
-    const alive = filterAliveCards(collection);
-    return alive[Math.floor(Math.random() * alive.length)];
-  },
-
-  chooseReward(rewards, _collection, _combatNumber) {
-    if (Math.random() < 0.5) return null;
-    return rewards[Math.floor(Math.random() * rewards.length)];
-  },
-};
-
-export const ALL_STRATEGIES: PlayerStrategy[] = [
-  prudentStrategy,
-  aggressiveStrategy,
-  economistStrategy,
-  naiveStrategy,
+export const ALL_ALLOCATION_STRATEGIES: AllocationStrategy[] = [
+  'aggressive', 'defensive', 'hpThreshold', 'killPressure', 'random',
 ];
+
+export const ALL_EVENT_STRATEGIES: EventStrategy[] = [
+  'alwaysHp', 'alwaysAtk', 'alwaysDef', 'balanced', 'diceHunter', 'random',
+];
+
+// ---------------------------------------------------------------------------
+// Dice allocation
+// ---------------------------------------------------------------------------
+
+export function allocate(
+  dice: [number, number],
+  strategy: AllocationStrategy,
+  currentHP: number,
+  maxHP: number,
+  enemyHP: number,
+  _enemyAtkMod: number,
+): AllocationResult {
+  const [d1, d2] = dice;
+  const high = Math.max(d1, d2);
+  const low = Math.min(d1, d2);
+
+  switch (strategy) {
+    case 'aggressive':
+      return { atkDie: high, defDie: low };
+
+    case 'defensive':
+      return { atkDie: low, defDie: high };
+
+    case 'hpThreshold':
+      return (currentHP / maxHP > 0.5)
+        ? { atkDie: high, defDie: low }
+        : { atkDie: low, defDie: high };
+
+    case 'killPressure': {
+      // If we can kill enemy in ~2 rounds with aggressive play, go aggro
+      const expectedDmg = high;
+      return (enemyHP <= expectedDmg * 2)
+        ? { atkDie: high, defDie: low }
+        : { atkDie: low, defDie: high };
+    }
+
+    case 'random':
+      return Math.random() > 0.5
+        ? { atkDie: d1, defDie: d2 }
+        : { atkDie: d2, defDie: d1 };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Event choice
+// ---------------------------------------------------------------------------
+
+/**
+ * Find the best choice index matching a predicate on effects.
+ * Returns 0 as fallback if no match found.
+ */
+function findChoiceWithEffect(
+  event: GameEvent,
+  predicate: (type: string, value: number, modifierId?: string) => boolean,
+): number {
+  const idx = event.choices.findIndex(c =>
+    c.effects.some(e => predicate(e.type, e.value, e.modifierId))
+  );
+  return idx >= 0 ? idx : 0;
+}
+
+export function chooseEvent(
+  event: GameEvent,
+  strategy: EventStrategy,
+  runState: SimRunState,
+): number {
+  switch (strategy) {
+    case 'alwaysHp':
+      return findChoiceWithEffect(event, (type, value) => type === 'hp' && value > 0);
+
+    case 'alwaysAtk':
+      return findChoiceWithEffect(event, (type, value) => type === 'atk' && value > 0);
+
+    case 'alwaysDef':
+      return findChoiceWithEffect(event, (type, value) => type === 'def' && value > 0);
+
+    case 'diceHunter':
+      return findChoiceWithEffect(event, (type) => type === 'diceModifier');
+
+    case 'balanced': {
+      // Pick HP if below 50%, otherwise ATK
+      const hpRatio = runState.hp / runState.maxHp;
+      if (hpRatio < 0.5) return chooseEvent(event, 'alwaysHp', runState);
+      return chooseEvent(event, 'alwaysAtk', runState);
+    }
+
+    case 'random':
+      return Math.floor(Math.random() * event.choices.length);
+  }
+}

@@ -1,89 +1,116 @@
 /**
- * Headless autoplay simulation for balance testing.
+ * Headless autoplay simulation for balance testing (GDD v5).
  * Run with: npx tsx src/simulation/autoplay.ts
  *
- * Simulates full game runs using the REAL game logic (dice, damage, enemies)
- * and writes all results to the local SQLite database.
+ * V5 model: single-survivor runs with dice allocation, events, and dice modifiers.
+ * Runs a full matrix: survivors × allocation strategies × event strategies.
+ * Outputs to SQLite and prints aggregate analysis with balance flags.
  */
 
 import { resolve } from 'node:path';
-import type { Card, CardBase, EnemyCard } from '../types/card.types.ts';
-import type { RoundLogEntry, CombatLogData } from '../db/types.ts';
+import type { Database } from 'sql.js';
+import type { Card, EnemyCard } from '../types/card.types.ts';
+import type { DiceResults } from '../types/combat.types.ts';
+import type { RoundLogEntry } from '../db/types.ts';
 import { CARD_DATABASE, MAX_COMBATS } from '../shared/constants/cards.ts';
-import { rollDice } from '../shared/constants/dice.ts';
+import { rollPair, autoAllocate } from '../core/DiceAllocator.ts';
 import { generateEnemy } from '../shared/utils/enemyGenerator.ts';
-import { generateRewardCards } from '../shared/utils/rewardGenerator.ts';
 import { calculateCombatResult, applyDamage } from '../shared/utils/combatCalculations.ts';
-import { markCardAsDeadIfNeeded } from '../shared/utils/cardDeathUtils.ts';
-import { filterAliveCards, getDeadCardsCount } from '../shared/utils/cardDeathUtils.ts';
+import { EventSystem } from '../core/EventSystem.ts';
+import type { RunState } from '../core/EventSystem.ts';
 import { HeadlessDatabaseManager } from '../db/HeadlessDatabaseManager.ts';
-import { CombatLogRepository } from '../db/CombatLogRepository.ts';
-import { ALL_STRATEGIES } from './strategies.ts';
-import type { PlayerStrategy } from './strategies.ts';
+import {
+  allocate, chooseEvent,
+  ALL_ALLOCATION_STRATEGIES, ALL_EVENT_STRATEGIES,
+} from './strategies.ts';
+import type { AllocationStrategy, EventStrategy } from './strategies.ts';
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-interface CombatLog {
-  combatNumber: number;
-  playerCard: { id: number; name: string; hpBefore: number; hpAfter: number; attackMod: number; defenseMod: number };
-  enemyCard: { name: string; hp: number; attackMod: number; defenseMod: number };
-  rounds: number;
-  playerWon: boolean;
-  damageDealt: number;
-  damageTaken: number;
+interface SimulationConfig {
+  survivorId: number;
+  allocationStrategy: AllocationStrategy;
+  eventStrategy: EventStrategy;
+  iterations: number;
+  enableDiceModifiers: boolean;
+  seed?: number;
 }
 
 interface RunResult {
-  strategy: string;
-  source: 'autoplay';
-  victory: boolean;
-  combatsCompleted: number;
+  won: boolean;
+  combatReached: number;
+  finalHP: number;
+  hpPerCombat: number[];
+  eventsChosen: string[];
+  diceModsEquipped: string[];
+  atkBonusAccumulated: number;
+  defBonusAccumulated: number;
+  avgAllocationAtkDie: number;
+  avgAllocationDefDie: number;
   totalRounds: number;
-  combatLogs: CombatLog[];
-  collectionAtEnd: { id: number; name: string; currentHp: number; maxHp: number; isDead: boolean }[];
-  rewardsTaken: { combatNumber: number; card: { id: number; name: string } | null }[];
-  cardsDeadCount: number;
-  totalDamageDealt: number;
-  totalDamageTaken: number;
 }
 
-interface BatchResult {
-  strategy: string;
-  runs: RunResult[];
-  winRate: number;
-  avgCombats: number;
-  deathDistribution: Record<number, number>;
-  avgRoundsPerCombat: Record<number, number>;
-  avgDamageDealtPerCombat: Record<number, number>;
-  avgDamageTakenPerCombat: Record<number, number>;
-  cardUsageFrequency: Record<number, { name: string; count: number; pct: number }>;
-  cardDeathRate: Record<number, { name: string; deaths: number; uses: number; pct: number }>;
-  rewardTakeRate: number;
-  mostPickedReward: { id: number; name: string; count: number; pct: number } | null;
-  avgCollectionSize: number;
-  avgAliveCardsAtEnd: number;
-  bossReachedPct: number;
+// ---------------------------------------------------------------------------
+// Seeded PRNG
+// ---------------------------------------------------------------------------
+
+function createRNG(seed: number): () => number {
+  let s = Math.abs(Math.floor(seed)) % 2147483646 || 1;
+  return () => {
+    s = (s * 16807) % 2147483647;
+    return (s - 1) / 2147483646;
+  };
 }
 
 // ---------------------------------------------------------------------------
 // Simulation core
 // ---------------------------------------------------------------------------
 
-function simulateCombat(playerCard: Card, enemyCard: EnemyCard): { roundsLog: RoundLogEntry[]; updatedPlayer: Card; updatedEnemy: EnemyCard } {
+function simulateCombat(
+  playerCard: Card,
+  enemyCard: EnemyCard,
+  strategy: AllocationStrategy,
+  eventAtkBonus: number,
+  eventDefBonus: number,
+  diceModifiers: RunState['diceModifiers'],
+  enableDiceModifiers: boolean,
+): { roundsLog: RoundLogEntry[]; updatedPlayer: Card; updatedEnemy: EnemyCard; atkDieSum: number; defDieSum: number } {
   let current: Card = { ...playerCard };
-  let enemy: EnemyCard = { ...enemyCard } as EnemyCard;
+  let enemy: EnemyCard = { ...enemyCard };
   const roundsLog: RoundLogEntry[] = [];
   let roundNumber = 0;
+  let atkDieSum = 0;
+  let defDieSum = 0;
+
+  const mod1 = enableDiceModifiers ? (diceModifiers[0] ?? null) : null;
+  const mod2 = enableDiceModifiers ? (diceModifiers[1] ?? null) : null;
 
   while (current.currentHp > 0 && enemy.currentHp > 0) {
     roundNumber++;
-    const diceResults = {
-      playerAttack: rollDice(),
-      playerDefense: rollDice(),
-      enemyAttack: rollDice(),
-      enemyDefense: rollDice(),
+
+    // Roll dice
+    const playerDice = rollPair(mod1, mod2);
+    const enemyDice = rollPair();
+
+    // Allocate
+    const playerAllocation = allocate(
+      playerDice, strategy,
+      current.currentHp, current.maxHp,
+      enemy.currentHp, enemy.attackMod,
+    );
+    const enemyAllocation = autoAllocate(enemyDice, enemy.allocationPattern);
+
+    atkDieSum += playerAllocation.atkDie;
+    defDieSum += playerAllocation.defDie;
+
+    // Build dice results with event bonuses baked in (matching CombatEngine)
+    const diceResults: DiceResults = {
+      playerAttack: playerAllocation.atkDie + eventAtkBonus,
+      playerDefense: playerAllocation.defDie + eventDefBonus,
+      enemyAttack: enemyAllocation.atkDie,
+      enemyDefense: enemyAllocation.defDie,
     };
 
     const calculation = calculateCombatResult(diceResults, current, enemy);
@@ -94,10 +121,10 @@ function simulateCombat(playerCard: Card, enemyCard: EnemyCard): { roundsLog: Ro
 
     roundsLog.push({
       roundNumber,
-      playerAttackRoll: diceResults.playerAttack,
-      playerDefenseRoll: diceResults.playerDefense,
-      enemyAttackRoll: diceResults.enemyAttack,
-      enemyDefenseRoll: diceResults.enemyDefense,
+      playerAttackRoll: playerAllocation.atkDie,
+      playerDefenseRoll: playerAllocation.defDie,
+      enemyAttackRoll: enemyAllocation.atkDie,
+      enemyDefenseRoll: enemyAllocation.defDie,
       playerAttackTotal: calculation.playerAttack,
       playerDefenseTotal: calculation.playerDefense,
       enemyAttackTotal: calculation.enemyAttack,
@@ -109,372 +136,426 @@ function simulateCombat(playerCard: Card, enemyCard: EnemyCard): { roundsLog: Ro
     });
   }
 
-  return { roundsLog, updatedPlayer: current, updatedEnemy: enemy };
+  return { roundsLog, updatedPlayer: current, updatedEnemy: enemy, atkDieSum, defDieSum };
 }
 
-function simulateRun(strategy: PlayerStrategy, repo: CombatLogRepository, runId: number): RunResult {
-  let collection: Card[] = CARD_DATABASE.slice(0, 5).map((c) => ({
-    ...c,
-    currentHp: c.maxHp,
-  }));
+function simulateRun(config: SimulationConfig, iteration: number): RunResult {
+  const cardBase = CARD_DATABASE.find(c => c.id === config.survivorId);
+  if (!cardBase) throw new Error(`Survivor ID ${config.survivorId} not found`);
 
-  const combatLogs: CombatLog[] = [];
-  const rewardsTaken: RunResult['rewardsTaken'] = [];
+  let survivor: Card = { ...cardBase, currentHp: cardBase.maxHp };
+
+  // Event system
+  const eventSystem = new EventSystem();
+  const runState: RunState = {
+    hp: survivor.currentHp,
+    maxHp: survivor.maxHp,
+    atkBonus: 0,
+    defBonus: 0,
+    diceModifiers: [],
+  };
+
+  // Seed RNG if specified
+  const originalRandom = Math.random;
+  if (config.seed !== undefined) {
+    Math.random = createRNG(config.seed + iteration);
+  }
+
+  const hpPerCombat: number[] = [];
+  const eventsChosen: string[] = [];
   let totalRounds = 0;
-  let totalDamageDealt = 0;
-  let totalDamageTaken = 0;
-  let victory = false;
-  let combatsCompleted = 0;
+  let totalAtkDie = 0;
+  let totalDefDie = 0;
+  let combatReached = 0;
+  let won = false;
 
-  for (let combatNum = 1; combatNum <= MAX_COMBATS; combatNum++) {
-    const alive = filterAliveCards(collection);
-    if (alive.length === 0) break;
+  try {
+    for (let combatNum = 1; combatNum <= MAX_COMBATS; combatNum++) {
+      combatReached = combatNum;
 
-    const enemyCard = generateEnemy(combatNum);
-    const chosenCard = strategy.chooseCard(collection, combatNum, enemyCard);
-    const playerStartHp = chosenCard.currentHp;
+      // Generate enemy
+      const enemyCard = generateEnemy(combatNum);
 
-    const { roundsLog, updatedPlayer, updatedEnemy } = simulateCombat(chosenCard, enemyCard);
-    const playerWon = updatedEnemy.currentHp <= 0;
-    combatsCompleted = combatNum;
-    totalRounds += roundsLog.length;
+      // Set up player card with persisted HP
+      const playerCard: Card = { ...survivor };
 
-    const dmgDealt = roundsLog.reduce((s, r) => s + r.damageToEnemy, 0);
-    const dmgTaken = roundsLog.reduce((s, r) => s + r.damageToPlayer, 0);
-    totalDamageDealt += dmgDealt;
-    totalDamageTaken += dmgTaken;
+      // Simulate combat
+      const { roundsLog, updatedPlayer, updatedEnemy, atkDieSum, defDieSum } = simulateCombat(
+        playerCard, enemyCard,
+        config.allocationStrategy,
+        runState.atkBonus, runState.defBonus,
+        runState.diceModifiers,
+        config.enableDiceModifiers,
+      );
 
-    combatLogs.push({
-      combatNumber: combatNum,
-      playerCard: {
-        id: chosenCard.id,
-        name: chosenCard.name,
-        hpBefore: playerStartHp,
-        hpAfter: updatedPlayer.currentHp,
-        attackMod: chosenCard.attackMod,
-        defenseMod: chosenCard.defenseMod,
-      },
-      enemyCard: {
-        name: enemyCard.name,
-        hp: enemyCard.maxHp,
-        attackMod: enemyCard.attackMod,
-        defenseMod: enemyCard.defenseMod,
-      },
-      rounds: roundsLog.length,
-      playerWon,
-      damageDealt: dmgDealt,
-      damageTaken: dmgTaken,
-    });
+      totalRounds += roundsLog.length;
+      totalAtkDie += atkDieSum;
+      totalDefDie += defDieSum;
 
-    // Write combat to DB
-    const combatData: CombatLogData = {
-      runId,
-      combatNumber: combatNum,
-      playerCardId: chosenCard.id,
-      playerCardName: chosenCard.name,
-      playerStartHp,
-      playerAttackMod: chosenCard.attackMod,
-      playerDefenseMod: chosenCard.defenseMod,
-      enemyCardName: enemyCard.name,
-      enemyStartHp: enemyCard.maxHp,
-      enemyAttackMod: enemyCard.attackMod,
-      enemyDefenseMod: enemyCard.defenseMod,
-      totalRounds: roundsLog.length,
-      victory: playerWon,
-      rounds: roundsLog,
-    };
-    repo.insertCombat(combatData);
+      const playerWon = updatedEnemy.currentHp <= 0;
 
-    // Update player card in collection
-    const finalPlayer = markCardAsDeadIfNeeded(updatedPlayer);
-    collection = collection.map((c) => c.id === finalPlayer.id ? finalPlayer : c);
+      // Update survivor HP
+      survivor = { ...survivor, currentHp: updatedPlayer.currentHp };
+      runState.hp = survivor.currentHp;
+      hpPerCombat.push(survivor.currentHp);
 
-    if (!playerWon) break;
+      if (!playerWon) break;
 
-    // Reward phase (not after final combat)
-    if (combatNum < MAX_COMBATS) {
-      const rewardBases = generateRewardCards(3);
-      const rewardCards: Card[] = rewardBases.map((b: CardBase) => ({ ...b, currentHp: b.maxHp }));
-      const picked = strategy.chooseReward(rewardCards, collection, combatNum);
-
-      if (picked && !collection.some((c) => c.id === picked.id)) {
-        collection = [...collection, { ...picked, currentHp: picked.maxHp }];
+      // Won last combat → victory
+      if (combatNum >= MAX_COMBATS) {
+        won = true;
+        break;
       }
-      rewardsTaken.push({
-        combatNumber: combatNum,
-        card: picked ? { id: picked.id, name: picked.name } : null,
-      });
 
-      // Check if all cards dead after reward
-      if (filterAliveCards(collection).length === 0) break;
+      // Event between combats
+      const event = eventSystem.getNextEvent();
+      const choiceIdx = chooseEvent(event, config.eventStrategy, runState);
+      eventSystem.applyChoice(choiceIdx, runState);
+
+      eventsChosen.push(event.id);
+
+      // Sync survivor HP from event effects
+      survivor = { ...survivor, currentHp: runState.hp };
     }
-
-    if (combatNum === MAX_COMBATS) {
-      victory = true;
+  } finally {
+    // Restore Math.random
+    if (config.seed !== undefined) {
+      Math.random = originalRandom;
     }
   }
 
   return {
-    strategy: strategy.name,
-    source: 'autoplay',
-    victory,
-    combatsCompleted,
+    won,
+    combatReached,
+    finalHP: survivor.currentHp,
+    hpPerCombat,
+    eventsChosen,
+    diceModsEquipped: runState.diceModifiers.map(m => m.id),
+    atkBonusAccumulated: runState.atkBonus,
+    defBonusAccumulated: runState.defBonus,
+    avgAllocationAtkDie: totalRounds > 0 ? totalAtkDie / totalRounds : 0,
+    avgAllocationDefDie: totalRounds > 0 ? totalDefDie / totalRounds : 0,
     totalRounds,
-    combatLogs,
-    collectionAtEnd: collection.map((c) => ({
-      id: c.id,
-      name: c.name,
-      currentHp: c.currentHp,
-      maxHp: c.maxHp,
-      isDead: c.isDead ?? false,
-    })),
-    rewardsTaken,
-    cardsDeadCount: getDeadCardsCount(collection),
-    totalDamageDealt,
-    totalDamageTaken,
   };
 }
 
 // ---------------------------------------------------------------------------
-// Batch runner + statistics
+// Database setup
 // ---------------------------------------------------------------------------
 
-function runBatch(strategy: PlayerStrategy, count: number, repo: CombatLogRepository): BatchResult {
-  const runs: RunResult[] = [];
+const RUNS_V5_DDL = `
+CREATE TABLE IF NOT EXISTS runs_v5 (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  survivor_id TEXT NOT NULL,
+  allocation_strategy TEXT NOT NULL,
+  event_strategy TEXT NOT NULL,
+  won INTEGER NOT NULL,
+  combat_reached INTEGER NOT NULL,
+  final_hp INTEGER NOT NULL,
+  atk_bonus INTEGER NOT NULL DEFAULT 0,
+  def_bonus INTEGER NOT NULL DEFAULT 0,
+  dice_mods TEXT NOT NULL DEFAULT '[]',
+  total_rounds INTEGER NOT NULL,
+  seed INTEGER,
+  timestamp TEXT NOT NULL DEFAULT (datetime('now'))
+);
+`;
 
-  for (let i = 0; i < count; i++) {
-    const collectionSnapshot = JSON.stringify(CARD_DATABASE.slice(0, 5).map((c) => ({ id: c.id, name: c.name })));
-    const runId = repo.createRun(collectionSnapshot, 'autoplay', strategy.name);
-
-    const result = simulateRun(strategy, repo, runId);
-    runs.push(result);
-
-    const endSnapshot = JSON.stringify(result.collectionAtEnd.map((c) => ({ id: c.id, name: c.name })));
-    repo.finalizeRun(runId, result.victory, endSnapshot);
-  }
-
-  const winRate = runs.filter((r) => r.victory).length / count;
-  const avgCombats = runs.reduce((s, r) => s + r.combatsCompleted, 0) / count;
-
-  // Death distribution: at which combat did runs end?
-  const deathDistribution: Record<number, number> = {};
-  for (let c = 1; c <= MAX_COMBATS; c++) deathDistribution[c] = 0;
-  for (const r of runs) {
-    deathDistribution[r.combatsCompleted] = (deathDistribution[r.combatsCompleted] ?? 0) + 1;
-  }
-
-  // Average rounds per combat number
-  const roundsByCombat: Record<number, number[]> = {};
-  const dmgDealtByCombat: Record<number, number[]> = {};
-  const dmgTakenByCombat: Record<number, number[]> = {};
-  for (const r of runs) {
-    for (const cl of r.combatLogs) {
-      (roundsByCombat[cl.combatNumber] ??= []).push(cl.rounds);
-      (dmgDealtByCombat[cl.combatNumber] ??= []).push(cl.damageDealt);
-      (dmgTakenByCombat[cl.combatNumber] ??= []).push(cl.damageTaken);
-    }
-  }
-
-  const avg = (arr: number[]) => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
-  const avgRoundsPerCombat: Record<number, number> = {};
-  const avgDamageDealtPerCombat: Record<number, number> = {};
-  const avgDamageTakenPerCombat: Record<number, number> = {};
-  for (let c = 1; c <= MAX_COMBATS; c++) {
-    avgRoundsPerCombat[c] = avg(roundsByCombat[c] ?? []);
-    avgDamageDealtPerCombat[c] = avg(dmgDealtByCombat[c] ?? []);
-    avgDamageTakenPerCombat[c] = avg(dmgTakenByCombat[c] ?? []);
-  }
-
-  // Card usage frequency
-  const cardUsageCounts: Record<number, { name: string; count: number }> = {};
-  const cardDeathCounts: Record<number, { name: string; deaths: number; uses: number }> = {};
-  for (const r of runs) {
-    for (const cl of r.combatLogs) {
-      const id = cl.playerCard.id;
-      if (!cardUsageCounts[id]) cardUsageCounts[id] = { name: cl.playerCard.name, count: 0 };
-      cardUsageCounts[id].count++;
-
-      if (!cardDeathCounts[id]) cardDeathCounts[id] = { name: cl.playerCard.name, deaths: 0, uses: 0 };
-      cardDeathCounts[id].uses++;
-      if (cl.playerCard.hpAfter <= 0) cardDeathCounts[id].deaths++;
-    }
-  }
-
-  const totalFights = runs.reduce((s, r) => s + r.combatLogs.length, 0);
-  const cardUsageFrequency: BatchResult['cardUsageFrequency'] = {};
-  for (const [id, v] of Object.entries(cardUsageCounts)) {
-    cardUsageFrequency[Number(id)] = { ...v, pct: totalFights ? v.count / totalFights : 0 };
-  }
-
-  const cardDeathRate: BatchResult['cardDeathRate'] = {};
-  for (const [id, v] of Object.entries(cardDeathCounts)) {
-    cardDeathRate[Number(id)] = { ...v, pct: v.uses ? v.deaths / v.uses : 0 };
-  }
-
-  // Reward stats
-  const allRewards = runs.flatMap((r) => r.rewardsTaken);
-  const rewardsTaken = allRewards.filter((r) => r.card !== null);
-  const rewardTakeRate = allRewards.length ? rewardsTaken.length / allRewards.length : 0;
-
-  let mostPickedReward: BatchResult['mostPickedReward'] = null;
-  if (rewardsTaken.length > 0) {
-    const rewardCounts: Record<number, { name: string; count: number }> = {};
-    for (const r of rewardsTaken) {
-      const id = r.card!.id;
-      if (!rewardCounts[id]) rewardCounts[id] = { name: r.card!.name, count: 0 };
-      rewardCounts[id].count++;
-    }
-    const top = Object.entries(rewardCounts).reduce((a, b) => b[1].count > a[1].count ? b : a);
-    mostPickedReward = {
-      id: Number(top[0]),
-      name: top[1].name,
-      count: top[1].count,
-      pct: top[1].count / rewardsTaken.length,
-    };
-  }
-
-  const avgCollectionSize = runs.reduce((s, r) => s + r.collectionAtEnd.length, 0) / count;
-  const victories = runs.filter((r) => r.victory);
-  const avgAliveCardsAtEnd = victories.length
-    ? victories.reduce((s, r) => s + r.collectionAtEnd.filter((c) => !c.isDead).length, 0) / victories.length
-    : 0;
-
-  const bossReachedPct = runs.filter((r) => r.combatsCompleted >= MAX_COMBATS).length / count;
-
-  return {
-    strategy: strategy.name,
-    runs,
-    winRate,
-    avgCombats,
-    deathDistribution,
-    avgRoundsPerCombat,
-    avgDamageDealtPerCombat,
-    avgDamageTakenPerCombat,
-    cardUsageFrequency,
-    cardDeathRate,
-    rewardTakeRate,
-    mostPickedReward,
-    avgCollectionSize,
-    avgAliveCardsAtEnd,
-    bossReachedPct,
-  };
+function insertRunResult(
+  db: Database,
+  config: SimulationConfig,
+  result: RunResult,
+  seed: number | null,
+): void {
+  db.run(
+    `INSERT INTO runs_v5 (
+      survivor_id, allocation_strategy, event_strategy,
+      won, combat_reached, final_hp, atk_bonus, def_bonus,
+      dice_mods, total_rounds, seed
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      String(config.survivorId),
+      config.allocationStrategy,
+      config.eventStrategy,
+      result.won ? 1 : 0,
+      result.combatReached,
+      result.finalHP,
+      result.atkBonusAccumulated,
+      result.defBonusAccumulated,
+      JSON.stringify(result.diceModsEquipped),
+      result.totalRounds,
+      seed,
+    ],
+  );
 }
 
 // ---------------------------------------------------------------------------
-// Reporting
+// Aggregate queries + reporting
 // ---------------------------------------------------------------------------
 
-const pct = (v: number) => `${Math.round(v * 100)}%`;
 const f1 = (v: number) => v.toFixed(1);
 
-function printStrategyReport(b: BatchResult): void {
-  console.log(`--- ${b.strategy.toUpperCase()} ---`);
-  console.log(`Win rate:           ${pct(b.winRate)}`);
-  console.log(`Avg combats:        ${f1(b.avgCombats)}`);
-
-  const dd = Object.entries(b.deathDistribution)
-    .map(([c, n]) => `C${c}: ${pct(n / b.runs.length)}`)
-    .join(' | ');
-  console.log(`Death distribution: ${dd}`);
-
-  const rpc = Object.entries(b.avgRoundsPerCombat)
-    .filter(([, v]) => v > 0)
-    .map(([c, v]) => `C${c}: ${f1(v)}`)
-    .join(' | ');
-  console.log(`Avg rounds/combat:  ${rpc}`);
-
-  // Card usage — sorted by frequency
-  const usage = Object.values(b.cardUsageFrequency)
-    .sort((a, c) => c.pct - a.pct)
-    .map((v) => `${v.name}: ${pct(v.pct)}`)
-    .join(' | ');
-  console.log(`Card usage:         ${usage}`);
-
-  // Card death rate — sorted by death rate
-  const deaths = Object.values(b.cardDeathRate)
-    .filter((v) => v.uses > 0)
-    .sort((a, c) => c.pct - a.pct)
-    .map((v) => `${v.name}: ${pct(v.pct)}`)
-    .join(' | ');
-  console.log(`Card death rate:    ${deaths}`);
-
-  console.log(`Reward take rate:   ${pct(b.rewardTakeRate)}`);
-  if (b.mostPickedReward) {
-    console.log(`Most picked reward: ${b.mostPickedReward.name} (${pct(b.mostPickedReward.pct)})`);
-  }
-  console.log();
+interface QueryRow {
+  [key: string]: string | number | null;
 }
 
-function printBalanceFlags(batches: BatchResult[]): void {
-  console.log('=== BALANCE FLAGS ===');
+function queryAll(db: Database, sql: string): QueryRow[] {
+  const result = db.exec(sql);
+  if (result.length === 0) return [];
+  const { columns, values } = result[0];
+  return values.map(row => {
+    const obj: QueryRow = {};
+    columns.forEach((col, i) => { obj[col] = row[i] as string | number | null; });
+    return obj;
+  });
+}
+
+function printTable(title: string, rows: QueryRow[], columns: string[]): void {
+  if (rows.length === 0) {
+    console.log(`\n${title}: (no data)`);
+    return;
+  }
+
+  console.log(`\n${title}`);
+
+  // Compute column widths
+  const widths = columns.map(col =>
+    Math.max(col.length, ...rows.map(r => String(r[col] ?? '').length))
+  );
+
+  // Header
+  const header = columns.map((col, i) => col.padEnd(widths[i])).join('  ');
+  console.log(header);
+  console.log(columns.map((_, i) => '-'.repeat(widths[i])).join('  '));
+
+  // Rows
+  for (const row of rows) {
+    const line = columns.map((col, i) => String(row[col] ?? '').padEnd(widths[i])).join('  ');
+    console.log(line);
+  }
+}
+
+function runAggregateQueries(db: Database): void {
+  // 1. Win rate by survivor × allocation strategy
+  const survivorAlloc = queryAll(db, `
+    SELECT survivor_id, allocation_strategy,
+      ROUND(AVG(won) * 100, 1) as win_rate,
+      ROUND(AVG(combat_reached), 1) as avg_combat,
+      COUNT(*) as runs
+    FROM runs_v5
+    GROUP BY survivor_id, allocation_strategy
+    ORDER BY win_rate DESC
+  `);
+  printTable(
+    '=== WIN RATE BY SURVIVOR x ALLOCATION ===',
+    survivorAlloc,
+    ['survivor_id', 'allocation_strategy', 'win_rate', 'avg_combat', 'runs'],
+  );
+
+  // 2. Allocation strategy overall impact
+  const allocImpact = queryAll(db, `
+    SELECT allocation_strategy,
+      ROUND(AVG(won) * 100, 1) as win_rate
+    FROM runs_v5
+    GROUP BY allocation_strategy
+    ORDER BY win_rate DESC
+  `);
+  printTable(
+    '=== ALLOCATION STRATEGY IMPACT ===',
+    allocImpact,
+    ['allocation_strategy', 'win_rate'],
+  );
+
+  // 3. Event strategy impact
+  const eventImpact = queryAll(db, `
+    SELECT event_strategy,
+      ROUND(AVG(won) * 100, 1) as win_rate
+    FROM runs_v5
+    GROUP BY event_strategy
+    ORDER BY win_rate DESC
+  `);
+  printTable(
+    '=== EVENT STRATEGY IMPACT ===',
+    eventImpact,
+    ['event_strategy', 'win_rate'],
+  );
+
+  // 4. Death distribution by combat
+  const deathDist = queryAll(db, `
+    SELECT combat_reached, COUNT(*) as deaths
+    FROM runs_v5 WHERE won = 0
+    GROUP BY combat_reached
+    ORDER BY combat_reached
+  `);
+  printTable(
+    '=== DEATH DISTRIBUTION BY COMBAT ===',
+    deathDist,
+    ['combat_reached', 'deaths'],
+  );
+
+  // 5. Dice modifier impact
+  const modImpact = queryAll(db, `
+    SELECT
+      CASE WHEN dice_mods = '[]' THEN 'none' ELSE 'has_mods' END as mod_status,
+      ROUND(AVG(won) * 100, 1) as win_rate,
+      COUNT(*) as runs
+    FROM runs_v5
+    GROUP BY mod_status
+  `);
+  printTable(
+    '=== DICE MODIFIER IMPACT ===',
+    modImpact,
+    ['mod_status', 'win_rate', 'runs'],
+  );
+
+  // 6. Win rate per survivor (overall)
+  const perSurvivor = queryAll(db, `
+    SELECT survivor_id,
+      ROUND(AVG(won) * 100, 1) as win_rate,
+      ROUND(AVG(combat_reached), 1) as avg_combat,
+      ROUND(AVG(final_hp), 1) as avg_final_hp,
+      ROUND(AVG(total_rounds), 1) as avg_rounds
+    FROM runs_v5
+    GROUP BY survivor_id
+    ORDER BY win_rate DESC
+  `);
+  printTable(
+    '=== WIN RATE PER SURVIVOR ===',
+    perSurvivor,
+    ['survivor_id', 'win_rate', 'avg_combat', 'avg_final_hp', 'avg_rounds'],
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Balance flags
+// ---------------------------------------------------------------------------
+
+function printBalanceFlags(db: Database): void {
+  console.log('\n=== BALANCE FLAGS ===');
   const flags: string[] = [];
 
-  // Check combat 1 win rate across all strategies
-  const c1WinRates = batches.map((b) => {
-    const c1Fights = b.runs.flatMap((r) => r.combatLogs).filter((cl) => cl.combatNumber === 1);
-    return c1Fights.length ? c1Fights.filter((cl) => cl.playerWon).length / c1Fights.length : 0;
-  });
-  if (c1WinRates.every((r) => r >= 0.98)) {
-    flags.push(`⚠ Combat 1 win rate is ${pct(Math.min(...c1WinRates))}+ across all strategies (too easy?)`);
-  }
-
-  // Check for dominant/fragile cards
-  for (const b of batches) {
-    for (const [, card] of Object.entries(b.cardDeathRate)) {
-      if (card.uses >= 10 && card.pct >= 0.8) {
-        flags.push(`⚠ ${card.name} dies ${pct(card.pct)} of the time with ${b.strategy} (too fragile?)`);
-      }
-    }
-    for (const [, card] of Object.entries(b.cardUsageFrequency)) {
-      if (card.pct >= 0.5) {
-        flags.push(`⚠ ${card.name} is picked ${pct(card.pct)} by ${b.strategy} (dominant card?)`);
-      }
+  // Target: optimal (hpThreshold + balanced) = 40-50%
+  const optimal = queryAll(db, `
+    SELECT ROUND(AVG(won) * 100, 1) as win_rate
+    FROM runs_v5
+    WHERE allocation_strategy = 'hpThreshold' AND event_strategy = 'balanced'
+  `);
+  if (optimal.length > 0) {
+    const wr = Number(optimal[0].win_rate);
+    if (wr >= 40 && wr <= 50) {
+      flags.push(`OK  Optimal strategy (hpThreshold+balanced): ${wr}% (target: 40-50%)`);
+    } else {
+      flags.push(`!!  Optimal strategy (hpThreshold+balanced): ${wr}% (target: 40-50%)`);
     }
   }
 
-  // Naive floor check
-  const naive = batches.find((b) => b.strategy === 'Naive');
-  if (naive && naive.winRate <= 0.02) {
-    flags.push(`⚠ Naive win rate is ${pct(naive.winRate)} (floor too punishing?)`);
+  // Target: aggressive = 25-35%
+  const aggressive = queryAll(db, `
+    SELECT ROUND(AVG(won) * 100, 1) as win_rate
+    FROM runs_v5
+    WHERE allocation_strategy = 'aggressive'
+  `);
+  if (aggressive.length > 0) {
+    const wr = Number(aggressive[0].win_rate);
+    if (wr >= 25 && wr <= 35) {
+      flags.push(`OK  Pure aggressive: ${wr}% (target: 25-35%)`);
+    } else {
+      flags.push(`!!  Pure aggressive: ${wr}% (target: 25-35%)`);
+    }
   }
 
-  // Overall win rate spread
-  const rates = batches.map((b) => `${b.strategy} ${pct(b.winRate)}`).join(', ');
-  const winRates = batches.map((b) => b.winRate);
-  const spread = Math.max(...winRates) - Math.min(...winRates);
-  if (spread >= 0.05 && spread <= 0.40) {
-    flags.push(`✅ Overall win rates: ${rates} (healthy spread)`);
-  } else if (spread < 0.05) {
-    flags.push(`⚠ Overall win rates: ${rates} (too similar — strategy doesn't matter?)`);
-  } else {
-    flags.push(`⚠ Overall win rates: ${rates} (very wide spread)`);
+  // Target: defensive = 20-30%
+  const defensive = queryAll(db, `
+    SELECT ROUND(AVG(won) * 100, 1) as win_rate
+    FROM runs_v5
+    WHERE allocation_strategy = 'defensive'
+  `);
+  if (defensive.length > 0) {
+    const wr = Number(defensive[0].win_rate);
+    if (wr >= 20 && wr <= 30) {
+      flags.push(`OK  Pure defensive: ${wr}% (target: 20-30%)`);
+    } else {
+      flags.push(`!!  Pure defensive: ${wr}% (target: 20-30%)`);
+    }
   }
 
-  if (flags.length === 0) {
-    console.log('✅ No significant balance concerns detected');
-  } else {
-    for (const f of flags) console.log(f);
+  // Target: random + random = 10-15%
+  const randomBaseline = queryAll(db, `
+    SELECT ROUND(AVG(won) * 100, 1) as win_rate
+    FROM runs_v5
+    WHERE allocation_strategy = 'random' AND event_strategy = 'random'
+  `);
+  if (randomBaseline.length > 0) {
+    const wr = Number(randomBaseline[0].win_rate);
+    if (wr >= 10 && wr <= 15) {
+      flags.push(`OK  Random baseline: ${wr}% (target: 10-15%)`);
+    } else {
+      flags.push(`!!  Random baseline: ${wr}% (target: 10-15%)`);
+    }
   }
-  console.log();
-}
 
-function printComparisonTable(batches: BatchResult[]): void {
-  console.log('=== STRATEGY COMPARISON ===');
-  const names = batches.map((b) => b.strategy);
-  const pad = 16;
+  // Allocation spread: optimal vs random should be 3-4x
+  const allocStrategies = queryAll(db, `
+    SELECT allocation_strategy, ROUND(AVG(won) * 100, 1) as win_rate
+    FROM runs_v5
+    GROUP BY allocation_strategy
+    ORDER BY win_rate DESC
+  `);
+  if (allocStrategies.length > 0) {
+    const bestWr = Number(allocStrategies[0].win_rate);
+    const randomRow = allocStrategies.find(r => r.allocation_strategy === 'random');
+    const randomWr = randomRow ? Number(randomRow.win_rate) : 0;
+    if (randomWr > 0) {
+      const ratio = bestWr / randomWr;
+      if (ratio >= 3 && ratio <= 4) {
+        flags.push(`OK  Allocation spread: ${ratio.toFixed(1)}x (target: 3-4x)`);
+      } else {
+        flags.push(`!!  Allocation spread: ${ratio.toFixed(1)}x (target: 3-4x)`);
+      }
+    }
+  }
 
-  const header = ''.padEnd(pad) + names.map((n) => n.padEnd(12)).join('');
-  console.log(header);
+  // Event impact: best event strategy vs no-event baseline
+  const eventStrategies = queryAll(db, `
+    SELECT event_strategy, ROUND(AVG(won) * 100, 1) as win_rate
+    FROM runs_v5
+    GROUP BY event_strategy
+    ORDER BY win_rate DESC
+  `);
+  if (eventStrategies.length >= 2) {
+    const best = Number(eventStrategies[0].win_rate);
+    const worst = Number(eventStrategies[eventStrategies.length - 1].win_rate);
+    const delta = best - worst;
+    if (delta >= 10 && delta <= 15) {
+      flags.push(`OK  Event impact: +${f1(delta)}pp spread (target: 10-15pp)`);
+    } else {
+      flags.push(`!!  Event impact: +${f1(delta)}pp spread (target: 10-15pp)`);
+    }
+  }
 
-  const row = (label: string, vals: string[]) => {
-    console.log(label.padEnd(pad) + vals.map((v) => v.padEnd(12)).join(''));
-  };
+  // No single survivor < 15% or > 60% with optimal play
+  const survivorOptimal = queryAll(db, `
+    SELECT survivor_id, ROUND(AVG(won) * 100, 1) as win_rate
+    FROM runs_v5
+    WHERE allocation_strategy = 'hpThreshold' AND event_strategy = 'balanced'
+    GROUP BY survivor_id
+    ORDER BY win_rate DESC
+  `);
+  for (const row of survivorOptimal) {
+    const wr = Number(row.win_rate);
+    const sid = row.survivor_id;
+    const card = CARD_DATABASE.find(c => c.id === Number(sid));
+    const name = card?.name ?? `#${sid}`;
+    if (wr < 15) {
+      flags.push(`!!  ${name} (ID ${sid}): ${wr}% with optimal play (< 15% floor)`);
+    } else if (wr > 60) {
+      flags.push(`!!  ${name} (ID ${sid}): ${wr}% with optimal play (> 60% ceiling)`);
+    } else {
+      flags.push(`OK  ${name} (ID ${sid}): ${wr}% with optimal play`);
+    }
+  }
 
-  row('Win rate', batches.map((b) => pct(b.winRate)));
-  row('Avg combats', batches.map((b) => f1(b.avgCombats)));
-  row('Avg cards dead', batches.map((b) => f1(b.runs.reduce((s, r) => s + r.cardsDeadCount, 0) / b.runs.length)));
-  row('Boss reached', batches.map((b) => pct(b.bossReachedPct)));
-  row('Boss beaten', batches.map((b) => pct(b.winRate)));
+  for (const f of flags) console.log(f);
   console.log();
 }
 
@@ -482,40 +563,79 @@ function printComparisonTable(batches: BatchResult[]): void {
 // Main
 // ---------------------------------------------------------------------------
 
-const RUNS_PER_STRATEGY = 500;
+const STARTER_SURVIVOR_IDS = [1, 2, 3, 4, 5];
+const ITERATIONS_PER_COMBO = 500;
 
 async function main() {
-  const dbPath = resolve(import.meta.dirname!, '..', '..', 'data', 'game.db');
+  const dbPath = resolve(import.meta.dirname!, '..', '..', 'data', 'autoplay_v5.db');
   const dbManager = new HeadlessDatabaseManager(dbPath);
   await dbManager.init();
-  const repo = new CombatLogRepository(dbManager);
+  const db = dbManager.db;
 
-  const totalRuns = RUNS_PER_STRATEGY * ALL_STRATEGIES.length;
-  console.log('=== DICE & CARDS — AUTOPLAY BALANCE REPORT ===');
-  console.log(`${RUNS_PER_STRATEGY} runs per strategy × ${ALL_STRATEGIES.length} strategies = ${totalRuns} total runs`);
+  // Create runs_v5 table (drop old data for clean run)
+  db.run('DROP TABLE IF EXISTS runs_v5');
+  db.run(RUNS_V5_DDL);
+
+  const totalCombos = STARTER_SURVIVOR_IDS.length * ALL_ALLOCATION_STRATEGIES.length * ALL_EVENT_STRATEGIES.length;
+  const totalRuns = totalCombos * ITERATIONS_PER_COMBO;
+  const baseSeed = Date.now();
+
+  console.log('=== DICE & CARDS — V5 AUTOPLAY BALANCE REPORT ===');
+  console.log(`${STARTER_SURVIVOR_IDS.length} survivors x ${ALL_ALLOCATION_STRATEGIES.length} allocation x ${ALL_EVENT_STRATEGIES.length} event = ${totalCombos} combos`);
+  console.log(`${ITERATIONS_PER_COMBO} iterations each = ${totalRuns} total runs`);
+  console.log(`Base seed: ${baseSeed}`);
   console.log();
 
-  const batches: BatchResult[] = [];
+  const t0 = performance.now();
+  let combosDone = 0;
+  let runsDone = 0;
 
-  for (const strategy of ALL_STRATEGIES) {
-    const t0 = performance.now();
-    const batch = runBatch(strategy, RUNS_PER_STRATEGY, repo);
-    const elapsed = ((performance.now() - t0) / 1000).toFixed(2);
-    console.log(`[${strategy.name}] ${RUNS_PER_STRATEGY} runs completed in ${elapsed}s`);
-    batches.push(batch);
+  for (const survivorId of STARTER_SURVIVOR_IDS) {
+    const card = CARD_DATABASE.find(c => c.id === survivorId)!;
+    const survT0 = performance.now();
+
+    for (const allocStrategy of ALL_ALLOCATION_STRATEGIES) {
+      for (const eventStrategy of ALL_EVENT_STRATEGIES) {
+        const config: SimulationConfig = {
+          survivorId,
+          allocationStrategy: allocStrategy,
+          eventStrategy,
+          iterations: ITERATIONS_PER_COMBO,
+          enableDiceModifiers: true,
+          seed: baseSeed,
+        };
+
+        // Batch insert in a transaction for performance
+        db.run('BEGIN TRANSACTION');
+        for (let i = 0; i < config.iterations; i++) {
+          const result = simulateRun(config, i);
+          insertRunResult(db, config, result, baseSeed + i);
+          runsDone++;
+        }
+        db.run('COMMIT');
+
+        combosDone++;
+      }
+    }
+
+    const survElapsed = ((performance.now() - survT0) / 1000).toFixed(2);
+    const survWinRate = queryAll(db, `
+      SELECT ROUND(AVG(won) * 100, 1) as wr FROM runs_v5 WHERE survivor_id = '${survivorId}'
+    `);
+    const wr = survWinRate[0]?.wr ?? '?';
+    console.log(`  [${card.name}] ${combosDone}/${totalCombos} combos (${survElapsed}s) — avg win rate: ${wr}%`);
   }
 
-  // Save to disk after all runs
+  const elapsed = ((performance.now() - t0) / 1000).toFixed(2);
+  console.log(`\nSimulation complete: ${runsDone} runs in ${elapsed}s`);
+
+  // Save DB
   dbManager.saveNow();
-  console.log(`\nDatabase saved to: ${dbPath}`);
-  console.log();
+  console.log(`Database saved to: ${dbPath}`);
 
-  for (const b of batches) {
-    printStrategyReport(b);
-  }
-
-  printBalanceFlags(batches);
-  printComparisonTable(batches);
+  // Run aggregate queries
+  runAggregateQueries(db);
+  printBalanceFlags(db);
 }
 
 main().catch((err) => {

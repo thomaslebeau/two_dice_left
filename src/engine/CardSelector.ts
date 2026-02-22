@@ -6,46 +6,43 @@ import { CARD_DATABASE } from '@shared/constants/cards';
  */
 export interface CardSelectorSnapshot {
   availableCards: Card[];
+  lockedCards: Card[];
   selectedCard: Card | null;
   canFight: boolean;
-}
-
-/**
- * Configuration passed when creating a CardSelector.
- */
-export interface CardSelectorConfig {
-  collection: Card[];
 }
 
 type CardSelectorListener = (snapshot: CardSelectorSnapshot) => void;
 
 /**
- * Manages single card selection for combat (v2).
- * Shows the player's collection or the starter pool, and lets them pick one.
+ * Manages single card selection for survivor pick (v5).
+ * Shows the full card database as the survivor pool.
  */
 export class CardSelector {
   private _availableCards: Card[];
+  private _lockedCards: Card[];
   private _selectedCard: Card | null = null;
   private listeners = new Set<CardSelectorListener>();
 
-  constructor(config?: CardSelectorConfig) {
-    const collection = config?.collection ?? [];
+  constructor(unlockedIds?: number[]) {
+    const allCards = CARD_DATABASE.map((card) => ({
+      ...card,
+      currentHp: card.maxHp,
+    }));
 
-    if (collection.length > 0) {
-      // Show alive cards from collection
-      this._availableCards = collection.filter((c) => !c.isDead);
+    if (unlockedIds) {
+      const idSet = new Set(unlockedIds);
+      this._availableCards = allCards.filter(c => idSet.has(c.id));
+      this._lockedCards = allCards.filter(c => !idSet.has(c.id));
     } else {
-      // First combat: show starter pool (first 5 cards from database)
-      this._availableCards = CARD_DATABASE.slice(0, 5).map((card) => ({
-        ...card,
-        currentHp: card.maxHp,
-      }));
+      this._availableCards = allCards;
+      this._lockedCards = [];
     }
   }
 
   // --- Read-only accessors ---
 
   get availableCards(): Card[] { return this._availableCards; }
+  get lockedCards(): Card[] { return this._lockedCards; }
   get selectedCard(): Card | null { return this._selectedCard; }
   get canFight(): boolean { return this._selectedCard !== null; }
 
@@ -66,6 +63,7 @@ export class CardSelector {
   snapshot(): CardSelectorSnapshot {
     return {
       availableCards: [...this._availableCards],
+      lockedCards: [...this._lockedCards],
       selectedCard: this._selectedCard,
       canFight: this.canFight,
     };
@@ -77,6 +75,9 @@ export class CardSelector {
    * Select a card for combat. Selecting the same card again deselects it.
    */
   selectCard(card: Card): void {
+    // Prevent selecting locked cards
+    if (this._lockedCards.some(c => c.id === card.id)) return;
+
     if (this._selectedCard?.id === card.id) {
       this._selectedCard = null;
     } else {

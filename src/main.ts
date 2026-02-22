@@ -8,10 +8,12 @@ import { GameState } from '@enums/GameState.enum';
 import { colors } from './theme.ts';
 
 import { createMainMenuScene } from '@/scenes/MainMenuScene.ts';
-import { createCardSelectionScene } from '@/scenes/CardSelectionScene.ts';
+import { createSurvivorSelectionScene } from '@/scenes/SurvivorSelectionScene.ts';
 import { createCombatScene } from '@/scenes/CombatScene.ts';
+import { createEventScene } from '@/scenes/EventScene.ts';
 import { createRewardScene } from '@/scenes/RewardScene.ts';
 import { createGameOverScene } from '@/scenes/GameOverScene.ts';
+import { createUnlockScene } from '@/scenes/UnlockScene.ts';
 
 async function main() {
   // Wait for web fonts before creating any Pixi text
@@ -42,10 +44,12 @@ async function main() {
 
   // Register all scenes
   scenes.register(GameState.MENU, createMainMenuScene(game, input));
-  scenes.register(GameState.CARD_SELECTION, createCardSelectionScene(game, input));
+  scenes.register(GameState.SURVIVOR_SELECTION, createSurvivorSelectionScene(game, input));
   scenes.register(GameState.COMBAT, createCombatScene(game, input));
+  scenes.register(GameState.EVENT, createEventScene(game, input));
   scenes.register(GameState.REWARD, createRewardScene(game, input));
   scenes.register(GameState.GAMEOVER, createGameOverScene(game, input));
+  scenes.register(GameState.UNLOCK, createUnlockScene(game, input));
 
   // Wire game state changes to scene transitions with appropriate data
   game.onChange((snap: GameStateSnapshot) => {
@@ -54,10 +58,8 @@ async function main() {
         scenes.switchTo(GameState.MENU);
         break;
 
-      case GameState.CARD_SELECTION:
-        scenes.switchTo(GameState.CARD_SELECTION, {
-          collection: snap.collection,
-        });
+      case GameState.SURVIVOR_SELECTION:
+        scenes.switchTo(GameState.SURVIVOR_SELECTION);
         break;
 
       case GameState.COMBAT:
@@ -65,6 +67,20 @@ async function main() {
           playerCard: snap.playerCard,
           enemyCard: snap.enemyCard,
           combatNumber: snap.currentCombat,
+          eventAtkBonus: snap.atkBonus,
+          eventDefBonus: snap.defBonus,
+          diceModifiers: snap.diceModifiers,
+        });
+        break;
+
+      case GameState.EVENT:
+        scenes.switchTo(GameState.EVENT, {
+          combatNumber: snap.currentCombat,
+          currentEvent: snap.currentEvent,
+          survivor: snap.survivor,
+          atkBonus: snap.atkBonus,
+          defBonus: snap.defBonus,
+          diceModifiers: snap.diceModifiers,
         });
         break;
 
@@ -78,6 +94,12 @@ async function main() {
         scenes.switchTo(GameState.GAMEOVER, {
           victory: snap.victory ?? false,
           combatNumber: snap.currentCombat,
+        });
+        break;
+
+      case GameState.UNLOCK:
+        scenes.switchTo(GameState.UNLOCK, {
+          unlocks: snap.pendingUnlocks,
         });
         break;
     }

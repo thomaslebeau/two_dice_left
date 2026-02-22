@@ -1,27 +1,38 @@
 import type { Card, EnemyCard } from '@/types/card.types';
 import type { CombatEndResult } from '@/types/combat.types';
+import type { GameEvent } from '@/types/event.types';
+import type { DiceModifier } from '@/types/diceModifier.types';
 import { GameState } from '@enums/GameState.enum';
-import { CARD_DATABASE, MAX_COMBATS } from '@shared/constants/cards';
+import { MAX_COMBATS } from '@shared/constants/cards';
 import { generateEnemy } from '@shared/utils/enemyGenerator';
 import { markCardAsDeadIfNeeded } from '@/shared/utils/cardDeathUtils';
+import { EventSystem } from '@/core/EventSystem.ts';
+import type { ChoiceResult } from '@/core/EventSystem.ts';
+import { MetaProgression } from '@/core/MetaProgression.ts';
+import type { UnlockResult } from '@/core/MetaProgression.ts';
 import { CombatLogRepository } from '@/db/CombatLogRepository.ts';
 import type { DbProvider } from '@/db/types.ts';
 
-// --- Event types ---
+// --- Snapshot ---
 
 export interface GameStateSnapshot {
   gameState: GameState;
   currentCombat: number;
   playerCard: Card | null;
   enemyCard: EnemyCard | null;
-  collection: Card[];
+  survivor: Card | null;
+  atkBonus: number;
+  defBonus: number;
+  diceModifiers: DiceModifier[];
+  currentEvent: GameEvent | null;
   victory: boolean | null;
+  pendingUnlocks: UnlockResult[];
 }
 
 type GameStateListener = (snapshot: GameStateSnapshot) => void;
 
 /**
- * Central game state machine (v2: single card selection per combat).
+ * Central game state machine (v5: single-survivor run with event loop).
  * Uses a simple listener callback list for change notifications.
  */
 export class GameStateManager {
@@ -29,8 +40,19 @@ export class GameStateManager {
   private _currentCombat = 0;
   private _playerCard: Card | null = null;
   private _enemyCard: EnemyCard | null = null;
-  private _collection: Card[] = [];
+  private _survivor: Card | null = null;
+  private _atkBonus = 0;
+  private _defBonus = 0;
+  private _diceModifiers: DiceModifier[] = [];
   private _victory: boolean | null = null;
+
+  // --- Event system ---
+  private eventSystem = new EventSystem();
+
+  // --- Meta-progression ---
+  private meta = new MetaProgression();
+  private _pendingUnlocks: UnlockResult[] = [];
+  private _metaRecorded = false;
 
   // --- Database (optional — game works without it) ---
   private dbManager: DbProvider | null = null;
@@ -47,8 +69,15 @@ export class GameStateManager {
   get currentCombat(): number { return this._currentCombat; }
   get playerCard(): Card | null { return this._playerCard; }
   get enemyCard(): EnemyCard | null { return this._enemyCard; }
-  get collection(): Card[] { return this._collection; }
+  get survivor(): Card | null { return this._survivor; }
+  get atkBonus(): number { return this._atkBonus; }
+  get defBonus(): number { return this._defBonus; }
+  get diceModifiers(): DiceModifier[] { return this._diceModifiers; }
+  get currentEvent(): GameEvent | null { return this.eventSystem.currentEvent; }
   get victory(): boolean | null { return this._victory; }
+  get unlockedSurvivorIds(): number[] { return this.meta.getUnlockedSurvivorIds(); }
+  get unlockedDiceModifierIds(): string[] { return this.meta.getUnlockedDiceModifierIds(); }
+  get metaProgression(): MetaProgression { return this.meta; }
 
   // --- Database setup ---
 
@@ -77,8 +106,13 @@ export class GameStateManager {
       currentCombat: this._currentCombat,
       playerCard: this._playerCard,
       enemyCard: this._enemyCard,
-      collection: [...this._collection],
+      survivor: this._survivor ? { ...this._survivor } : null,
+      atkBonus: this._atkBonus,
+      defBonus: this._defBonus,
+      diceModifiers: [...this._diceModifiers],
+      currentEvent: this.eventSystem.currentEvent,
       victory: this._victory,
+      pendingUnlocks: [...this._pendingUnlocks],
     };
   }
 
@@ -86,23 +120,24 @@ export class GameStateManager {
 
   /**
    * Start a new run.
-   * MENU -> CARD_SELECTION
+   * MENU -> SURVIVOR_SELECTION
    */
   startNewRun(): void {
-    this._collection = CARD_DATABASE.slice(0, 3).map((c) => ({
-      ...c,
-      currentHp: c.maxHp,
-    }));
+    this._survivor = null;
     this._playerCard = null;
     this._enemyCard = null;
     this._currentCombat = 0;
+    this._atkBonus = 0;
+    this._defBonus = 0;
+    this._diceModifiers = [];
     this._victory = null;
+    this.eventSystem.reset();
+    this.eventSystem.setUnlockedModifiers(this.meta.getUnlockedDiceModifierIds());
 
     // Create DB run record
     if (this.repo) {
       try {
-        const snapshot = JSON.stringify(this._collection.map((c) => ({ id: c.id, name: c.name })));
-        this._currentRunId = this.repo.createRun(snapshot);
+        this._currentRunId = this.repo.createRun('survivor-run');
         this.dbManager?.scheduleSave();
       } catch (err) {
         console.warn('[CombatLog] Failed to create run:', err);
@@ -110,28 +145,26 @@ export class GameStateManager {
       }
     }
 
-    this._gameState = GameState.CARD_SELECTION;
+    this._gameState = GameState.SURVIVOR_SELECTION;
     this.emit();
   }
 
   /**
-   * Player chose a single card for combat.
-   * CARD_SELECTION -> COMBAT
+   * Player chose their survivor for the entire run.
+   * SURVIVOR_SELECTION -> COMBAT (combat 1)
    */
-  handleCardChosen(card: Card): void {
-    this._playerCard = { ...card };
-    this._playerStartHp = card.currentHp;
-
-    // Add card to collection if not already present
-    if (!this._collection.some((c) => c.id === card.id)) {
-      this._collection = [...this._collection, card];
-    }
-
-    this._currentCombat += 1;
+  handleSurvivorChosen(card: Card): void {
+    this._survivor = { ...card, currentHp: card.maxHp };
+    this._playerCard = { ...this._survivor };
+    this._playerStartHp = this._playerCard.currentHp;
+    this._currentCombat = 1;
     this.startCombat(this._currentCombat);
   }
 
   private startCombat(combatNum: number): void {
+    // Survivor HP persists — use current survivor state as player card
+    this._playerCard = { ...this._survivor! };
+    this._playerStartHp = this._playerCard.currentHp;
     this._enemyCard = generateEnemy(combatNum);
     this._enemyStartHp = this._enemyCard.currentHp;
     this._gameState = GameState.COMBAT;
@@ -140,16 +173,16 @@ export class GameStateManager {
 
   /**
    * Combat ended.
-   * COMBAT -> REWARD or GAMEOVER
+   * COMBAT -> EVENT (if win + more combats) or REWARD (win + combat 5) or GAMEOVER (loss)
    */
   handleCombatEnd({ victory, playerCard: updatedPlayerCard, roundsLog }: CombatEndResult): void {
     const finalPlayerCard = markCardAsDeadIfNeeded(updatedPlayerCard);
     this._playerCard = finalPlayerCard;
 
-    // Update card in collection
-    this._collection = this._collection.map((card) =>
-      card.id === finalPlayerCard.id ? finalPlayerCard : card
-    );
+    // Update survivor HP from combat result
+    if (this._survivor) {
+      this._survivor = { ...this._survivor, currentHp: finalPlayerCard.currentHp, isDead: finalPlayerCard.isDead };
+    }
 
     // Log combat to database
     if (this.repo && this._currentRunId !== null && this._playerCard && this._enemyCard) {
@@ -185,61 +218,149 @@ export class GameStateManager {
     }
 
     if (this._currentCombat >= MAX_COMBATS) {
+      // Won all 5 combats — victory reward
       this._victory = true;
-      this._gameState = GameState.GAMEOVER;
-      this.finalizeCurrentRun(true);
-    } else {
       this._gameState = GameState.REWARD;
+    } else {
+      // More combats remain — pick event, then transition
+      this.eventSystem.getNextEvent();
+      this._gameState = GameState.EVENT;
     }
     this.emit();
   }
 
   /**
-   * Player picked a reward card — add to collection and go to next card selection.
-   * REWARD -> CARD_SELECTION
+   * Player made an event choice. Apply effects, then start next combat.
+   * EVENT -> COMBAT (next combat)
    */
-  handleRewardPicked(card: Card): void {
-    if (!this._collection.some((c) => c.id === card.id)) {
-      this._collection = [...this._collection, { ...card, currentHp: card.maxHp }];
+  handleEventChoice(choiceIndex: number): ChoiceResult {
+    const runState = {
+      hp: this._survivor!.currentHp,
+      maxHp: this._survivor!.maxHp,
+      atkBonus: this._atkBonus,
+      defBonus: this._defBonus,
+      diceModifiers: this._diceModifiers,
+    };
+
+    const result = this.eventSystem.applyChoice(choiceIndex, runState);
+
+    // Write back mutated run state
+    this._survivor = { ...this._survivor!, currentHp: runState.hp };
+    this._atkBonus = runState.atkBonus;
+    this._defBonus = runState.defBonus;
+    this._diceModifiers = runState.diceModifiers;
+
+    this._currentCombat += 1;
+    this.startCombat(this._currentCombat);
+
+    return result;
+  }
+
+  /**
+   * Player picked a reward card (meta-unlock at end of victorious run).
+   * REWARD -> UNLOCK (if unlocks) or MENU
+   */
+  handleRewardPicked(_card: Card): void {
+    this.finalizeCurrentRun(true);
+    if (this.recordAndCheckUnlocks()) {
+      this._gameState = GameState.UNLOCK;
+    } else {
+      this._gameState = GameState.MENU;
+      this.resetRunState();
     }
-    this._gameState = GameState.CARD_SELECTION;
     this.emit();
   }
 
   /**
-   * Player skipped the reward — go to next card selection with existing collection.
-   * REWARD -> CARD_SELECTION
+   * Player skipped the reward.
+   * REWARD -> UNLOCK (if unlocks) or MENU
    */
   handleRewardSkipped(): void {
-    this._gameState = GameState.CARD_SELECTION;
+    this.finalizeCurrentRun(true);
+    if (this.recordAndCheckUnlocks()) {
+      this._gameState = GameState.UNLOCK;
+    } else {
+      this._gameState = GameState.MENU;
+      this.resetRunState();
+    }
     this.emit();
   }
 
   /**
    * Back to main menu.
-   * any -> MENU
+   * any -> UNLOCK (if unlocks from defeat) or MENU
    */
   handleBackToMenu(): void {
-    // Finalize run if one is active (e.g. early quit)
+    // Finalize run if one is active
     if (this._currentRunId !== null && this._victory !== null) {
       this.finalizeCurrentRun(this._victory);
     }
 
+    // Record meta for defeats (wins are recorded in handleRewardPicked/Skipped)
+    if (this._victory === false && !this._metaRecorded) {
+      if (this.recordAndCheckUnlocks()) {
+        this._gameState = GameState.UNLOCK;
+        this.emit();
+        return;
+      }
+    }
+
     this._gameState = GameState.MENU;
+    this.resetRunState();
+    this.emit();
+  }
+
+  /**
+   * Player dismissed the unlock notification.
+   * UNLOCK -> MENU
+   */
+  handleUnlockDismissed(): void {
+    this._pendingUnlocks = [];
+    this._gameState = GameState.MENU;
+    this.resetRunState();
+    this.emit();
+  }
+
+  /**
+   * Record meta stats and check for new unlocks.
+   * Returns true if there are pending unlocks to show.
+   */
+  private recordAndCheckUnlocks(): boolean {
+    if (this._metaRecorded) return this._pendingUnlocks.length > 0;
+    this._metaRecorded = true;
+
+    const survivorId = this._survivor?.id ?? 0;
+    const won = this._victory === true;
+    const finalHP = this._survivor?.currentHp ?? 0;
+
+    const unlocks = this.meta.recordRun(survivorId, won, finalHP);
+    if (unlocks.length > 0) {
+      this._pendingUnlocks = unlocks;
+      return true;
+    }
+    return false;
+  }
+
+  private resetRunState(): void {
     this._currentCombat = 0;
     this._playerCard = null;
     this._enemyCard = null;
-    this._collection = [];
+    this._survivor = null;
+    this._atkBonus = 0;
+    this._defBonus = 0;
+    this._diceModifiers = [];
     this._victory = null;
     this._currentRunId = null;
-    this.emit();
+    this._metaRecorded = false;
+    this._pendingUnlocks = [];
+    this.eventSystem.reset();
   }
 
   private finalizeCurrentRun(victory: boolean): void {
     if (!this.repo || this._currentRunId === null) return;
     try {
-      const snapshot = JSON.stringify(this._collection.map((c) => ({ id: c.id, name: c.name })));
-      this.repo.finalizeRun(this._currentRunId, victory, snapshot);
+      const survivorInfo = this._survivor ? JSON.stringify({ id: this._survivor.id, name: this._survivor.name }) : 'none';
+      this.repo.finalizeRun(this._currentRunId, victory, survivorInfo);
       this.dbManager?.saveNow();
     } catch (err) {
       console.warn('[CombatLog] Failed to finalize run:', err);
@@ -254,8 +375,9 @@ export class GameStateManager {
   handleCardUpdate(updatedPlayer: Card, updatedEnemy: EnemyCard): void {
     this._playerCard = updatedPlayer;
     this._enemyCard = updatedEnemy;
-    this._collection = this._collection.map((card) =>
-      card.id === updatedPlayer.id ? updatedPlayer : card
-    );
+    // Keep survivor HP in sync
+    if (this._survivor && updatedPlayer.id === this._survivor.id) {
+      this._survivor = { ...this._survivor, currentHp: updatedPlayer.currentHp };
+    }
   }
 }

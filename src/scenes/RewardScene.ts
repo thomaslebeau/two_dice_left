@@ -40,7 +40,7 @@ export function createRewardScene(game: GameStateManager, input: InputManager): 
   root.addChild(subText);
 
   const instructionText = new Text({
-    text: 'Select a card to add to your collection, or skip',
+    text: 'Select a reward card, or skip',
     style: { fontFamily: fonts.body, fontSize: fonts.sizes.small, fill: colors.text },
   });
   instructionText.anchor.set(0.5, 0);
@@ -168,9 +168,8 @@ export function createRewardScene(game: GameStateManager, input: InputManager): 
 
   // --- Scene lifecycle ---
 
-  root.onEnter = (data?: unknown) => {
-    const d = data as RewardData | undefined;
-    subText.text = `Combat ${d?.combatNumber ?? '?'} complete`;
+  root.onEnter = () => {
+    subText.text = 'Run complete!';
     buildRewardCards();
     layout();
   };

@@ -2,6 +2,23 @@ import type { Card } from '@/types/card.types';
 import type { RoundLogEntry } from '@/db/types.ts';
 
 /**
+ * Dice allocation for a single die (GDD v5 — future use)
+ */
+export interface DiceAllocation {
+  target: 'attack' | 'defense';
+  value: number;
+}
+
+/**
+ * A single combat round with dice allocations (GDD v5 — future use)
+ */
+export interface CombatRound {
+  roundNumber: number;
+  playerAllocations: DiceAllocation[];
+  enemyAllocations: DiceAllocation[];
+}
+
+/**
  * Dice roll results for both players
  */
 export interface DiceResults {

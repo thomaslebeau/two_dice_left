@@ -1,4 +1,4 @@
-import type { EnemyCard } from '@/types/card.types';
+import type { EnemyCard, EnemyBase } from '@/types/card.types';
 import { ENEMY_DATABASE } from '@shared/constants/enemies';
 import { Rarity } from '@enums/Rarity.enum';
 
@@ -44,7 +44,7 @@ export const generateEnemy = (combatNumber: number): EnemyCard => {
     isBoss: false,
   };
 
-  let pool = ENEMY_DATABASE.filter((c) => tier.rarities.includes(c.rarity));
+  let pool: EnemyBase[] = ENEMY_DATABASE.filter((c) => tier.rarities.includes(c.rarity));
   if (pool.length === 0) {
     pool = ENEMY_DATABASE;
   }
@@ -63,5 +63,6 @@ export const generateEnemy = (combatNumber: number): EnemyCard => {
     defenseMod: base.defenseMod + boost.defense,
     description: tier.isBoss ? `BOSS FINAL — ${base.description}` : base.description,
     isBoss: tier.isBoss,
+    allocationPattern: base.allocationPattern,
   };
 };

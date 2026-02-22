@@ -1,10 +1,10 @@
-import type { CardBase } from '@/types/card.types';
+import type { EnemyBase } from '@/types/card.types';
 import { Rarity } from '@enums/Rarity.enum';
 
 /**
  * Enemy card database — mutant plant creatures (post-apocalyptic)
  */
-export const ENEMY_DATABASE: CardBase[] = [
+export const ENEMY_DATABASE: EnemyBase[] = [
   {
     id: 1,
     name: "Sécateur Rampant",
@@ -13,6 +13,7 @@ export const ENEMY_DATABASE: CardBase[] = [
     attackMod: 0,
     defenseMod: 0,
     description: "Plante rampante basique",
+    allocationPattern: 'neutral',
   },
   {
     id: 2,
@@ -22,6 +23,7 @@ export const ENEMY_DATABASE: CardBase[] = [
     attackMod: 1,
     defenseMod: -1,
     description: "Fragile mais agressive — ATK +1, DEF -1",
+    allocationPattern: 'aggressive',
   },
   {
     id: 3,
@@ -31,6 +33,7 @@ export const ENEMY_DATABASE: CardBase[] = [
     attackMod: 0,
     defenseMod: 0,
     description: "Petite vrille mutante",
+    allocationPattern: 'neutral',
   },
   {
     id: 4,
@@ -40,6 +43,7 @@ export const ENEMY_DATABASE: CardBase[] = [
     attackMod: 1,
     defenseMod: 0,
     description: "Griffes rotatives — ATK +1",
+    allocationPattern: 'aggressive',
   },
   {
     id: 5,
@@ -49,6 +53,7 @@ export const ENEMY_DATABASE: CardBase[] = [
     attackMod: 0,
     defenseMod: 1,
     description: "Mousse blindée — DEF +1",
+    allocationPattern: 'defensive',
   },
   {
     id: 6,
@@ -58,6 +63,7 @@ export const ENEMY_DATABASE: CardBase[] = [
     attackMod: 2,
     defenseMod: 0,
     description: "Lierre tranchant — ATK +2",
+    allocationPattern: 'aggressive',
   },
   {
     id: 7,
@@ -67,6 +73,7 @@ export const ENEMY_DATABASE: CardBase[] = [
     attackMod: 0,
     defenseMod: 1,
     description: "Mâchoire blindée — DEF +1",
+    allocationPattern: 'defensive',
   },
   {
     id: 8,
@@ -76,6 +83,7 @@ export const ENEMY_DATABASE: CardBase[] = [
     attackMod: 1,
     defenseMod: 1,
     description: "Machine végétale — +1/+1",
+    allocationPattern: 'neutral',
   },
   {
     id: 9,
@@ -85,5 +93,6 @@ export const ENEMY_DATABASE: CardBase[] = [
     attackMod: 2,
     defenseMod: 0,
     description: "Tentacules de grue — ATK +2",
+    allocationPattern: 'aggressive',
   },
 ];

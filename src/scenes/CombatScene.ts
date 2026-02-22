@@ -1,10 +1,13 @@
-import { Container, Text } from 'pixi.js';
+import { Container, Graphics, Text } from 'pixi.js';
 import type { Scene } from '@engine/SceneManager.ts';
 import type { GameStateManager } from '@engine/GameStateManager.ts';
 import type { InputManager } from '@/input/InputManager.ts';
 import { CombatEngine } from '@engine/CombatEngine.ts';
-import type { CombatSnapshot } from '@engine/CombatEngine.ts';
+import type { CombatSnapshot, CombatPhase } from '@engine/CombatEngine.ts';
+import type { AllocationResult } from '@/core/DiceAllocator.ts';
 import type { Card, EnemyCard } from '@/types/card.types';
+import type { CombatCalculation } from '@/types/combat.types.ts';
+import type { DiceModifier } from '@/types/diceModifier.types';
 import { CardSprite } from '@/sprites/CardSprite.ts';
 import { DiceSprite, DICE_SIZE } from '@/sprites/DiceSprite.ts';
 import { ButtonSprite } from '@/sprites/ButtonSprite.ts';
@@ -15,87 +18,475 @@ export interface CombatData {
   playerCard: Card;
   enemyCard: EnemyCard;
   combatNumber: number;
+  eventAtkBonus: number;
+  eventDefBonus: number;
+  diceModifiers?: DiceModifier[];
 }
 
-// --- Dice panel (4 dice + labels) ---
+// ─── Allocation Panel ────────────────────────────────────────────────
+// Lets the player assign their 2 rolled dice to ATK and DEF slots.
+// Supports click-to-assign, drag-drop, and keyboard/gamepad navigation.
 
-class DicePanel extends Container {
-  private playerAtkDice: DiceSprite;
-  private playerDefDice: DiceSprite;
-  private enemyAtkDice: DiceSprite;
-  private enemyDefDice: DiceSprite;
+const SLOT_SIZE = DICE_SIZE + 16;
+
+class AllocationPanel extends Container {
+  // Pool dice (the 2 rolled values)
+  private die0: DiceSprite;
+  private die1: DiceSprite;
+  private diceValues: [number, number] = [1, 1];
+
+  // Slot backgrounds
+  private atkSlotBg = new Graphics();
+  private defSlotBg = new Graphics();
+  private atkLabel: Text;
+  private defLabel: Text;
+
+  // Preview text
+  private previewDealText: Text;
+  private previewTakeText: Text;
+
+  // Confirm button
+  confirmBtn: ButtonSprite;
+
+  // State: which die index (0 or 1) is in each slot, or null
+  private _atkDieIdx: number | null = null;
+  private _defDieIdx: number | null = null;
+
+  // Positions for layout (set externally)
+  private poolPositions: [{ x: number; y: number }, { x: number; y: number }] = [
+    { x: 0, y: 0 }, { x: 0, y: 0 },
+  ];
+  private atkSlotPos = { x: 0, y: 0 };
+  private defSlotPos = { x: 0, y: 0 };
+
+  // Drag state
+  private draggingDie: DiceSprite | null = null;
+  private draggingIdx: number | null = null;
+  private dragOffset = { x: 0, y: 0 };
+
+  // Callback for preview updates
+  onAllocationChanged: ((allocation: AllocationResult | null) => void) | null = null;
+  onConfirm: ((allocation: AllocationResult) => void) | null = null;
+
+  constructor() {
+    super();
+
+    // ATK slot
+    this.addChild(this.atkSlotBg);
+    this.atkLabel = new Text({
+      text: 'ATK',
+      style: { fontFamily: fonts.heading, fontSize: fonts.sizes.body, fontWeight: 'bold', fill: colors.playerAccent },
+    });
+    this.atkLabel.anchor.set(0.5, 0);
+    this.addChild(this.atkLabel);
+
+    // DEF slot
+    this.addChild(this.defSlotBg);
+    this.defLabel = new Text({
+      text: 'DEF',
+      style: { fontFamily: fonts.heading, fontSize: fonts.sizes.body, fontWeight: 'bold', fill: colors.focus },
+    });
+    this.defLabel.anchor.set(0.5, 0);
+    this.addChild(this.defLabel);
+
+    // Dice (player-colored)
+    this.die0 = new DiceSprite(true);
+    this.die0.eventMode = 'static';
+    this.die0.cursor = 'grab';
+    this.addChild(this.die0);
+
+    this.die1 = new DiceSprite(true);
+    this.die1.eventMode = 'static';
+    this.die1.cursor = 'grab';
+    this.addChild(this.die1);
+
+    // Drag events
+    this.die0.on('pointerdown', (e) => this.startDrag(0, e));
+    this.die1.on('pointerdown', (e) => this.startDrag(1, e));
+
+    // Slot click (unassign)
+    this.atkSlotBg.eventMode = 'static';
+    this.atkSlotBg.cursor = 'pointer';
+    this.atkSlotBg.on('pointerdown', () => this.unassignSlot('atk'));
+
+    this.defSlotBg.eventMode = 'static';
+    this.defSlotBg.cursor = 'pointer';
+    this.defSlotBg.on('pointerdown', () => this.unassignSlot('def'));
+
+    // Stage-level drag tracking
+    this.eventMode = 'static';
+    this.on('pointermove', this.onDragMove, this);
+    this.on('pointerup', this.onDragEnd, this);
+    this.on('pointerupoutside', this.onDragEnd, this);
+
+    // Preview text
+    this.previewDealText = new Text({
+      text: '',
+      style: { fontFamily: fonts.body, fontSize: fonts.sizes.small, fill: colors.heal },
+    });
+    this.previewDealText.anchor.set(0.5, 0);
+    this.addChild(this.previewDealText);
+
+    this.previewTakeText = new Text({
+      text: '',
+      style: { fontFamily: fonts.body, fontSize: fonts.sizes.small, fill: colors.damage },
+    });
+    this.previewTakeText.anchor.set(0.5, 0);
+    this.addChild(this.previewTakeText);
+
+    // Confirm button
+    this.confirmBtn = new ButtonSprite('Confirm', { width: 140 });
+    this.confirmBtn.onPress = () => this.handleConfirm();
+    this.confirmBtn.setEnabled(false);
+    this.addChild(this.confirmBtn);
+  }
+
+  // --- Public API ---
+
+  /** Set the dice values and reset allocation state. */
+  setDice(values: [number, number]): void {
+    this.diceValues = values;
+    this._atkDieIdx = null;
+    this._defDieIdx = null;
+
+    this.die0.setValue(values[0]);
+    this.die1.setValue(values[1]);
+
+    this.confirmBtn.setEnabled(false);
+    this.clearPreview();
+    this.syncPositions();
+  }
+
+  /** Start roll animation for both dice. */
+  rollDice(values: [number, number]): void {
+    this.diceValues = values;
+    this._atkDieIdx = null;
+    this._defDieIdx = null;
+
+    this.die0.roll(values[0]);
+    this.die1.roll(values[1]);
+
+    this.confirmBtn.setEnabled(false);
+    this.clearPreview();
+  }
+
+  /** Get current allocation, or null if incomplete. */
+  getAllocation(): AllocationResult | null {
+    if (this._atkDieIdx === null || this._defDieIdx === null) return null;
+    return {
+      atkDie: this.diceValues[this._atkDieIdx],
+      defDie: this.diceValues[this._defDieIdx],
+    };
+  }
+
+  /** Update damage preview text. */
+  showPreview(calc: CombatCalculation): void {
+    this.previewDealText.text = `Deal ~${calc.damageToEnemy} dmg`;
+    this.previewTakeText.text = `Take ~${calc.damageToPlayer} dmg`;
+  }
+
+  clearPreview(): void {
+    this.previewDealText.text = '';
+    this.previewTakeText.text = '';
+  }
+
+  /** Assign die by index to the first available slot. Called by keyboard/gamepad. */
+  assignDieToNextSlot(dieIdx: number): void {
+    // Already assigned?
+    if (this._atkDieIdx === dieIdx || this._defDieIdx === dieIdx) return;
+
+    if (this._atkDieIdx === null) {
+      this._atkDieIdx = dieIdx;
+    } else if (this._defDieIdx === null) {
+      this._defDieIdx = dieIdx;
+    }
+    this.syncPositions();
+    this.notifyAllocationChanged();
+  }
+
+  /** Assign die directly to a specific slot. */
+  assignDieToSlot(dieIdx: number, slot: 'atk' | 'def'): void {
+    // If this die is already in the other slot, remove it
+    if (slot === 'atk' && this._defDieIdx === dieIdx) this._defDieIdx = null;
+    if (slot === 'def' && this._atkDieIdx === dieIdx) this._atkDieIdx = null;
+
+    // If the target slot already has a different die, swap it back to pool
+    if (slot === 'atk') {
+      if (this._atkDieIdx !== null && this._atkDieIdx !== dieIdx) {
+        // Existing die in ATK goes to pool (or swap to DEF if DEF is empty)
+        if (this._defDieIdx === null) {
+          this._defDieIdx = this._atkDieIdx;
+        }
+      }
+      this._atkDieIdx = dieIdx;
+    } else {
+      if (this._defDieIdx !== null && this._defDieIdx !== dieIdx) {
+        if (this._atkDieIdx === null) {
+          this._atkDieIdx = this._defDieIdx;
+        }
+      }
+      this._defDieIdx = dieIdx;
+    }
+
+    this.syncPositions();
+    this.notifyAllocationChanged();
+  }
+
+  /** Unassign a slot, returning the die to pool. */
+  unassignSlot(slot: 'atk' | 'def'): void {
+    if (slot === 'atk') this._atkDieIdx = null;
+    else this._defDieIdx = null;
+    this.syncPositions();
+    this.notifyAllocationChanged();
+  }
+
+  /** Reset allocations. */
+  resetAllocation(): void {
+    this._atkDieIdx = null;
+    this._defDieIdx = null;
+    this.confirmBtn.setEnabled(false);
+    this.clearPreview();
+    this.syncPositions();
+  }
+
+  // --- Layout (called externally when screen resizes) ---
+
+  layoutAt(centerX: number, topY: number, scale: number): void {
+    const gap = spacing.lg;
+    const slotGap = spacing.xl * 2;
+    const dieScaled = DICE_SIZE * scale;
+    const slotScaled = SLOT_SIZE * scale;
+
+    // Pool: 2 dice side by side above slots
+    const poolTotalW = dieScaled * 2 + gap;
+    this.poolPositions[0] = { x: centerX - poolTotalW / 2, y: topY };
+    this.poolPositions[1] = { x: centerX - poolTotalW / 2 + dieScaled + gap, y: topY };
+
+    // Slots below pool
+    const slotY = topY + dieScaled + gap + 20 * scale;
+    const slotsTotalW = slotScaled * 2 + slotGap;
+    this.atkSlotPos = { x: centerX - slotsTotalW / 2, y: slotY };
+    this.defSlotPos = { x: centerX - slotsTotalW / 2 + slotScaled + slotGap, y: slotY };
+
+    // Scale dice
+    this.die0.scale.set(scale);
+    this.die1.scale.set(scale);
+
+    // Draw slot backgrounds
+    this.drawSlot(this.atkSlotBg, this.atkSlotPos.x, this.atkSlotPos.y, slotScaled, this._atkDieIdx !== null);
+    this.drawSlot(this.defSlotBg, this.defSlotPos.x, this.defSlotPos.y, slotScaled, this._defDieIdx !== null);
+
+    // Slot labels above
+    this.atkLabel.style.fontSize = fonts.sizes.body * scale;
+    this.defLabel.style.fontSize = fonts.sizes.body * scale;
+    this.atkLabel.position.set(this.atkSlotPos.x + slotScaled / 2, this.atkSlotPos.y - 22 * scale);
+    this.defLabel.position.set(this.defSlotPos.x + slotScaled / 2, this.defSlotPos.y - 22 * scale);
+
+    // Preview text below slots
+    const previewY = slotY + slotScaled + spacing.sm;
+    this.previewDealText.style.fontSize = fonts.sizes.small * scale;
+    this.previewTakeText.style.fontSize = fonts.sizes.small * scale;
+    this.previewDealText.position.set(centerX, previewY);
+    this.previewTakeText.position.set(centerX, previewY + 16 * scale);
+
+    // Confirm button below preview
+    this.confirmBtn.position.set(
+      centerX - this.confirmBtn.buttonWidth / 2,
+      previewY + 36 * scale,
+    );
+
+    this.syncPositions();
+  }
+
+  get panelHeight(): number { return DICE_SIZE + spacing.lg + 20 + SLOT_SIZE + spacing.sm + 16 + 36 + 44; }
+
+  // --- Internals ---
+
+  private syncPositions(): void {
+    const die = (idx: number) => idx === 0 ? this.die0 : this.die1;
+
+    // Position dice: either in pool or in slot
+    for (let i = 0; i < 2; i++) {
+      const d = die(i);
+      if (this._atkDieIdx === i) {
+        // Center die in ATK slot
+        const slotScaled = SLOT_SIZE * d.scale.x;
+        const dieScaled = DICE_SIZE * d.scale.x;
+        d.position.set(
+          this.atkSlotPos.x + (slotScaled - dieScaled) / 2,
+          this.atkSlotPos.y + (slotScaled - dieScaled) / 2,
+        );
+      } else if (this._defDieIdx === i) {
+        const slotScaled = SLOT_SIZE * d.scale.x;
+        const dieScaled = DICE_SIZE * d.scale.x;
+        d.position.set(
+          this.defSlotPos.x + (slotScaled - dieScaled) / 2,
+          this.defSlotPos.y + (slotScaled - dieScaled) / 2,
+        );
+      } else {
+        // In pool
+        d.position.set(this.poolPositions[i].x, this.poolPositions[i].y);
+      }
+    }
+
+    this.confirmBtn.setEnabled(this._atkDieIdx !== null && this._defDieIdx !== null);
+  }
+
+  private drawSlot(gfx: Graphics, x: number, y: number, size: number, filled: boolean): void {
+    gfx.clear();
+    gfx.position.set(x, y);
+    gfx.rect(0, 0, size, size);
+    gfx.fill({ color: filled ? colors.overlayBg : colors.containerBg, alpha: filled ? 0.8 : 0.5 });
+    gfx.rect(0, 0, size, size);
+    gfx.stroke({ color: filled ? colors.focus : colors.text, width: 2, alpha: filled ? 1 : 0.3 });
+    // Store the actual rendered size for hit-testing
+    gfx.hitArea = { contains: (px: number, py: number) => px >= 0 && py >= 0 && px <= size && py <= size };
+  }
+
+  private notifyAllocationChanged(): void {
+    const alloc = this.getAllocation();
+    this.onAllocationChanged?.(alloc);
+
+    // Redraw slot borders
+    const s = this.die0.scale.x;
+    const slotScaled = SLOT_SIZE * s;
+    this.drawSlot(this.atkSlotBg, this.atkSlotPos.x, this.atkSlotPos.y, slotScaled, this._atkDieIdx !== null);
+    this.drawSlot(this.defSlotBg, this.defSlotPos.x, this.defSlotPos.y, slotScaled, this._defDieIdx !== null);
+  }
+
+  private handleConfirm(): void {
+    const alloc = this.getAllocation();
+    if (alloc) this.onConfirm?.(alloc);
+  }
+
+  // --- Drag & Drop ---
+
+  private startDrag(idx: number, e: { global: { x: number; y: number } }): void {
+    // If die is in a slot and user clicks it, remove from slot first
+    if (this._atkDieIdx === idx) {
+      this._atkDieIdx = null;
+      this.notifyAllocationChanged();
+    } else if (this._defDieIdx === idx) {
+      this._defDieIdx = null;
+      this.notifyAllocationChanged();
+    }
+
+    // If not being dragged, try click-to-assign
+    const d = idx === 0 ? this.die0 : this.die1;
+    this.draggingDie = d;
+    this.draggingIdx = idx;
+
+    const localPos = this.toLocal(e.global);
+    this.dragOffset.x = localPos.x - d.position.x;
+    this.dragOffset.y = localPos.y - d.position.y;
+
+    d.cursor = 'grabbing';
+    d.alpha = 0.8;
+
+    // Bring to front
+    this.setChildIndex(d, this.children.length - 1);
+  }
+
+  private onDragMove(e: { global: { x: number; y: number } }): void {
+    if (!this.draggingDie) return;
+    const localPos = this.toLocal(e.global);
+    this.draggingDie.position.set(
+      localPos.x - this.dragOffset.x,
+      localPos.y - this.dragOffset.y,
+    );
+  }
+
+  private onDragEnd(e: { global: { x: number; y: number } }): void {
+    if (!this.draggingDie || this.draggingIdx === null) return;
+
+    const d = this.draggingDie;
+    const idx = this.draggingIdx;
+    d.cursor = 'grab';
+    d.alpha = 1;
+
+    // Check if dropped on a slot
+    const localPos = this.toLocal(e.global);
+    const s = d.scale.x;
+    const slotScaled = SLOT_SIZE * s;
+
+    const inAtk = localPos.x >= this.atkSlotPos.x && localPos.x <= this.atkSlotPos.x + slotScaled
+      && localPos.y >= this.atkSlotPos.y && localPos.y <= this.atkSlotPos.y + slotScaled;
+    const inDef = localPos.x >= this.defSlotPos.x && localPos.x <= this.defSlotPos.x + slotScaled
+      && localPos.y >= this.defSlotPos.y && localPos.y <= this.defSlotPos.y + slotScaled;
+
+    if (inAtk) {
+      this.assignDieToSlot(idx, 'atk');
+    } else if (inDef) {
+      this.assignDieToSlot(idx, 'def');
+    } else {
+      // Not dropped on a slot — try click-to-assign (first empty)
+      this.assignDieToNextSlot(idx);
+    }
+
+    this.draggingDie = null;
+    this.draggingIdx = null;
+  }
+}
+
+// ─── Enemy Dice Display ──────────────────────────────────────────────
+
+class EnemyDicePanel extends Container {
+  private atkDice: DiceSprite;
+  private defDice: DiceSprite;
+  private atkLabel: Text;
+  private defLabel: Text;
 
   constructor() {
     super();
 
     const labelStyle = { fontFamily: fonts.body, fontSize: fonts.sizes.small, fill: colors.text };
+
+    this.atkLabel = new Text({ text: 'ATK', style: { ...labelStyle, fill: colors.enemyAccent } });
+    this.atkLabel.anchor.set(0.5, 0);
+    this.addChild(this.atkLabel);
+
+    this.atkDice = new DiceSprite(false);
+    this.addChild(this.atkDice);
+
+    this.defLabel = new Text({ text: 'DEF', style: { ...labelStyle, fill: colors.enemyAccent } });
+    this.defLabel.anchor.set(0.5, 0);
+    this.addChild(this.defLabel);
+
+    this.defDice = new DiceSprite(false);
+    this.addChild(this.defDice);
+  }
+
+  rollDice(dice: [number, number]): void {
+    this.atkDice.roll(dice[0]);
+    this.defDice.roll(dice[1]);
+  }
+
+  showAllocation(alloc: AllocationResult): void {
+    this.atkDice.setValue(alloc.atkDie);
+    this.defDice.setValue(alloc.defDie);
+  }
+
+  layoutAt(centerX: number, y: number, scale: number): void {
     const gap = spacing.md;
-    const colW = DICE_SIZE + gap;
+    const dieScaled = DICE_SIZE * scale;
+    const totalW = dieScaled * 2 + gap;
+    const startX = centerX - totalW / 2;
 
-    // Player column
-    const pLabel = new Text({ text: 'PLAYER', style: { ...labelStyle, fontWeight: 'bold', fill: colors.playerAccent } });
-    pLabel.anchor.set(0.5, 0);
-    pLabel.position.set(colW / 2, 0);
-    this.addChild(pLabel);
+    this.atkDice.scale.set(scale);
+    this.defDice.scale.set(scale);
 
-    const pAtkLabel = new Text({ text: 'ATK', style: labelStyle });
-    pAtkLabel.anchor.set(0.5, 0);
-    pAtkLabel.position.set(colW / 2, 22);
-    this.addChild(pAtkLabel);
+    this.atkLabel.style.fontSize = fonts.sizes.small * scale;
+    this.defLabel.style.fontSize = fonts.sizes.small * scale;
 
-    this.playerAtkDice = new DiceSprite(true);
-    this.playerAtkDice.position.set(gap / 2, 40);
-    this.addChild(this.playerAtkDice);
+    this.atkLabel.position.set(startX + dieScaled / 2, y);
+    this.atkDice.position.set(startX, y + 16 * scale);
 
-    const pDefLabel = new Text({ text: 'DEF', style: labelStyle });
-    pDefLabel.anchor.set(0.5, 0);
-    pDefLabel.position.set(colW / 2, 40 + DICE_SIZE + 6);
-    this.addChild(pDefLabel);
-
-    this.playerDefDice = new DiceSprite(true);
-    this.playerDefDice.position.set(gap / 2, 40 + DICE_SIZE + 24);
-    this.addChild(this.playerDefDice);
-
-    // Enemy column
-    const eOffsetX = colW + spacing.xl;
-
-    const eLabel = new Text({ text: 'ENEMY', style: { ...labelStyle, fontWeight: 'bold', fill: colors.enemyAccent } });
-    eLabel.anchor.set(0.5, 0);
-    eLabel.position.set(eOffsetX + colW / 2, 0);
-    this.addChild(eLabel);
-
-    const eAtkLabel = new Text({ text: 'ATK', style: labelStyle });
-    eAtkLabel.anchor.set(0.5, 0);
-    eAtkLabel.position.set(eOffsetX + colW / 2, 22);
-    this.addChild(eAtkLabel);
-
-    this.enemyAtkDice = new DiceSprite(false);
-    this.enemyAtkDice.position.set(eOffsetX + gap / 2, 40);
-    this.addChild(this.enemyAtkDice);
-
-    const eDefLabel = new Text({ text: 'DEF', style: labelStyle });
-    eDefLabel.anchor.set(0.5, 0);
-    eDefLabel.position.set(eOffsetX + colW / 2, 40 + DICE_SIZE + 6);
-    this.addChild(eDefLabel);
-
-    this.enemyDefDice = new DiceSprite(false);
-    this.enemyDefDice.position.set(eOffsetX + gap / 2, 40 + DICE_SIZE + 24);
-    this.addChild(this.enemyDefDice);
-
+    this.defLabel.position.set(startX + dieScaled + gap + dieScaled / 2, y);
+    this.defDice.position.set(startX + dieScaled + gap, y + 16 * scale);
   }
-
-  rollAll(snap: CombatSnapshot): void {
-    this.playerAtkDice.roll(snap.diceResults.playerAttack);
-    this.playerDefDice.roll(snap.diceResults.playerDefense);
-    this.enemyAtkDice.roll(snap.diceResults.enemyAttack);
-    this.enemyDefDice.roll(snap.diceResults.enemyDefense);
-  }
-
-  get panelWidth(): number { return (DICE_SIZE + spacing.md) * 2 + spacing.xl; }
-  get panelHeight(): number { return 40 + DICE_SIZE * 2 + 24 + spacing.md; }
 }
 
-// --- Combat results text panel ---
+// ─── Results text panel ──────────────────────────────────────────────
 
 class ResultsPanel extends Container {
   private playerDmgText: Text;
@@ -133,22 +524,19 @@ class ResultsPanel extends Container {
     this.finishText.position.set(centerX, startY + 56);
   }
 
-  update(snap: CombatSnapshot): void {
-    const r = snap.combatResult;
-    if (!r) return;
-
-    this.playerDmgText.text = r.damageToPlayer > 0
-      ? `You take -${r.damageToPlayer} HP`
+  update(combatResult: CombatCalculation, finished: boolean, enemyHp: number): void {
+    this.playerDmgText.text = combatResult.damageToPlayer > 0
+      ? `You take -${combatResult.damageToPlayer} HP`
       : 'You take no damage';
-    this.playerDmgText.style.fill = r.damageToPlayer > 0 ? colors.damage : colors.heal;
+    this.playerDmgText.style.fill = combatResult.damageToPlayer > 0 ? colors.damage : colors.heal;
 
-    this.enemyDmgText.text = r.damageToEnemy > 0
-      ? `Enemy takes -${r.damageToEnemy} HP`
+    this.enemyDmgText.text = combatResult.damageToEnemy > 0
+      ? `Enemy takes -${combatResult.damageToEnemy} HP`
       : 'Enemy blocked';
-    this.enemyDmgText.style.fill = r.damageToEnemy > 0 ? colors.heal : colors.damage;
+    this.enemyDmgText.style.fill = combatResult.damageToEnemy > 0 ? colors.heal : colors.damage;
 
-    if (snap.combatFinished) {
-      const won = snap.currentEnemyCard.currentHp <= 0;
+    if (finished) {
+      const won = enemyHp <= 0;
       this.finishText.text = won ? 'VICTORY!' : 'DEFEAT...';
       this.finishText.style.fill = won ? colors.focus : colors.damage;
     } else {
@@ -163,7 +551,7 @@ class ResultsPanel extends Container {
   }
 }
 
-// --- Main combat scene (v2: 1v1, click to advance) ---
+// ─── Main combat scene ──────────────────────────────────────────────
 
 export function createCombatScene(game: GameStateManager, input: InputManager): Scene {
   const root = new Container() as Scene;
@@ -181,7 +569,7 @@ export function createCombatScene(game: GameStateManager, input: InputManager): 
   headerText.anchor.set(0.5, 0);
   root.addChild(headerText);
 
-  // Status text (dice rolling / applying damage / click to continue)
+  // Status text
   const statusText = new Text({
     text: '',
     style: { fontFamily: fonts.body, fontSize: fonts.sizes.body, fill: colors.focus },
@@ -195,7 +583,7 @@ export function createCombatScene(game: GameStateManager, input: InputManager): 
   // Player card (bottom)
   let playerSprite: CardSprite | null = null;
 
-  // VS label between cards
+  // VS label
   const vsText = new Text({
     text: 'VS',
     style: { fontFamily: fonts.heading, fontSize: fonts.sizes.h1, fontWeight: 'bold', fill: colors.focus },
@@ -203,20 +591,24 @@ export function createCombatScene(game: GameStateManager, input: InputManager): 
   vsText.anchor.set(0.5);
   root.addChild(vsText);
 
-  // Dice panel
-  const dicePanel = new DicePanel();
-  root.addChild(dicePanel);
+  // Enemy dice display
+  const enemyDicePanel = new EnemyDicePanel();
+  root.addChild(enemyDicePanel);
+
+  // Allocation panel (replaces old DicePanel)
+  const allocPanel = new AllocationPanel();
+  root.addChild(allocPanel);
 
   // Results panel
   const resultsPanel = new ResultsPanel();
   resultsPanel.visible = false;
   root.addChild(resultsPanel);
 
-  // "Next Round" button (shown after round resolves)
+  // "Next Round" button
   const nextRoundBtn = new ButtonSprite('Next Round', { width: 160 });
   nextRoundBtn.visible = false;
   nextRoundBtn.onPress = () => {
-    if (engine && !combatFinished && roundResolved) {
+    if (engine && currentPhase === 'results') {
       engine.handleNextRound();
     }
   };
@@ -226,15 +618,31 @@ export function createCombatScene(game: GameStateManager, input: InputManager): 
   root.addChild(input.focusIndicator);
 
   // --- State ---
-  let roundResolved = false;
-  let combatFinished = false;
+  let currentPhase: CombatPhase = 'rolling';
   let combatNumber = 0;
+
+  // --- Wire allocation callbacks ---
+
+  allocPanel.onAllocationChanged = (alloc) => {
+    if (!engine || currentPhase !== 'allocating') return;
+    if (alloc) {
+      const preview = engine.previewAllocation(alloc);
+      allocPanel.showPreview(preview);
+    } else {
+      allocPanel.clearPreview();
+    }
+    registerAllocatingFocusables();
+  };
+
+  allocPanel.onConfirm = (alloc) => {
+    if (!engine || currentPhase !== 'allocating') return;
+    engine.submitAllocation(alloc);
+  };
 
   // --- Combat update handler ---
 
   function onCombatUpdate(snap: CombatSnapshot) {
-    roundResolved = snap.roundResolved;
-    combatFinished = snap.combatFinished;
+    currentPhase = snap.phase;
 
     // Update header
     headerText.text = `Combat #${combatNumber} — Round ${snap.roundNumber}`;
@@ -243,36 +651,139 @@ export function createCombatScene(game: GameStateManager, input: InputManager): 
     enemySprite?.updateCard(snap.currentEnemyCard);
     playerSprite?.updateCard(snap.currentPlayerCard);
 
-    // Show results panel
-    if (snap.showResults && snap.combatResult) {
-      resultsPanel.visible = true;
-      resultsPanel.update(snap);
-    }
+    switch (snap.phase) {
+      case 'rolling':
+        statusText.text = 'Dice rolling...';
+        allocPanel.visible = true;
+        allocPanel.rollDice(snap.playerDice);
+        enemyDicePanel.visible = true;
+        enemyDicePanel.rollDice(snap.enemyDice);
+        resultsPanel.visible = false;
+        resultsPanel.clear();
+        nextRoundBtn.visible = false;
+        input.unregisterAll();
+        break;
 
-    // Dice roll for new round
-    if (!snap.showResults && !snap.roundResolved) {
-      resultsPanel.visible = false;
-      resultsPanel.clear();
-      dicePanel.rollAll(snap);
-    }
+      case 'allocating':
+        statusText.text = 'Assign your dice!';
+        allocPanel.visible = true;
+        allocPanel.setDice(snap.playerDice);
+        // Show enemy allocation
+        enemyDicePanel.showAllocation(snap.enemyAllocation);
+        resultsPanel.visible = false;
+        nextRoundBtn.visible = false;
+        registerAllocatingFocusables();
+        break;
 
-    // Update status text and next round button
-    if (snap.combatFinished) {
-      statusText.text = '';
-      nextRoundBtn.visible = false;
-    } else if (snap.roundResolved) {
-      statusText.text = 'Click to continue';
-      nextRoundBtn.visible = true;
-      registerNextRoundFocusable();
-    } else if (snap.showResults) {
-      statusText.text = 'Applying damage...';
-      nextRoundBtn.visible = false;
-    } else {
-      statusText.text = 'Dice rolling...';
-      nextRoundBtn.visible = false;
+      case 'resolving':
+        statusText.text = 'Applying damage...';
+        allocPanel.visible = false;
+        enemyDicePanel.visible = true;
+        resultsPanel.visible = true;
+        if (snap.combatResult) {
+          resultsPanel.update(snap.combatResult, false, snap.currentEnemyCard.currentHp);
+        }
+        nextRoundBtn.visible = false;
+        input.unregisterAll();
+        break;
+
+      case 'results':
+        statusText.text = 'Click to continue';
+        allocPanel.visible = false;
+        resultsPanel.visible = true;
+        if (snap.combatResult) {
+          resultsPanel.update(snap.combatResult, false, snap.currentEnemyCard.currentHp);
+        }
+        nextRoundBtn.visible = true;
+        registerNextRoundFocusable();
+        break;
+
+      case 'finished':
+        statusText.text = '';
+        allocPanel.visible = false;
+        resultsPanel.visible = true;
+        if (snap.combatResult) {
+          resultsPanel.update(snap.combatResult, true, snap.currentEnemyCard.currentHp);
+        }
+        nextRoundBtn.visible = false;
+        input.unregisterAll();
+        break;
     }
 
     layout();
+  }
+
+  // --- Focus registration ---
+
+  function registerAllocatingFocusables() {
+    input.unregisterAll();
+
+    // Die 0 in pool (only if not assigned)
+    const alloc = allocPanel.getAllocation();
+    const die0assigned = alloc !== null || allocPanel.getAllocation() !== null;
+    // We need to check individually — use a simpler approach
+    input.register({
+      id: 'alloc-die-0',
+      container: allocPanel,
+      onActivate: () => allocPanel.assignDieToNextSlot(0),
+      onNavigate: (dir) => {
+        if (dir === 'right') { input.setFocus('alloc-die-1'); return true; }
+        if (dir === 'down') { input.setFocus('alloc-slot-atk'); return true; }
+        return false;
+      },
+    });
+
+    input.register({
+      id: 'alloc-die-1',
+      container: allocPanel,
+      onActivate: () => allocPanel.assignDieToNextSlot(1),
+      onNavigate: (dir) => {
+        if (dir === 'left') { input.setFocus('alloc-die-0'); return true; }
+        if (dir === 'down') { input.setFocus('alloc-slot-def'); return true; }
+        return false;
+      },
+    });
+
+    input.register({
+      id: 'alloc-slot-atk',
+      container: allocPanel,
+      onActivate: () => allocPanel.unassignSlot('atk'),
+      onNavigate: (dir) => {
+        if (dir === 'right') { input.setFocus('alloc-slot-def'); return true; }
+        if (dir === 'up') { input.setFocus('alloc-die-0'); return true; }
+        if (dir === 'down') { input.setFocus('alloc-confirm'); return true; }
+        return false;
+      },
+    });
+
+    input.register({
+      id: 'alloc-slot-def',
+      container: allocPanel,
+      onActivate: () => allocPanel.unassignSlot('def'),
+      onNavigate: (dir) => {
+        if (dir === 'left') { input.setFocus('alloc-slot-atk'); return true; }
+        if (dir === 'up') { input.setFocus('alloc-die-1'); return true; }
+        if (dir === 'down') { input.setFocus('alloc-confirm'); return true; }
+        return false;
+      },
+    });
+
+    input.register({
+      id: 'alloc-confirm',
+      container: allocPanel.confirmBtn,
+      disabled: allocPanel.getAllocation() === null,
+      onActivate: () => {
+        const a = allocPanel.getAllocation();
+        if (a && engine) engine.submitAllocation(a);
+      },
+      onNavigate: (dir) => {
+        if (dir === 'up') { input.setFocus('alloc-slot-atk'); return true; }
+        return false;
+      },
+    });
+
+    // Suppress unused warning
+    void die0assigned;
   }
 
   function registerNextRoundFocusable() {
@@ -281,7 +792,7 @@ export function createCombatScene(game: GameStateManager, input: InputManager): 
       id: 'combat-next-round',
       container: nextRoundBtn,
       onActivate: () => {
-        if (engine && !combatFinished && roundResolved) {
+        if (engine && currentPhase === 'results') {
           engine.handleNextRound();
         }
       },
@@ -300,13 +811,12 @@ export function createCombatScene(game: GameStateManager, input: InputManager): 
 
     headerText.position.set(centerX, spacing.sm);
 
-    // Scale cards and dice
+    // Scale cards
     if (enemySprite) enemySprite.scale.set(rl.cardScale);
     if (playerSprite) playerSprite.scale.set(rl.cardScale);
-    dicePanel.scale.set(rl.diceScale);
 
     if (rl.isMobile) {
-      // Mobile: everything stacked vertically, centered
+      // Mobile: stacked vertically
       const topY = spacing.sm + 30 * rl.fontScale;
 
       if (enemySprite) {
@@ -323,21 +833,21 @@ export function createCombatScene(game: GameStateManager, input: InputManager): 
 
       const belowCards = playerY + rl.cardH + spacing.sm;
 
-      // Dice panel centered below cards
-      const scaledPanelW = dicePanel.panelWidth * rl.diceScale;
-      dicePanel.position.set(centerX - scaledPanelW / 2, belowCards);
+      // Enemy dice to the right of enemy card
+      enemyDicePanel.layoutAt(centerX, topY - 10, rl.diceScale * 0.7);
 
-      const scaledPanelH = dicePanel.panelHeight * rl.diceScale;
+      // Allocation panel below cards
+      allocPanel.layoutAt(centerX, belowCards, rl.diceScale);
 
-      // Results below dice
+      // Results panel
       resultsPanel.position.set(0, 0);
-      resultsPanel.layoutAt(centerX, belowCards + scaledPanelH + spacing.sm);
+      resultsPanel.layoutAt(centerX, belowCards);
 
-      // Status + button below results
-      statusText.position.set(centerX, belowCards + scaledPanelH + spacing.sm + 60);
-      nextRoundBtn.position.set(centerX - nextRoundBtn.buttonWidth / 2, belowCards + scaledPanelH + spacing.sm + 85);
+      // Status + next round
+      statusText.position.set(centerX, belowCards - 20);
+      nextRoundBtn.position.set(centerX - nextRoundBtn.buttonWidth / 2, belowCards + 80);
     } else {
-      // Desktop: original side-by-side layout
+      // Desktop layout
       const cardAreaTop = spacing.sm + 40;
       const cardAreaBottom = sh - rl.cardH - spacing.lg;
       const midY = (cardAreaTop + rl.cardH + cardAreaBottom) / 2;
@@ -352,13 +862,15 @@ export function createCombatScene(game: GameStateManager, input: InputManager): 
 
       vsText.position.set(centerX, midY);
 
-      // Dice panel to the left of center
-      const scaledPanelW = dicePanel.panelWidth * rl.diceScale;
-      const diceX = centerX - scaledPanelW - spacing.xl;
-      const scaledPanelH = dicePanel.panelHeight * rl.diceScale;
-      dicePanel.position.set(Math.max(spacing.md, diceX), midY - scaledPanelH / 2);
+      // Enemy dice panel — to the right of center, above mid
+      const enemyDiceX = centerX + rl.cardW / 2 + spacing.xl;
+      enemyDicePanel.layoutAt(Math.min(sw - 120, enemyDiceX + 60), cardAreaTop + 20, rl.diceScale * 0.8);
 
-      // Results panel to the right of center
+      // Allocation panel — to the left of center
+      const allocX = centerX - rl.cardW / 2 - spacing.xl;
+      allocPanel.layoutAt(Math.max(120, allocX - 60), midY - 80, rl.diceScale * 0.9);
+
+      // Results panel — to the right of center
       const resultsX = centerX + spacing.xl;
       resultsPanel.position.set(0, 0);
       resultsPanel.layoutAt(Math.min(sw - spacing.md, resultsX + 80), midY - 40);
@@ -378,12 +890,13 @@ export function createCombatScene(game: GameStateManager, input: InputManager): 
     if (!d) return;
 
     combatNumber = d.combatNumber;
-    roundResolved = false;
-    combatFinished = false;
+    currentPhase = 'rolling';
 
     headerText.text = `Combat #${combatNumber}`;
     statusText.text = 'Dice rolling...';
-    dicePanel.visible = true;
+    allocPanel.visible = true;
+    allocPanel.resetAllocation();
+    enemyDicePanel.visible = true;
     resultsPanel.visible = false;
     resultsPanel.clear();
     nextRoundBtn.visible = false;
@@ -404,16 +917,23 @@ export function createCombatScene(game: GameStateManager, input: InputManager): 
     playerSprite = new CardSprite(d.playerCard);
     root.addChildAt(playerSprite, 1);
 
-    // Start combat immediately
+    // Start combat engine
     engine = new CombatEngine({
       playerCard: d.playerCard,
       enemyCard: d.enemyCard,
+      eventAtkBonus: d.eventAtkBonus,
+      eventDefBonus: d.eventDefBonus,
+      diceModifiers: d.diceModifiers,
       onCombatEnd: (result) => game.handleCombatEnd(result),
       onCardUpdate: (p, e) => game.handleCardUpdate(p, e),
     });
 
     engineUnsub = engine.onChange(onCombatUpdate);
-    dicePanel.rollAll(engine.snapshot());
+
+    // Initial roll animation
+    const snap = engine.snapshot();
+    allocPanel.rollDice(snap.playerDice);
+    enemyDicePanel.rollDice(snap.enemyDice);
 
     input.unregisterAll();
     root.addChild(input.focusIndicator);

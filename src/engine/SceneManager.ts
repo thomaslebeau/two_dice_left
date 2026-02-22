@@ -31,12 +31,11 @@ export class SceneManager {
     this.app.ticker.add((ticker) => {
       this.currentScene?.onUpdate?.(ticker.deltaTime);
     });
+  }
 
-    // Forward resize events
-    window.addEventListener('resize', () => {
-      const { width, height } = this.app.screen;
-      this.currentScene?.onResize?.(width, height);
-    });
+  /** Notify the active scene of a viewport resize. */
+  resize(width: number, height: number): void {
+    this.currentScene?.onResize?.(width, height);
   }
 
   /** Register a scene by name. */

@@ -22,10 +22,21 @@ async function main() {
   const app = new Application();
   await app.init({
     background: colors.background,
-    resizeTo: window,
     antialias: true,
+    width: window.innerWidth,
+    height: window.innerHeight,
+    resolution: window.devicePixelRatio || 1,
+    autoDensity: true,
   });
-  document.body.appendChild(app.canvas);
+
+  // Canvas fills full viewport
+  const canvas = app.canvas;
+  canvas.style.position = 'fixed';
+  canvas.style.top = '0';
+  canvas.style.left = '0';
+  canvas.style.width = '100vw';
+  canvas.style.height = '100vh';
+  document.body.appendChild(canvas);
 
   const game = new GameStateManager();
 
@@ -103,6 +114,20 @@ async function main() {
         });
         break;
     }
+  });
+
+  // Resize handler — updates renderer and notifies active scene
+  function handleResize() {
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    app.renderer.resize(w, h);
+    scenes.resize(w, h);
+  }
+
+  window.addEventListener('resize', handleResize);
+  window.addEventListener('orientationchange', () => {
+    // Orientation change may not update dimensions immediately
+    setTimeout(handleResize, 150);
   });
 
   // Start on the menu

@@ -26,7 +26,7 @@ export interface UnlockResult {
 
 const STORAGE_KEY = 'dice_and_cards_meta';
 
-const DEFAULT_SURVIVOR_IDS = [1, 2, 3, 4, 5];
+const DEFAULT_SURVIVOR_IDS = [1];
 const DEFAULT_MODIFIER_IDS = ['rusty', 'heavy', 'broken'];
 
 function defaultState(): MetaState {
@@ -49,8 +49,13 @@ interface UnlockCondition {
 }
 
 const UNLOCK_CONDITIONS: UnlockCondition[] = [
-  // Survivor unlocks
-  { type: 'survivor', id: 6, check: (s) => s.totalWins >= 3 },
+  // Progressive starter unlocks (IDs 2-5) — one per win
+  { type: 'survivor', id: 2, check: (s) => s.totalWins >= 1 },
+  { type: 'survivor', id: 3, check: (s) => s.totalWins >= 2 },
+  { type: 'survivor', id: 4, check: (s) => s.totalWins >= 3 },
+  { type: 'survivor', id: 5, check: (s) => s.totalWins >= 4 },
+  // Advanced survivor unlocks
+  { type: 'survivor', id: 6, check: (s) => s.totalWins >= 5 },
   { type: 'survivor', id: 7, check: (_s, won, finalHP) => won && finalHP < 3 },
   { type: 'survivor', id: 8, check: (s) => Object.keys(s.perSurvivorWins).length >= 7 },
   // Dice modifier unlocks
@@ -112,11 +117,12 @@ export class MetaProgression {
    * Dynamic unlock condition text for locked survivor cards.
    */
   getUnlockConditionText(cardId: number): string {
+    const winsNeeded: Record<number, number> = { 2: 1, 3: 2, 4: 3, 5: 4, 6: 5 };
+    if (cardId in winsNeeded) {
+      const remaining = Math.max(0, winsNeeded[cardId] - this.state.totalWins);
+      return remaining > 0 ? `Win ${remaining} more run(s)` : 'Unlocked!';
+    }
     switch (cardId) {
-      case 6: {
-        const remaining = Math.max(0, 3 - this.state.totalWins);
-        return remaining > 0 ? `Win ${remaining} more run(s)` : 'Unlocked!';
-      }
       case 7:
         return 'Win a run with < 3 HP';
       case 8: {

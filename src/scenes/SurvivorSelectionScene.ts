@@ -4,11 +4,10 @@ import type { GameStateManager } from '@engine/GameStateManager.ts';
 import type { InputManager } from '@/input/InputManager.ts';
 import { CardSelector } from '@engine/CardSelector.ts';
 import type { Card } from '@/types/card.types';
-import { CardSprite } from '@/sprites/CardSprite.ts';
+import { CardSprite, CARD_WIDTH } from '@/sprites/CardSprite.ts';
 import { ButtonSprite } from '@/sprites/ButtonSprite.ts';
 import { colors, fonts, spacing } from '@/theme.ts';
 import { getLayout } from '@/layout.ts';
-import { CARD_HEIGHT } from '@/sprites/CardSprite.ts';
 
 /**
  * Survivor selection scene (v5): pick 1 card for the entire run.
@@ -61,21 +60,6 @@ export function createSurvivorSelectionScene(game: GameStateManager, input: Inpu
   // -- Internal helpers --
 
   const cardSprites: CardSprite[] = [];
-  const lockedSprites: CardSprite[] = [];
-  const lockedOverlays: Text[] = [];
-
-  function clearLockedSprites() {
-    for (const cs of lockedSprites) {
-      cardContainer.removeChild(cs);
-      cs.destroy();
-    }
-    lockedSprites.length = 0;
-    for (const t of lockedOverlays) {
-      cardContainer.removeChild(t);
-      t.destroy();
-    }
-    lockedOverlays.length = 0;
-  }
 
   function buildCards() {
     for (const cs of cardSprites) {
@@ -83,7 +67,6 @@ export function createSurvivorSelectionScene(game: GameStateManager, input: Inpu
       cs.destroy();
     }
     cardSprites.length = 0;
-    clearLockedSprites();
 
     if (!selector) return;
 
@@ -94,31 +77,6 @@ export function createSurvivorSelectionScene(game: GameStateManager, input: Inpu
       cs.on('pointerdown', () => onCardClick(card));
       cardSprites.push(cs);
       cardContainer.addChild(cs);
-    }
-
-    // Build locked cards (dimmed, non-interactive, with condition overlay)
-    for (const card of selector.lockedCards) {
-      const cs = new CardSprite(card);
-      cs.alpha = 0.4;
-      cs.eventMode = 'none';
-      lockedSprites.push(cs);
-      cardContainer.addChild(cs);
-
-      const conditionText = game.metaProgression.getUnlockConditionText(card.id);
-      const overlay = new Text({
-        text: conditionText,
-        style: {
-          fontFamily: fonts.body,
-          fontSize: fonts.sizes.small,
-          fill: colors.focus,
-          align: 'center',
-          wordWrap: true,
-          wordWrapWidth: 140,
-        },
-      });
-      overlay.anchor.set(0.5);
-      lockedOverlays.push(overlay);
-      cardContainer.addChild(overlay);
     }
 
     syncSelection();
@@ -175,58 +133,56 @@ export function createSurvivorSelectionScene(game: GameStateManager, input: Inpu
   }
 
   function layoutCards() {
+    const n = cardSprites.length;
+    if (n === 0) return;
+
     const rl = getLayout(sw, sh);
     const gap = rl.isMobile ? spacing.xs : spacing.md;
 
-    // Combine all card sprites (unlocked + locked) for unified grid layout
-    const allSprites = [...cardSprites, ...lockedSprites];
+    // Compute card scale based on how many cards need to fit.
+    // Use the smaller of: responsive scale, or the scale that fits N cards in the available width.
+    const margin = spacing.xl * 2;
+    const fitScale = (sw - margin - (n - 1) * gap) / (n * CARD_WIDTH);
+    const cardScale = Math.min(rl.cardScale, Math.max(0.5, fitScale), 1.0);
+    const cardW = CARD_WIDTH * cardScale;
+    const cardH = rl.cardH / rl.cardScale * cardScale;
 
-    for (const cs of allSprites) {
-      cs.scale.set(rl.cardScale);
+    for (const cs of cardSprites) {
+      cs.scale.set(cardScale);
     }
 
-    if (rl.isMobile && allSprites.length > 3) {
+    if (rl.isMobile && n > 3) {
       // Wrap into 2 rows: top row gets ceil(n/2), bottom row gets the rest
-      const topCount = Math.ceil(allSprites.length / 2);
-      const bottomCount = allSprites.length - topCount;
+      const topCount = Math.ceil(n / 2);
+      const bottomCount = n - topCount;
       const rowGap = gap;
 
       // Top row
-      const topW = topCount * rl.cardW + (topCount - 1) * gap;
+      const topW = topCount * cardW + (topCount - 1) * gap;
       const topStartX = (sw - topW) / 2;
-      const topY = sh / 2 - rl.cardH - rowGap / 2;
+      const topY = sh / 2 - cardH - rowGap / 2;
 
       for (let i = 0; i < topCount; i++) {
-        allSprites[i].position.set(topStartX + i * (rl.cardW + gap), topY);
+        cardSprites[i].position.set(topStartX + i * (cardW + gap), topY);
       }
 
       // Bottom row
-      const botW = bottomCount * rl.cardW + (bottomCount - 1) * gap;
+      const botW = bottomCount * cardW + (bottomCount - 1) * gap;
       const botStartX = (sw - botW) / 2;
       const botY = sh / 2 + rowGap / 2;
 
       for (let i = 0; i < bottomCount; i++) {
-        allSprites[topCount + i].position.set(botStartX + i * (rl.cardW + gap), botY);
+        cardSprites[topCount + i].position.set(botStartX + i * (cardW + gap), botY);
       }
     } else {
-      // Single row
-      const totalW = allSprites.length * rl.cardW + (allSprites.length - 1) * gap;
+      // Single row — centered horizontally and vertically
+      const totalW = n * cardW + (n - 1) * gap;
       const startX = (sw - totalW) / 2;
-      const startY = sh / 2 - rl.cardH / 2 + 10;
+      const startY = sh / 2 - cardH / 2;
 
-      for (let i = 0; i < allSprites.length; i++) {
-        allSprites[i].position.set(startX + i * (rl.cardW + gap), startY);
+      for (let i = 0; i < n; i++) {
+        cardSprites[i].position.set(startX + i * (cardW + gap), startY);
       }
-    }
-
-    // Position locked card overlay texts at the center of each locked card
-    for (let i = 0; i < lockedSprites.length; i++) {
-      const cs = lockedSprites[i];
-      lockedOverlays[i].position.set(
-        cs.x + (rl.cardW / 2),
-        cs.y + (CARD_HEIGHT * rl.cardScale / 2),
-      );
-      lockedOverlays[i].scale.set(rl.cardScale);
     }
   }
 
@@ -261,7 +217,6 @@ export function createSurvivorSelectionScene(game: GameStateManager, input: Inpu
     unsubscribe = null;
     selector?.destroy();
     selector = null;
-    clearLockedSprites();
   };
 
   root.onResize = (w: number, h: number) => {

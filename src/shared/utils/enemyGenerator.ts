@@ -16,10 +16,10 @@ interface TierBoost {
 
 const TIER_CONFIG: Record<number, TierConfig> = {
   1: { rarities: [Rarity.COMMON], hpMultiplier: 0.25, statBoost: 0, isBoss: false },
-  2: { rarities: [Rarity.COMMON, Rarity.UNCOMMON], hpMultiplier: 0.35, statBoost: 0, isBoss: false },
-  3: { rarities: [Rarity.UNCOMMON, Rarity.RARE], hpMultiplier: 0.45, statBoost: 0, isBoss: false },
-  4: { rarities: [Rarity.RARE, Rarity.EPIC], hpMultiplier: 0.55, statBoost: 0, isBoss: false },
-  5: { rarities: [Rarity.EPIC], hpMultiplier: 0.90, statBoost: 0, isBoss: true },
+  2: { rarities: [Rarity.COMMON, Rarity.UNCOMMON], hpMultiplier: 0.45, statBoost: 0, isBoss: false },
+  3: { rarities: [Rarity.UNCOMMON, Rarity.RARE], hpMultiplier: 0.6, statBoost: 0, isBoss: false },
+  4: { rarities: [Rarity.RARE, Rarity.EPIC], hpMultiplier: 0.75, statBoost: 0, isBoss: false },
+  5: { rarities: [Rarity.EPIC], hpMultiplier: 0.9, statBoost: 0, isBoss: true },
 };
 
 // Only the boss gets a stat boost — earlier tiers rely on rarity pools and HP scaling
@@ -27,7 +27,7 @@ const TIER_BOOST: Record<number, TierBoost> = {
   1: { attack: 0, defense: 0 },
   2: { attack: 0, defense: 0 },
   3: { attack: 0, defense: 0 },
-  4: { attack: 0, defense: 0 },
+  4: { attack: 1, defense: 0 },
   5: { attack: 1, defense: 1 },
 };
 

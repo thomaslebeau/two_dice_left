@@ -6,6 +6,7 @@ import type { GameEvent, EventChoice, EventEffect } from '@/types/event.types';
 import type { DiceModifier } from '@/types/diceModifier.types';
 import type { Card } from '@/types/card.types';
 import { DICE_MODIFIERS } from '@shared/constants/diceModifiers';
+import { ButtonSprite } from '@/sprites/ButtonSprite.ts';
 import { colors, fonts, spacing } from '@/theme.ts';
 import { getLayout } from '@/layout.ts';
 
@@ -204,6 +205,7 @@ export function createEventScene(game: GameStateManager, input: InputManager): S
   let sw = 800, sh = 600;
   let choicePanels: ChoicePanel[] = [];
   let choicesLocked = false;
+  let currentData: EventData | null = null;
 
   // --- Static text elements ---
 
@@ -261,6 +263,15 @@ export function createEventScene(game: GameStateManager, input: InputManager): S
   resultText.anchor.set(0.5, 0);
   resultText.visible = false;
   root.addChild(resultText);
+
+  // Continue button (shown after choice result)
+  const continueBtn = new ButtonSprite('Continue', { color: colors.primary });
+  continueBtn.visible = false;
+  continueBtn.onPress = () => {
+    continueBtn.visible = false;
+    game.handleEventContinue();
+  };
+  root.addChild(continueBtn);
 
   // Choice container
   const choicesContainer = new Container();
@@ -333,6 +344,27 @@ export function createEventScene(game: GameStateManager, input: InputManager): S
       resultText.style.fill = colors.focus;
     }
     resultText.visible = true;
+    continueBtn.visible = true;
+
+    // Update HUD to reflect new state after effects applied
+    if (currentData) {
+      const snap = game.snapshot();
+      currentData.survivor = snap.survivor;
+      currentData.atkBonus = snap.atkBonus;
+      currentData.defBonus = snap.defBonus;
+      currentData.diceModifiers = snap.diceModifiers;
+      buildHud(currentData);
+    }
+
+    input.register({
+      id: 'event-continue',
+      container: continueBtn,
+      onActivate: () => {
+        continueBtn.visible = false;
+        game.handleEventContinue();
+      },
+    });
+
     layoutAll();
   }
 
@@ -369,10 +401,15 @@ export function createEventScene(game: GameStateManager, input: InputManager): S
 
     resultText.style.fontSize = fonts.sizes.h3 * fontScale;
     resultText.style.wordWrapWidth = Math.min(400, sw - 40);
-    // Position result text below choices
+    // Position result text and continue button below choices
     if (resultText.visible) {
       const choicesBottom = choicesContainer.y + choicesContainer.height;
       resultText.position.set(cx, choicesBottom + spacing.md);
+
+      if (continueBtn.visible) {
+        const btnY = resultText.y + resultText.height + spacing.md;
+        continueBtn.position.set(cx - continueBtn.buttonWidth / 2, btnY);
+      }
     }
 
     layoutChoices(fontScale);
@@ -381,13 +418,14 @@ export function createEventScene(game: GameStateManager, input: InputManager): S
   // --- Scene lifecycle ---
 
   root.onEnter = (data?: unknown) => {
-    const d = data as EventData | undefined;
+    currentData = (data as EventData | undefined) ?? null;
     choicesLocked = false;
     resultText.visible = false;
+    continueBtn.visible = false;
 
     input.unregisterAll();
 
-    if (!d?.currentEvent) {
+    if (!currentData?.currentEvent) {
       categoryText.text = 'Event';
       flavorText.text = 'Something stirs in the ruins...';
       clearChoices();
@@ -395,14 +433,14 @@ export function createEventScene(game: GameStateManager, input: InputManager): S
       return;
     }
 
-    const event = d.currentEvent;
+    const event = currentData.currentEvent;
     const accent = CATEGORY_COLORS[event.category] ?? colors.focus;
 
     categoryText.text = CATEGORY_LABELS[event.category] ?? 'Event';
     categoryText.style.fill = accent;
     flavorText.text = event.flavorText;
 
-    buildHud(d);
+    buildHud(currentData);
     buildChoices(event);
     layoutAll();
   };

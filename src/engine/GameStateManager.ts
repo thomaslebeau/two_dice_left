@@ -230,8 +230,8 @@ export class GameStateManager {
   }
 
   /**
-   * Player made an event choice. Apply effects, then start next combat.
-   * EVENT -> COMBAT (next combat)
+   * Player made an event choice. Apply effects but do NOT start next combat yet.
+   * The scene should show result feedback, then call handleEventContinue().
    */
   handleEventChoice(choiceIndex: number): ChoiceResult {
     const runState = {
@@ -250,10 +250,16 @@ export class GameStateManager {
     this._defBonus = runState.defBonus;
     this._diceModifiers = runState.diceModifiers;
 
+    return result;
+  }
+
+  /**
+   * Continue from event to next combat (called after player sees result feedback).
+   * EVENT -> COMBAT (next combat)
+   */
+  handleEventContinue(): void {
     this._currentCombat += 1;
     this.startCombat(this._currentCombat);
-
-    return result;
   }
 
   /**

@@ -35,9 +35,9 @@ describe('MetaProgression', () => {
   });
 
   describe('default state', () => {
-    it('starts with survivors 1-5 unlocked', () => {
+    it('starts with only survivor 1 unlocked', () => {
       const meta = new MetaProgression();
-      expect(meta.getUnlockedSurvivorIds()).toEqual([1, 2, 3, 4, 5]);
+      expect(meta.getUnlockedSurvivorIds()).toEqual([1]);
     });
 
     it('starts with rusty, heavy, broken modifiers unlocked', () => {
@@ -93,22 +93,58 @@ describe('MetaProgression', () => {
     });
   });
 
-  describe('unlock — Le Forgeron (ID 6)', () => {
-    it('unlocks at 3 wins', () => {
+  describe('unlock — progressive starters (IDs 2-5)', () => {
+    it('unlocks ID 2 at 1 win', () => {
+      const meta = new MetaProgression();
+      const unlocks = meta.recordRun(1, true, 10);
+      expect(unlocks.find(u => u.id === 2)).toBeDefined();
+      expect(meta.getUnlockedSurvivorIds()).toContain(2);
+    });
+
+    it('unlocks ID 3 at 2 wins', () => {
       const meta = new MetaProgression();
       meta.recordRun(1, true, 10);
-      meta.recordRun(2, true, 10);
-      const unlocks = meta.recordRun(3, true, 10);
+      const unlocks = meta.recordRun(1, true, 10);
+      expect(unlocks.find(u => u.id === 3)).toBeDefined();
+      expect(meta.getUnlockedSurvivorIds()).toContain(3);
+    });
+
+    it('unlocks ID 4 at 3 wins', () => {
+      const meta = new MetaProgression();
+      for (let i = 0; i < 2; i++) meta.recordRun(1, true, 10);
+      const unlocks = meta.recordRun(1, true, 10);
+      expect(unlocks.find(u => u.id === 4)).toBeDefined();
+    });
+
+    it('unlocks ID 5 at 4 wins', () => {
+      const meta = new MetaProgression();
+      for (let i = 0; i < 3; i++) meta.recordRun(1, true, 10);
+      const unlocks = meta.recordRun(1, true, 10);
+      expect(unlocks.find(u => u.id === 5)).toBeDefined();
+    });
+
+    it('does not unlock ID 2 on loss', () => {
+      const meta = new MetaProgression();
+      const unlocks = meta.recordRun(1, false, 0);
+      expect(unlocks.find(u => u.id === 2)).toBeUndefined();
+    });
+  });
+
+  describe('unlock — Le Forgeron (ID 6)', () => {
+    it('unlocks at 5 wins', () => {
+      const meta = new MetaProgression();
+      for (let i = 0; i < 4; i++) meta.recordRun(1, true, 10);
+      const unlocks = meta.recordRun(1, true, 10);
       const forgeronUnlock = unlocks.find(u => u.id === 6);
       expect(forgeronUnlock).toBeDefined();
       expect(forgeronUnlock!.type).toBe('survivor');
       expect(meta.getUnlockedSurvivorIds()).toContain(6);
     });
 
-    it('does not unlock at 2 wins', () => {
+    it('does not unlock at 4 wins', () => {
       const meta = new MetaProgression();
-      meta.recordRun(1, true, 10);
-      const unlocks = meta.recordRun(2, true, 10);
+      for (let i = 0; i < 3; i++) meta.recordRun(1, true, 10);
+      const unlocks = meta.recordRun(1, true, 10);
       expect(unlocks.find(u => u.id === 6)).toBeUndefined();
       expect(meta.getUnlockedSurvivorIds()).not.toContain(6);
     });
@@ -196,13 +232,11 @@ describe('MetaProgression', () => {
   describe('no duplicate unlocks', () => {
     it('does not re-unlock already unlocked items', () => {
       const meta = new MetaProgression();
-      // Trigger Le Forgeron unlock (3 wins)
-      meta.recordRun(1, true, 10);
-      meta.recordRun(2, true, 10);
-      meta.recordRun(3, true, 10); // unlocks Forgeron
+      // Trigger Le Forgeron unlock (5 wins)
+      for (let i = 0; i < 5; i++) meta.recordRun(i + 1, true, 10);
 
-      // 4th win should not re-unlock
-      const unlocks = meta.recordRun(4, true, 10);
+      // 6th win should not re-unlock Forgeron
+      const unlocks = meta.recordRun(6, true, 10);
       expect(unlocks.find(u => u.id === 6)).toBeUndefined();
     });
   });
@@ -230,7 +264,7 @@ describe('MetaProgression', () => {
       meta.reset();
       expect(meta.getStats().totalRuns).toBe(0);
       expect(meta.getStats().totalWins).toBe(0);
-      expect(meta.getUnlockedSurvivorIds()).toEqual([1, 2, 3, 4, 5]);
+      expect(meta.getUnlockedSurvivorIds()).toEqual([1]);
       expect(meta.getUnlockedDiceModifierIds()).toEqual(['rusty', 'heavy', 'broken']);
     });
   });
@@ -238,9 +272,17 @@ describe('MetaProgression', () => {
   describe('getUnlockConditionText', () => {
     it('returns dynamic text for Le Forgeron (ID 6)', () => {
       const meta = new MetaProgression();
-      expect(meta.getUnlockConditionText(6)).toBe('Win 3 more run(s)');
+      expect(meta.getUnlockConditionText(6)).toBe('Win 5 more run(s)');
       meta.recordRun(1, true, 10);
-      expect(meta.getUnlockConditionText(6)).toBe('Win 2 more run(s)');
+      expect(meta.getUnlockConditionText(6)).toBe('Win 4 more run(s)');
+    });
+
+    it('returns dynamic text for starters (IDs 2-5)', () => {
+      const meta = new MetaProgression();
+      expect(meta.getUnlockConditionText(2)).toBe('Win 1 more run(s)');
+      expect(meta.getUnlockConditionText(3)).toBe('Win 2 more run(s)');
+      expect(meta.getUnlockConditionText(4)).toBe('Win 3 more run(s)');
+      expect(meta.getUnlockConditionText(5)).toBe('Win 4 more run(s)');
     });
 
     it('returns fixed text for Le Blindé (ID 7)', () => {

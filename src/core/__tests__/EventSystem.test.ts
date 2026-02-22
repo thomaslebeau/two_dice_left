@@ -83,8 +83,8 @@ describe('EventSystem', () => {
       if (found) {
         const rs = freshRunState();
         rs.hp = 7;
-        system.applyChoice(0, rs); // "Patch Wounds" = +3 HP
-        expect(rs.hp).toBe(10);
+        system.applyChoice(0, rs); // "Patch Wounds" = +2 HP
+        expect(rs.hp).toBe(9);
       }
     });
 

@@ -14,7 +14,7 @@ export const EVENT_POOL: GameEvent[] = [
       {
         label: 'Patch Wounds',
         description: 'Bandage up with salvaged supplies.',
-        effects: [{ type: 'hp', value: 3 }],
+        effects: [{ type: 'hp', value: 2 }],
       },
       {
         label: 'Sharpen Blade',
@@ -47,7 +47,7 @@ export const EVENT_POOL: GameEvent[] = [
     choices: [
       {
         label: 'Quick Fix',
-        description: 'A safe, small repair.',
+        description: 'A safe, thorough repair.',
         effects: [{ type: 'hp', value: 2 }],
       },
       {
@@ -78,6 +78,11 @@ export const EVENT_POOL: GameEvent[] = [
         description: "Faces: 3,3,4,4,5,5. Can't exceed 5.",
         effects: [{ type: 'diceModifier', value: 0, modifierId: 'heavy' }],
       },
+      {
+        label: 'Leave it',
+        description: 'Move on carefully. +1 HP',
+        effects: [{ type: 'hp', value: 1 }],
+      },
     ],
   },
   {
@@ -95,6 +100,11 @@ export const EVENT_POOL: GameEvent[] = [
         description: 'Standard faces. Pierces 2 enemy DEF.',
         effects: [{ type: 'diceModifier', value: 0, modifierId: 'needle' }],
       },
+      {
+        label: 'Leave it',
+        description: 'Move on carefully. +1 HP',
+        effects: [{ type: 'hp', value: 1 }],
+      },
     ],
   },
   {
@@ -111,6 +121,11 @@ export const EVENT_POOL: GameEvent[] = [
         label: 'Root Die',
         description: 'Faces: 1,2,3,3,4,5. If DEF: heal 1 HP.',
         effects: [{ type: 'diceModifier', value: 0, modifierId: 'root' }],
+      },
+      {
+        label: 'Leave it',
+        description: 'Move on carefully. +1 HP',
+        effects: [{ type: 'hp', value: 1 }],
       },
     ],
   },
@@ -131,9 +146,9 @@ export const EVENT_POOL: GameEvent[] = [
         },
       },
       {
-        label: 'Keep Moving',
-        description: 'Play it safe. Nothing ventured, nothing gained.',
-        effects: [],
+        label: 'Stay Cautious',
+        description: 'Play it safe. Reinforce your guard.',
+        effects: [{ type: 'def', value: 1 }],
       },
     ],
   },
@@ -143,18 +158,14 @@ export const EVENT_POOL: GameEvent[] = [
     flavorText: "A strange merchant sits by a fire, trinkets spread on a mat. Their prices aren't measured in coin.",
     choices: [
       {
-        label: 'Trade',
-        description: 'Gamble on their wares.',
-        effects: [{ type: 'atk', value: 2 }],
-        risk: {
-          chance: 0.5,
-          failEffects: [{ type: 'hp', value: -2 }],
-        },
+        label: 'Trade HP for Power',
+        description: 'Sacrifice health for combat edge.',
+        effects: [{ type: 'hp', value: -3 }, { type: 'atk', value: 2 }, { type: 'def', value: 1 }],
       },
       {
-        label: 'Barter',
-        description: 'A fair exchange — modest but reliable.',
-        effects: [{ type: 'def', value: 1 }],
+        label: 'Trade Power for HP',
+        description: 'Give up striking power for endurance.',
+        effects: [{ type: 'atk', value: -1 }, { type: 'hp', value: 3 }],
       },
     ],
   },
@@ -175,8 +186,8 @@ export const EVENT_POOL: GameEvent[] = [
         description: 'Risk the unstable structure for better loot.',
         effects: [{ type: 'def', value: 2 }],
         risk: {
-          chance: 0.6,
-          failEffects: [{ type: 'hp', value: -3 }],
+          chance: 0.75,
+          failEffects: [{ type: 'hp', value: -2 }],
         },
       },
     ],

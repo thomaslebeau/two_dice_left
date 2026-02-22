@@ -50,7 +50,12 @@ interface RunResult {
   avgAllocationAtkDie: number;
   avgAllocationDefDie: number;
   totalRounds: number;
+  speedKills: number;
+  hpRecovered: number;
 }
+
+const SPEED_KILL_THRESHOLD = 3;
+const SPEED_KILL_RECOVERY = 3;
 
 // ---------------------------------------------------------------------------
 // Seeded PRNG
@@ -168,6 +173,8 @@ function simulateRun(config: SimulationConfig, iteration: number): RunResult {
   let totalDefDie = 0;
   let combatReached = 0;
   let won = false;
+  let speedKills = 0;
+  let hpRecovered = 0;
 
   try {
     for (let combatNum = 1; combatNum <= MAX_COMBATS; combatNum++) {
@@ -200,6 +207,17 @@ function simulateRun(config: SimulationConfig, iteration: number): RunResult {
       hpPerCombat.push(survivor.currentHp);
 
       if (!playerWon) break;
+
+      // Speed kill bonus: recover HP if combat took ≤ threshold rounds
+      if (roundsLog.length <= SPEED_KILL_THRESHOLD) {
+        speedKills++;
+        const recovery = Math.min(SPEED_KILL_RECOVERY, survivor.maxHp - survivor.currentHp);
+        if (recovery > 0) {
+          survivor = { ...survivor, currentHp: survivor.currentHp + recovery };
+          runState.hp = survivor.currentHp;
+          hpRecovered += recovery;
+        }
+      }
 
       // Won last combat → victory
       if (combatNum >= MAX_COMBATS) {
@@ -236,6 +254,8 @@ function simulateRun(config: SimulationConfig, iteration: number): RunResult {
     avgAllocationAtkDie: totalRounds > 0 ? totalAtkDie / totalRounds : 0,
     avgAllocationDefDie: totalRounds > 0 ? totalDefDie / totalRounds : 0,
     totalRounds,
+    speedKills,
+    hpRecovered,
   };
 }
 
@@ -256,6 +276,8 @@ CREATE TABLE IF NOT EXISTS runs_v5 (
   def_bonus INTEGER NOT NULL DEFAULT 0,
   dice_mods TEXT NOT NULL DEFAULT '[]',
   total_rounds INTEGER NOT NULL,
+  speed_kills INTEGER NOT NULL DEFAULT 0,
+  hp_recovered INTEGER NOT NULL DEFAULT 0,
   seed INTEGER,
   timestamp TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -271,8 +293,8 @@ function insertRunResult(
     `INSERT INTO runs_v5 (
       survivor_id, allocation_strategy, event_strategy,
       won, combat_reached, final_hp, atk_bonus, def_bonus,
-      dice_mods, total_rounds, seed
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      dice_mods, total_rounds, speed_kills, hp_recovered, seed
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [
       String(config.survivorId),
       config.allocationStrategy,
@@ -284,6 +306,8 @@ function insertRunResult(
       result.defBonusAccumulated,
       JSON.stringify(result.diceModsEquipped),
       result.totalRounds,
+      result.speedKills,
+      result.hpRecovered,
       seed,
     ],
   );
@@ -424,6 +448,53 @@ function runAggregateQueries(db: Database): void {
     perSurvivor,
     ['survivor_id', 'win_rate', 'avg_combat', 'avg_final_hp', 'avg_rounds'],
   );
+
+  // 7. Speed kill rate by allocation strategy
+  const speedByAlloc = queryAll(db, `
+    SELECT allocation_strategy,
+      ROUND(AVG(won) * 100, 1) as win_rate,
+      ROUND(AVG(speed_kills), 1) as avg_speed_kills,
+      ROUND(AVG(hp_recovered), 1) as avg_hp_recovered
+    FROM runs_v5
+    GROUP BY allocation_strategy
+    ORDER BY win_rate DESC
+  `);
+  printTable(
+    '=== SPEED KILLS BY ALLOCATION ===',
+    speedByAlloc,
+    ['allocation_strategy', 'win_rate', 'avg_speed_kills', 'avg_hp_recovered'],
+  );
+
+  // 8. Speed kill rate by survivor
+  const speedBySurvivor = queryAll(db, `
+    SELECT survivor_id,
+      ROUND(AVG(speed_kills), 1) as avg_speed_kills,
+      ROUND(AVG(hp_recovered), 1) as avg_hp_recovered,
+      ROUND(AVG(CASE WHEN allocation_strategy = 'aggressive' THEN speed_kills ELSE NULL END), 1) as aggro_speed_kills,
+      ROUND(AVG(CASE WHEN allocation_strategy = 'defensive' THEN speed_kills ELSE NULL END), 1) as def_speed_kills
+    FROM runs_v5
+    GROUP BY survivor_id
+    ORDER BY avg_speed_kills DESC
+  `);
+  printTable(
+    '=== SPEED KILLS BY SURVIVOR ===',
+    speedBySurvivor,
+    ['survivor_id', 'avg_speed_kills', 'avg_hp_recovered', 'aggro_speed_kills', 'def_speed_kills'],
+  );
+
+  // 9. Strategy hierarchy (with balanced events)
+  const hierarchy = queryAll(db, `
+    SELECT allocation_strategy,
+      ROUND(AVG(CASE WHEN event_strategy = 'balanced' THEN won ELSE NULL END) * 100, 1) as with_balanced
+    FROM runs_v5
+    GROUP BY allocation_strategy
+    ORDER BY with_balanced DESC
+  `);
+  printTable(
+    '=== STRATEGY HIERARCHY (balanced events) ===',
+    hierarchy,
+    ['allocation_strategy', 'with_balanced'],
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -434,7 +505,7 @@ function printBalanceFlags(db: Database): void {
   console.log('\n=== BALANCE FLAGS ===');
   const flags: string[] = [];
 
-  // Target: optimal (hpThreshold + balanced) = 40-50%
+  // Target: optimal (hpThreshold + balanced) = 35-45%
   const optimal = queryAll(db, `
     SELECT ROUND(AVG(won) * 100, 1) as win_rate
     FROM runs_v5
@@ -442,10 +513,10 @@ function printBalanceFlags(db: Database): void {
   `);
   if (optimal.length > 0) {
     const wr = Number(optimal[0].win_rate);
-    if (wr >= 40 && wr <= 50) {
-      flags.push(`OK  Optimal strategy (hpThreshold+balanced): ${wr}% (target: 40-50%)`);
+    if (wr >= 35 && wr <= 45) {
+      flags.push(`OK  Optimal strategy (hpThreshold+balanced): ${wr}% (target: 35-45%)`);
     } else {
-      flags.push(`!!  Optimal strategy (hpThreshold+balanced): ${wr}% (target: 40-50%)`);
+      flags.push(`!!  Optimal strategy (hpThreshold+balanced): ${wr}% (target: 35-45%)`);
     }
   }
 
@@ -507,10 +578,10 @@ function printBalanceFlags(db: Database): void {
     const randomWr = randomRow ? Number(randomRow.win_rate) : 0;
     if (randomWr > 0) {
       const ratio = bestWr / randomWr;
-      if (ratio >= 3 && ratio <= 4) {
-        flags.push(`OK  Allocation spread: ${ratio.toFixed(1)}x (target: 3-4x)`);
+      if (ratio >= 2 && ratio <= 3) {
+        flags.push(`OK  Allocation spread: ${ratio.toFixed(1)}x (target: 2-3x)`);
       } else {
-        flags.push(`!!  Allocation spread: ${ratio.toFixed(1)}x (target: 3-4x)`);
+        flags.push(`!!  Allocation spread: ${ratio.toFixed(1)}x (target: 2-3x)`);
       }
     }
   }
@@ -548,12 +619,33 @@ function printBalanceFlags(db: Database): void {
     const name = card?.name ?? `#${sid}`;
     if (wr < 15) {
       flags.push(`!!  ${name} (ID ${sid}): ${wr}% with optimal play (< 15% floor)`);
-    } else if (wr > 60) {
-      flags.push(`!!  ${name} (ID ${sid}): ${wr}% with optimal play (> 60% ceiling)`);
+    } else if (wr > 55) {
+      flags.push(`!!  ${name} (ID ${sid}): ${wr}% with optimal play (> 55% ceiling)`);
     } else {
       flags.push(`OK  ${name} (ID ${sid}): ${wr}% with optimal play`);
     }
   }
+
+  // Strategy hierarchy: hpThreshold > defensive, hpThreshold > aggressive, aggressive > random
+  const hierRows = queryAll(db, `
+    SELECT allocation_strategy, ROUND(AVG(won) * 100, 1) as win_rate
+    FROM runs_v5
+    GROUP BY allocation_strategy
+  `);
+  const hierMap = new Map(hierRows.map(r => [r.allocation_strategy, Number(r.win_rate)]));
+  const hpT = hierMap.get('hpThreshold') ?? 0;
+  const def = hierMap.get('defensive') ?? 0;
+  const agg = hierMap.get('aggressive') ?? 0;
+  const rnd = hierMap.get('random') ?? 0;
+  flags.push(hpT > def
+    ? `OK  Hierarchy: hpThreshold (${f1(hpT)}%) > defensive (${f1(def)}%)`
+    : `!!  Hierarchy: hpThreshold (${f1(hpT)}%) <= defensive (${f1(def)}%)`);
+  flags.push(hpT > agg
+    ? `OK  Hierarchy: hpThreshold (${f1(hpT)}%) > aggressive (${f1(agg)}%)`
+    : `!!  Hierarchy: hpThreshold (${f1(hpT)}%) <= aggressive (${f1(agg)}%)`);
+  flags.push(agg > rnd
+    ? `OK  Hierarchy: aggressive (${f1(agg)}%) > random (${f1(rnd)}%)`
+    : `!!  Hierarchy: aggressive (${f1(agg)}%) <= random (${f1(rnd)}%)`);
 
   for (const f of flags) console.log(f);
   console.log();

@@ -143,6 +143,12 @@ class AllocationPanel extends Container {
 
   // --- Public API ---
 
+  /** Update ATK/DEF slot labels to reflect event bonuses. */
+  setBonusLabels(atkBonus: number, defBonus: number): void {
+    this.atkLabel.text = atkBonus ? `ATK (+${atkBonus})` : 'ATK';
+    this.defLabel.text = defBonus ? `DEF (+${defBonus})` : 'DEF';
+  }
+
   /** Set the dice values and reset allocation state. */
   setDice(values: [number, number]): void {
     this.diceValues = values;
@@ -179,10 +185,19 @@ class AllocationPanel extends Container {
     };
   }
 
-  /** Update damage preview text. */
+  /** Update damage preview text with ATK/DEF totals and chip feedback. */
   showPreview(calc: CombatCalculation): void {
-    this.previewDealText.text = `Deal ~${calc.damageToEnemy} dmg`;
-    this.previewTakeText.text = `Take ~${calc.damageToPlayer} dmg`;
+    const enemyChip = calc.damageToEnemy === 1 && calc.enemyDefense >= calc.playerAttack;
+    this.previewDealText.text = enemyChip
+      ? `ATK ${calc.playerAttack} vs DEF ${calc.enemyDefense} → BLOCKED! -1`
+      : `ATK ${calc.playerAttack} vs DEF ${calc.enemyDefense} → Deal ${calc.damageToEnemy} dmg`;
+    this.previewDealText.style.fill = enemyChip ? colors.text : colors.heal;
+
+    const playerChip = calc.damageToPlayer === 1 && calc.playerDefense >= calc.enemyAttack;
+    this.previewTakeText.text = playerChip
+      ? `ATK ${calc.enemyAttack} vs DEF ${calc.playerDefense} → BLOCKED! -1`
+      : `ATK ${calc.enemyAttack} vs DEF ${calc.playerDefense} → Take ${calc.damageToPlayer} dmg`;
+    this.previewTakeText.style.fill = playerChip ? colors.text : colors.damage;
   }
 
   clearPreview(): void {
@@ -531,15 +546,21 @@ class ResultsPanel extends Container {
   }
 
   update(combatResult: CombatCalculation, finished: boolean, enemyHp: number): void {
-    this.playerDmgText.text = combatResult.damageToPlayer > 0
-      ? `You take -${combatResult.damageToPlayer} HP`
-      : 'You take no damage';
-    this.playerDmgText.style.fill = combatResult.damageToPlayer > 0 ? colors.damage : colors.heal;
+    const enemyChip = combatResult.damageToEnemy === 1
+      && combatResult.enemyDefense >= combatResult.playerAttack;
+    const atkLine = `ATK ${combatResult.playerAttack} vs DEF ${combatResult.enemyDefense}`;
+    this.enemyDmgText.text = enemyChip
+      ? `${atkLine} → BLOCKED! -1`
+      : `${atkLine} → Enemy -${combatResult.damageToEnemy} HP`;
+    this.enemyDmgText.style.fill = enemyChip ? colors.text : colors.heal;
 
-    this.enemyDmgText.text = combatResult.damageToEnemy > 0
-      ? `Enemy takes -${combatResult.damageToEnemy} HP`
-      : 'Enemy blocked';
-    this.enemyDmgText.style.fill = combatResult.damageToEnemy > 0 ? colors.heal : colors.damage;
+    const playerChip = combatResult.damageToPlayer === 1
+      && combatResult.playerDefense >= combatResult.enemyAttack;
+    const defLine = `ATK ${combatResult.enemyAttack} vs DEF ${combatResult.playerDefense}`;
+    this.playerDmgText.text = playerChip
+      ? `${defLine} → BLOCKED! -1`
+      : `${defLine} → You -${combatResult.damageToPlayer} HP`;
+    this.playerDmgText.style.fill = playerChip ? colors.text : colors.damage;
 
     if (finished) {
       const won = enemyHp <= 0;
@@ -965,6 +986,7 @@ export function createCombatScene(game: GameStateManager, input: InputManager): 
     statusText.text = 'Dice rolling...';
     allocPanel.visible = true;
     allocPanel.resetAllocation();
+    allocPanel.setBonusLabels(d.eventAtkBonus, d.eventDefBonus);
     enemyDicePanel.visible = true;
     resultsPanel.visible = false;
     resultsPanel.clear();

@@ -14,9 +14,9 @@ export const calculateCombatResult = (
   const enemyAttackTotal = diceResults.enemyAttack + enemyCard.attackMod;
   const enemyDefenseTotal = diceResults.enemyDefense + enemyCard.defenseMod;
 
-  // Damage: direct subtraction (ATK - DEF, floored at 0)
-  const damageToEnemy = Math.max(0, playerAttackTotal - enemyDefenseTotal);
-  const damageToPlayer = Math.max(0, enemyAttackTotal - playerDefenseTotal);
+  // Damage: direct subtraction with minimum 1 chip damage (symmetric)
+  const damageToEnemy = Math.max(1, playerAttackTotal - enemyDefenseTotal);
+  const damageToPlayer = Math.max(1, enemyAttackTotal - playerDefenseTotal);
 
   return {
     playerAttack: playerAttackTotal,

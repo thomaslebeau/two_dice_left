@@ -28,6 +28,7 @@ export interface GameStateSnapshot {
   currentEvent: GameEvent | null;
   victory: boolean | null;
   pendingUnlocks: UnlockResult[];
+  runDurationSeconds: number;
 }
 
 type GameStateListener = (snapshot: GameStateSnapshot) => void;
@@ -122,6 +123,9 @@ export class GameStateManager {
       currentEvent: this.eventSystem.currentEvent,
       victory: this._victory,
       pendingUnlocks: [...this._pendingUnlocks],
+      runDurationSeconds: this._runStartTime
+        ? Math.round((Date.now() - this._runStartTime) / 1000)
+        : 0,
     };
   }
 
@@ -248,8 +252,11 @@ export class GameStateManager {
     if (this._currentCombat >= MAX_COMBATS) {
       // Won all 5 combats — victory reward
       this._victory = true;
-      this._gameState = GameState.REWARD;
+      this.finalizeCurrentRun(true);
       this.emitTelemetry();
+      // Record meta immediately so unlocks are in the snapshot for the reward scene
+      this.recordAndCheckUnlocks();
+      this._gameState = GameState.REWARD;
     } else {
       // More combats remain — pick event, then transition
       this.eventSystem.getNextEvent();
@@ -292,32 +299,12 @@ export class GameStateManager {
   }
 
   /**
-   * Player picked a reward card (meta-unlock at end of victorious run).
-   * REWARD -> UNLOCK (if unlocks) or MENU
+   * Player acknowledged the victory screen.
+   * REWARD -> MENU
    */
-  handleRewardPicked(_card: Card): void {
-    this.finalizeCurrentRun(true);
-    if (this.recordAndCheckUnlocks()) {
-      this._gameState = GameState.UNLOCK;
-    } else {
-      this._gameState = GameState.MENU;
-      this.resetRunState();
-    }
-    this.emit();
-  }
-
-  /**
-   * Player skipped the reward.
-   * REWARD -> UNLOCK (if unlocks) or MENU
-   */
-  handleRewardSkipped(): void {
-    this.finalizeCurrentRun(true);
-    if (this.recordAndCheckUnlocks()) {
-      this._gameState = GameState.UNLOCK;
-    } else {
-      this._gameState = GameState.MENU;
-      this.resetRunState();
-    }
+  handleRewardContinue(): void {
+    this._gameState = GameState.MENU;
+    this.resetRunState();
     this.emit();
   }
 
@@ -331,7 +318,7 @@ export class GameStateManager {
       this.finalizeCurrentRun(this._victory);
     }
 
-    // Record meta for defeats (wins are recorded in handleRewardPicked/Skipped)
+    // Record meta for defeats (wins are recorded in handleCombatEnd)
     if (this._victory === false && !this._metaRecorded) {
       if (this.recordAndCheckUnlocks()) {
         this._gameState = GameState.UNLOCK;

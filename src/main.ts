@@ -97,7 +97,8 @@ async function main() {
 
       case GameState.REWARD:
         scenes.switchTo(GameState.REWARD, {
-          combatNumber: snap.currentCombat,
+          runDurationSeconds: snap.runDurationSeconds,
+          unlocks: snap.pendingUnlocks,
         });
         break;
 

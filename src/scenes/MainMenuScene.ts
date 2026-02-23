@@ -34,7 +34,7 @@ export function createMainMenuScene(game: GameStateManager, input: InputManager)
   root.addChild(title);
 
   const subtitle = new Text({
-    text: '5 combats to win the run',
+    text: '5 combats pour remporter la partie',
     style: {
       fontFamily: fonts.body,
       fontSize: fonts.sizes.body,
@@ -46,7 +46,7 @@ export function createMainMenuScene(game: GameStateManager, input: InputManager)
   subtitle.alpha = 0.7;
   root.addChild(subtitle);
 
-  const startBtn = new ButtonSprite('Start New Run', {
+  const startBtn = new ButtonSprite('Nouvelle Partie', {
     width: 240,
     fontSize: fonts.sizes.h3,
   });

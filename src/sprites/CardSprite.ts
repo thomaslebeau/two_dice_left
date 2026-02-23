@@ -106,7 +106,7 @@ export class CardSprite extends Container {
     this.addChild(this.deathOverlay);
 
     this.deathLabel = new Text({
-      text: 'DEAD',
+      text: 'MORT',
       style: { fontFamily: fonts.heading, fontSize: 20, fontWeight: 'bold', fill: 0xff4444 },
     });
     this.deathLabel.anchor.set(0.5);
@@ -187,7 +187,7 @@ export class CardSprite extends Container {
     this.nameText.style.fill = rarityColor;
 
     // HP text
-    this.hpText.text = `HP: ${card.currentHp}/${card.maxHp}`;
+    this.hpText.text = `PV : ${card.currentHp}/${card.maxHp}`;
 
     // HP bar
     const hpPct = Math.max(0, card.currentHp / card.maxHp);
@@ -203,8 +203,8 @@ export class CardSprite extends Container {
 
     // Stats (hidden in compact mode — dice totals already include mods)
     const fmtMod = (v: number) => (v >= 0 ? `+${v}` : `${v}`);
-    this.atkText.text = `ATK: ${fmtMod(card.attackMod)}`;
-    this.defText.text = `DEF: ${fmtMod(card.defenseMod)}`;
+    this.atkText.text = `ATQ : ${fmtMod(card.attackMod)}`;
+    this.defText.text = `DÉF : ${fmtMod(card.defenseMod)}`;
     this.atkText.visible = !this._compact;
     this.defText.visible = !this._compact;
 

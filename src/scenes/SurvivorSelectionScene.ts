@@ -22,14 +22,14 @@ export function createSurvivorSelectionScene(game: GameStateManager, input: Inpu
 
   // Header
   const titleText = new Text({
-    text: 'Choose Your Survivor',
+    text: 'Choisissez votre Survivant',
     style: { fontFamily: fonts.heading, fontSize: fonts.sizes.h2, fontWeight: 'bold', fill: colors.text },
   });
   titleText.anchor.set(0.5, 0);
   root.addChild(titleText);
 
   const instructionText = new Text({
-    text: 'Select your survivor for this run',
+    text: 'Sélectionnez votre survivant pour cette partie',
     style: { fontFamily: fonts.body, fontSize: fonts.sizes.small, fill: colors.text },
   });
   instructionText.anchor.set(0.5, 0);
@@ -41,7 +41,7 @@ export function createSurvivorSelectionScene(game: GameStateManager, input: Inpu
   backBtn.onPress = () => game.handleBackToMenu();
   root.addChild(backBtn);
 
-  const fightBtn = new ButtonSprite('Begin Run!', { width: 160 });
+  const fightBtn = new ButtonSprite('Lancer la Partie !', { width: 190 });
   fightBtn.onPress = () => {
     if (selector?.canFight && selector.selectedCard) {
       game.handleSurvivorChosen(selector.selectedCard);

@@ -21,10 +21,10 @@ export interface EventData {
 
 // Category display names
 const CATEGORY_LABELS: Record<string, string> = {
-  workshop: 'Workshop',
-  diceForge: 'Dice Forge',
-  encounter: 'Encounter',
-  salvage: 'Salvage',
+  workshop: 'Atelier',
+  diceForge: 'Forge à Dés',
+  encounter: 'Rencontre',
+  salvage: 'Récupération',
 };
 
 // Category accent colors
@@ -41,12 +41,12 @@ const CATEGORY_COLORS: Record<string, number> = {
 function formatEffects(effects: EventEffect[]): string {
   return effects.map(e => {
     switch (e.type) {
-      case 'hp': return `${e.value > 0 ? '+' : ''}${e.value} HP`;
-      case 'atk': return `${e.value > 0 ? '+' : ''}${e.value} ATK`;
-      case 'def': return `${e.value > 0 ? '+' : ''}${e.value} DEF`;
+      case 'hp': return `${e.value > 0 ? '+' : ''}${e.value} PV`;
+      case 'atk': return `${e.value > 0 ? '+' : ''}${e.value} ATQ`;
+      case 'def': return `${e.value > 0 ? '+' : ''}${e.value} DÉF`;
       case 'diceModifier': {
         const mod = e.modifierId ? DICE_MODIFIERS[e.modifierId] : null;
-        return mod ? `Equip: ${mod.name}` : 'Dice modifier';
+        return mod ? `Équiper : ${mod.name}` : 'Modificateur de dé';
       }
     }
   }).join(', ');
@@ -127,7 +127,7 @@ class ChoicePanel extends Container {
       const pct = Math.round(choice.risk.chance * 100);
       const failStr = formatEffects(choice.risk.failEffects);
       const riskText = new Text({
-        text: compact ? `${pct}% — fail: ${failStr}` : `Risk: ${pct}% success — fail: ${failStr}`,
+        text: compact ? `${pct}% — échec : ${failStr}` : `Risque : ${pct}% réussite — échec : ${failStr}`,
         style: {
           fontFamily: fonts.body,
           fontSize: fonts.sizes.small,
@@ -145,7 +145,7 @@ class ChoicePanel extends Container {
       if (modEffect?.modifierId) {
         const mod = DICE_MODIFIERS[modEffect.modifierId];
         if (mod) {
-          const facesStr = `Faces: [${mod.faces.join(', ')}]`;
+          const facesStr = `Faces : [${mod.faces.join(', ')}]`;
           const facesText = new Text({
             text: facesStr,
             style: {
@@ -269,7 +269,7 @@ export function createEventScene(game: GameStateManager, input: InputManager): S
   root.addChild(resultText);
 
   // Continue button (shown after choice result)
-  const continueBtn = new ButtonSprite('Continue', { color: colors.primary });
+  const continueBtn = new ButtonSprite('Continuer', { color: colors.primary });
   continueBtn.visible = false;
   continueBtn.onPress = () => {
     continueBtn.visible = false;
@@ -295,11 +295,11 @@ export function createEventScene(game: GameStateManager, input: InputManager): S
   }
 
   function buildHud(d: EventData): void {
-    const parts = [`HP: ${d.survivor?.currentHp ?? '?'}/${d.survivor?.maxHp ?? '?'}`];
-    if (d.atkBonus) parts.push(`ATK +${d.atkBonus}`);
-    if (d.defBonus) parts.push(`DEF +${d.defBonus}`);
+    const parts = [`PV : ${d.survivor?.currentHp ?? '?'}/${d.survivor?.maxHp ?? '?'}`];
+    if (d.atkBonus) parts.push(`ATQ +${d.atkBonus}`);
+    if (d.defBonus) parts.push(`DÉF +${d.defBonus}`);
     if (d.diceModifiers.length > 0) {
-      parts.push(`Dice: ${d.diceModifiers.map(m => m.name).join(', ')}`);
+      parts.push(`Dés : ${d.diceModifiers.map(m => m.name).join(', ')}`);
     }
     hudText.text = parts.join('  |  ');
   }
@@ -340,11 +340,11 @@ export function createEventScene(game: GameStateManager, input: InputManager): S
     const effectStr = formatEffects(result.effects);
     if (result.riskSucceeded !== undefined) {
       resultText.text = result.riskSucceeded
-        ? `Success! ${effectStr}`
-        : `Failed... ${effectStr}`;
+        ? `Réussi ! ${effectStr}`
+        : `Échoué... ${effectStr}`;
       resultText.style.fill = result.riskSucceeded ? colors.focus : colors.damage;
     } else {
-      resultText.text = effectStr || 'Nothing happened.';
+      resultText.text = effectStr || 'Rien ne s\'est passé.';
       resultText.style.fill = colors.focus;
     }
     resultText.visible = true;
@@ -435,8 +435,8 @@ export function createEventScene(game: GameStateManager, input: InputManager): S
     input.unregisterAll();
 
     if (!currentData?.currentEvent) {
-      categoryText.text = 'Event';
-      flavorText.text = 'Something stirs in the ruins...';
+      categoryText.text = 'Événement';
+      flavorText.text = 'Quelque chose remue dans les ruines...';
       clearChoices();
       layoutAll();
       return;
@@ -445,7 +445,7 @@ export function createEventScene(game: GameStateManager, input: InputManager): S
     const event = currentData.currentEvent;
     const accent = CATEGORY_COLORS[event.category] ?? colors.focus;
 
-    categoryText.text = CATEGORY_LABELS[event.category] ?? 'Event';
+    categoryText.text = CATEGORY_LABELS[event.category] ?? 'Événement';
     categoryText.style.fill = accent;
     flavorText.text = event.flavorText;
 

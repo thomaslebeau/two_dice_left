@@ -23,7 +23,7 @@ export function createRewardScene(game: GameStateManager, input: InputManager): 
 
   // Title
   const titleText = new Text({
-    text: 'Run Complete!',
+    text: 'Partie Terminée !',
     style: { fontFamily: fonts.heading, fontSize: fonts.sizes.h1, fontWeight: 'bold', fill: colors.focus },
   });
   titleText.anchor.set(0.5, 0);
@@ -46,7 +46,7 @@ export function createRewardScene(game: GameStateManager, input: InputManager): 
   root.addChild(unlockText);
 
   // Continue button
-  const continueBtn = new ButtonSprite('Continue', { width: 180 });
+  const continueBtn = new ButtonSprite('Continuer', { width: 180 });
   continueBtn.onPress = () => game.handleRewardContinue();
   root.addChild(continueBtn);
 
@@ -58,7 +58,7 @@ export function createRewardScene(game: GameStateManager, input: InputManager): 
   function formatDuration(seconds: number): string {
     const m = Math.floor(seconds / 60);
     const s = seconds % 60;
-    return m > 0 ? `${m}m ${s}s` : `${s}s`;
+    return m > 0 ? `${m}min ${s}s` : `${s}s`;
   }
 
   function buildUnlockText(unlocks: UnlockResult[]): void {
@@ -67,13 +67,13 @@ export function createRewardScene(game: GameStateManager, input: InputManager): 
     const lines: string[] = [];
 
     for (const s of survivors) {
-      lines.push(`New survivor unlocked: ${s.name}!`);
+      lines.push(`Nouveau survivant débloqué : ${s.name} !`);
     }
     for (const m of modifiers) {
-      lines.push(`New die unlocked: ${m.name}!`);
+      lines.push(`Nouveau dé débloqué : ${m.name} !`);
     }
     if (lines.length === 0) {
-      lines.push('All survivors unlocked');
+      lines.push('Tous les survivants débloqués');
     }
 
     unlockText.text = lines.join('\n');

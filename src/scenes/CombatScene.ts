@@ -74,7 +74,7 @@ class AllocationPanel extends Container {
     // ATK slot
     this.addChild(this.atkSlotBg);
     this.atkLabel = new Text({
-      text: 'ATK',
+      text: 'ATQ',
       style: { fontFamily: fonts.heading, fontSize: fonts.sizes.body, fontWeight: 'bold', fill: colors.playerAccent },
     });
     this.atkLabel.anchor.set(0.5, 0);
@@ -83,7 +83,7 @@ class AllocationPanel extends Container {
     // DEF slot
     this.addChild(this.defSlotBg);
     this.defLabel = new Text({
-      text: 'DEF',
+      text: 'DÉF',
       style: { fontFamily: fonts.heading, fontSize: fonts.sizes.body, fontWeight: 'bold', fill: colors.focus },
     });
     this.defLabel.anchor.set(0.5, 0);
@@ -135,7 +135,7 @@ class AllocationPanel extends Container {
     this.addChild(this.previewTakeText);
 
     // Confirm button
-    this.confirmBtn = new ButtonSprite('Confirm', { width: 140 });
+    this.confirmBtn = new ButtonSprite('Confirmer', { width: 140 });
     this.confirmBtn.onPress = () => this.handleConfirm();
     this.confirmBtn.setEnabled(false);
     this.addChild(this.confirmBtn);
@@ -145,8 +145,8 @@ class AllocationPanel extends Container {
 
   /** Update ATK/DEF slot labels to reflect event bonuses. */
   setBonusLabels(atkBonus: number, defBonus: number): void {
-    this.atkLabel.text = atkBonus ? `ATK (+${atkBonus})` : 'ATK';
-    this.defLabel.text = defBonus ? `DEF (+${defBonus})` : 'DEF';
+    this.atkLabel.text = atkBonus ? `ATQ (+${atkBonus})` : 'ATQ';
+    this.defLabel.text = defBonus ? `DÉF (+${defBonus})` : 'DÉF';
   }
 
   /** Set the dice values and reset allocation state. */
@@ -189,14 +189,14 @@ class AllocationPanel extends Container {
   showPreview(calc: CombatCalculation): void {
     const enemyChip = calc.damageToEnemy === 1 && calc.enemyDefense >= calc.playerAttack;
     this.previewDealText.text = enemyChip
-      ? `ATK ${calc.playerAttack} vs DEF ${calc.enemyDefense} → BLOCKED! -1`
-      : `ATK ${calc.playerAttack} vs DEF ${calc.enemyDefense} → Deal ${calc.damageToEnemy} dmg`;
+      ? `ATQ ${calc.playerAttack} vs DÉF ${calc.enemyDefense} → BLOQUÉ ! -1`
+      : `ATQ ${calc.playerAttack} vs DÉF ${calc.enemyDefense} → Inflige ${calc.damageToEnemy} dégâts`;
     this.previewDealText.style.fill = enemyChip ? colors.text : colors.heal;
 
     const playerChip = calc.damageToPlayer === 1 && calc.playerDefense >= calc.enemyAttack;
     this.previewTakeText.text = playerChip
-      ? `ATK ${calc.enemyAttack} vs DEF ${calc.playerDefense} → BLOCKED! -1`
-      : `ATK ${calc.enemyAttack} vs DEF ${calc.playerDefense} → Take ${calc.damageToPlayer} dmg`;
+      ? `ATQ ${calc.enemyAttack} vs DÉF ${calc.playerDefense} → BLOQUÉ ! -1`
+      : `ATQ ${calc.enemyAttack} vs DÉF ${calc.playerDefense} → Subit ${calc.damageToPlayer} dégâts`;
     this.previewTakeText.style.fill = playerChip ? colors.text : colors.damage;
   }
 
@@ -456,14 +456,14 @@ class EnemyDicePanel extends Container {
 
     const labelStyle = { fontFamily: fonts.heading, fontSize: fonts.sizes.body, fontWeight: 'bold' as const, fill: colors.enemyAccent };
 
-    this.atkLabel = new Text({ text: 'ATK', style: labelStyle });
+    this.atkLabel = new Text({ text: 'ATQ', style: labelStyle });
     this.atkLabel.anchor.set(0.5, 0);
     this.addChild(this.atkLabel);
 
     this.atkDice = new DiceSprite(false);
     this.addChild(this.atkDice);
 
-    this.defLabel = new Text({ text: 'DEF', style: labelStyle });
+    this.defLabel = new Text({ text: 'DÉF', style: labelStyle });
     this.defLabel.anchor.set(0.5, 0);
     this.addChild(this.defLabel);
 
@@ -548,23 +548,23 @@ class ResultsPanel extends Container {
   update(combatResult: CombatCalculation, finished: boolean, enemyHp: number): void {
     const enemyChip = combatResult.damageToEnemy === 1
       && combatResult.enemyDefense >= combatResult.playerAttack;
-    const atkLine = `ATK ${combatResult.playerAttack} vs DEF ${combatResult.enemyDefense}`;
+    const atkLine = `ATQ ${combatResult.playerAttack} vs DÉF ${combatResult.enemyDefense}`;
     this.enemyDmgText.text = enemyChip
-      ? `${atkLine} → BLOCKED! -1`
-      : `${atkLine} → Enemy -${combatResult.damageToEnemy} HP`;
+      ? `${atkLine} → BLOQUÉ ! -1`
+      : `${atkLine} → Ennemi -${combatResult.damageToEnemy} PV`;
     this.enemyDmgText.style.fill = enemyChip ? colors.text : colors.heal;
 
     const playerChip = combatResult.damageToPlayer === 1
       && combatResult.playerDefense >= combatResult.enemyAttack;
-    const defLine = `ATK ${combatResult.enemyAttack} vs DEF ${combatResult.playerDefense}`;
+    const defLine = `ATQ ${combatResult.enemyAttack} vs DÉF ${combatResult.playerDefense}`;
     this.playerDmgText.text = playerChip
-      ? `${defLine} → BLOCKED! -1`
-      : `${defLine} → You -${combatResult.damageToPlayer} HP`;
+      ? `${defLine} → BLOQUÉ ! -1`
+      : `${defLine} → Vous -${combatResult.damageToPlayer} PV`;
     this.playerDmgText.style.fill = playerChip ? colors.text : colors.damage;
 
     if (finished) {
       const won = enemyHp <= 0;
-      this.finishText.text = won ? 'VICTORY!' : 'DEFEAT...';
+      this.finishText.text = won ? 'VICTOIRE !' : 'DÉFAITE...';
       this.finishText.style.fill = won ? colors.focus : colors.damage;
     } else {
       this.finishText.text = '';
@@ -641,7 +641,7 @@ export function createCombatScene(game: GameStateManager, input: InputManager): 
   root.addChild(resultsPanel);
 
   // "Next Round" button
-  const nextRoundBtn = new ButtonSprite('Next Round', { width: 160 });
+  const nextRoundBtn = new ButtonSprite('Manche Suivante', { width: 180 });
   nextRoundBtn.visible = false;
   nextRoundBtn.onPress = () => {
     if (engine && currentPhase === 'results') {
@@ -659,10 +659,10 @@ export function createCombatScene(game: GameStateManager, input: InputManager): 
 
   function buildBonusHud(d: CombatData): void {
     const parts: string[] = [];
-    if (d.eventAtkBonus) parts.push(`ATK +${d.eventAtkBonus}`);
-    if (d.eventDefBonus) parts.push(`DEF +${d.eventDefBonus}`);
+    if (d.eventAtkBonus) parts.push(`ATQ +${d.eventAtkBonus}`);
+    if (d.eventDefBonus) parts.push(`DÉF +${d.eventDefBonus}`);
     if (d.diceModifiers && d.diceModifiers.length > 0) {
-      parts.push(`Dice: ${d.diceModifiers.map(m => m.name).join(', ')}`);
+      parts.push(`Dés : ${d.diceModifiers.map(m => m.name).join(', ')}`);
     }
     bonusHud.text = parts.length > 0 ? parts.join('  |  ') : '';
   }
@@ -691,7 +691,7 @@ export function createCombatScene(game: GameStateManager, input: InputManager): 
     currentPhase = snap.phase;
 
     // Update header
-    headerText.text = `Combat #${combatNumber} — Round ${snap.roundNumber}`;
+    headerText.text = `Combat #${combatNumber} — Manche ${snap.roundNumber}`;
 
     // Update card sprites
     enemySprite?.updateCard(snap.currentEnemyCard);
@@ -699,7 +699,7 @@ export function createCombatScene(game: GameStateManager, input: InputManager): 
 
     switch (snap.phase) {
       case 'rolling':
-        statusText.text = 'Dice rolling...';
+        statusText.text = 'Lancer de dés...';
         allocPanel.visible = true;
         allocPanel.rollDice(snap.playerDice);
         enemyDicePanel.visible = true;
@@ -711,7 +711,7 @@ export function createCombatScene(game: GameStateManager, input: InputManager): 
         break;
 
       case 'allocating':
-        statusText.text = 'Assign your dice!';
+        statusText.text = 'Assignez vos dés !';
         allocPanel.visible = true;
         allocPanel.setDice(snap.playerDice);
         // Show enemy allocation
@@ -722,7 +722,7 @@ export function createCombatScene(game: GameStateManager, input: InputManager): 
         break;
 
       case 'resolving':
-        statusText.text = 'Applying damage...';
+        statusText.text = 'Application des dégâts...';
         allocPanel.visible = false;
         enemyDicePanel.visible = true;
         resultsPanel.visible = true;
@@ -734,7 +734,7 @@ export function createCombatScene(game: GameStateManager, input: InputManager): 
         break;
 
       case 'results':
-        statusText.text = 'Click to continue';
+        statusText.text = 'Cliquez pour continuer';
         allocPanel.visible = false;
         resultsPanel.visible = true;
         if (snap.combatResult) {
@@ -983,7 +983,7 @@ export function createCombatScene(game: GameStateManager, input: InputManager): 
 
     headerText.text = `Combat #${combatNumber}`;
     buildBonusHud(d);
-    statusText.text = 'Dice rolling...';
+    statusText.text = 'Lancer de dés...';
     allocPanel.visible = true;
     allocPanel.resetAllocation();
     allocPanel.setBonusLabels(d.eventAtkBonus, d.eventDefBonus);

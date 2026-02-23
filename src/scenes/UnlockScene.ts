@@ -26,7 +26,7 @@ export function createUnlockScene(game: GameStateManager, input: InputManager): 
 
   // Title
   const titleText = new Text({
-    text: 'NEW UNLOCK!',
+    text: 'NOUVEAU DÉBLOCAGE !',
     style: {
       fontFamily: fonts.heading,
       fontSize: fonts.sizes.h1,
@@ -42,7 +42,7 @@ export function createUnlockScene(game: GameStateManager, input: InputManager): 
   root.addChild(itemsContainer);
 
   // Continue button
-  const continueBtn = new ButtonSprite('Continue', { width: 180 });
+  const continueBtn = new ButtonSprite('Continuer', { width: 180 });
   continueBtn.onPress = () => game.handleUnlockDismissed();
   root.addChild(continueBtn);
 

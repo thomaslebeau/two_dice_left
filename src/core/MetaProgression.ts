@@ -66,12 +66,12 @@ const UNLOCK_CONDITIONS: UnlockCondition[] = [
 
 // Modifier display info (for unlock notifications)
 const MODIFIER_INFO: Record<string, { name: string; description: string }> = {
-  rusty: { name: 'Rusty Die', description: 'Min 2 damage when used as ATK' },
-  heavy: { name: 'Heavy Die', description: "Can't exceed 5, but consistent" },
-  broken: { name: 'Broken Die', description: 'Extreme variance — all or nothing' },
-  ivy: { name: 'Ivy Die', description: 'On 6: poison (1 dmg/turn x2)' },
-  needle: { name: 'Needle Die', description: 'Pierces 2 enemy DEF' },
-  root: { name: 'Root Die', description: 'If used as DEF: +1 HP' },
+  rusty: { name: 'Dé Rouillé', description: 'Min 2 dégâts en ATQ' },
+  heavy: { name: 'Dé Lourd', description: 'Ne dépasse pas 5, mais régulier' },
+  broken: { name: 'Dé Brisé', description: 'Variance extrême — tout ou rien' },
+  ivy: { name: 'Dé Lierre', description: 'Sur 6 : poison (1 dégât/tour x2)' },
+  needle: { name: 'Dé Aiguille', description: 'Perce 2 DÉF ennemie' },
+  root: { name: 'Dé Racine', description: 'Si utilisé en DÉF : +1 PV' },
 };
 
 // --- Class ---
@@ -120,18 +120,18 @@ export class MetaProgression {
     const winsNeeded: Record<number, number> = { 2: 1, 3: 2, 4: 3, 5: 4, 6: 5 };
     if (cardId in winsNeeded) {
       const remaining = Math.max(0, winsNeeded[cardId] - this.state.totalWins);
-      return remaining > 0 ? `Win ${remaining} more run(s)` : 'Unlocked!';
+      return remaining > 0 ? `Gagnez encore ${remaining} partie(s)` : 'Débloqué !';
     }
     switch (cardId) {
       case 7:
-        return 'Win a run with < 3 HP';
+        return 'Gagnez une partie avec < 3 PV';
       case 8: {
         const uniqueWinners = Object.keys(this.state.perSurvivorWins).length;
         const remaining = Math.max(0, 7 - uniqueWinners);
-        return remaining > 0 ? `Win with ${remaining} more survivor(s)` : 'Unlocked!';
+        return remaining > 0 ? `Gagnez avec ${remaining} survivant(s) de plus` : 'Débloqué !';
       }
       default:
-        return 'Unknown condition';
+        return 'Condition inconnue';
     }
   }
 

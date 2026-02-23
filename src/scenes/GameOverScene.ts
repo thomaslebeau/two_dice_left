@@ -45,7 +45,7 @@ export function createGameOverScene(game: GameStateManager, input: InputManager)
   descText.anchor.set(0.5);
   root.addChild(descText);
 
-  const menuBtn = new ButtonSprite('Back to Menu', { width: 220 });
+  const menuBtn = new ButtonSprite('Retour au Menu', { width: 220 });
   menuBtn.onPress = () => game.handleBackToMenu();
   root.addChild(menuBtn);
 
@@ -59,12 +59,12 @@ export function createGameOverScene(game: GameStateManager, input: InputManager)
     const victory = d?.victory ?? false;
     const combatNum = d?.combatNumber ?? 0;
 
-    titleText.text = victory ? 'TOTAL VICTORY!' : 'DEFEAT...';
+    titleText.text = victory ? 'VICTOIRE TOTALE !' : 'DÉFAITE...';
     titleText.style.fill = victory ? colors.focus : colors.damage;
 
     descText.text = victory
-      ? `Congratulations! You defeated all enemies in ${combatNum} combats!`
-      : `You were defeated at combat ${combatNum}...`;
+      ? `Félicitations ! Vous avez vaincu tous les ennemis en ${combatNum} combats !`
+      : `Vous avez été vaincu au combat ${combatNum}...`;
 
     input.unregisterAll();
     input.register({

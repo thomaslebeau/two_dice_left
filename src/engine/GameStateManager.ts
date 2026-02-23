@@ -12,6 +12,7 @@ import { MetaProgression } from '@/core/MetaProgression.ts';
 import type { UnlockResult } from '@/core/MetaProgression.ts';
 import { CombatLogRepository } from '@/db/CombatLogRepository.ts';
 import type { DbProvider } from '@/db/types.ts';
+import { sendRunData } from '@/core/Telemetry.ts';
 
 // --- Snapshot ---
 
@@ -30,6 +31,9 @@ export interface GameStateSnapshot {
 }
 
 type GameStateListener = (snapshot: GameStateSnapshot) => void;
+
+const SPEED_KILL_THRESHOLD = 3;
+const SPEED_KILL_RECOVERY = 3;
 
 /**
  * Central game state machine (v5: single-survivor run with event loop).
@@ -53,6 +57,11 @@ export class GameStateManager {
   private meta = new MetaProgression();
   private _pendingUnlocks: UnlockResult[] = [];
   private _metaRecorded = false;
+
+  // --- Telemetry ---
+  private _runStartTime = 0;
+  private _speedKills = 0;
+  private _hpRecovered = 0;
 
   // --- Database (optional — game works without it) ---
   private dbManager: DbProvider | null = null;
@@ -157,6 +166,9 @@ export class GameStateManager {
     this._survivor = { ...card, currentHp: card.maxHp };
     this._playerCard = { ...this._survivor };
     this._playerStartHp = this._playerCard.currentHp;
+    this._runStartTime = Date.now();
+    this._speedKills = 0;
+    this._hpRecovered = 0;
     this._currentCombat = 1;
     this.startCombat(this._currentCombat);
   }
@@ -182,6 +194,21 @@ export class GameStateManager {
     // Update survivor HP from combat result
     if (this._survivor) {
       this._survivor = { ...this._survivor, currentHp: finalPlayerCard.currentHp, isDead: finalPlayerCard.isDead };
+    }
+
+    // Speed kill recovery (player-only, asymmetric)
+    if (victory && this._survivor && roundsLog.length <= SPEED_KILL_THRESHOLD) {
+      this._speedKills++;
+      const recovery = Math.min(
+        SPEED_KILL_RECOVERY,
+        this._survivor.maxHp - this._survivor.currentHp,
+      );
+      if (recovery > 0) {
+        this._survivor = { ...this._survivor, currentHp: this._survivor.currentHp + recovery };
+        this._hpRecovered += recovery;
+        // Keep playerCard in sync
+        this._playerCard = { ...this._playerCard!, currentHp: this._survivor.currentHp };
+      }
     }
 
     // Log combat to database
@@ -213,6 +240,7 @@ export class GameStateManager {
       this._victory = false;
       this._gameState = GameState.GAMEOVER;
       this.finalizeCurrentRun(false);
+      this.emitTelemetry();
       this.emit();
       return;
     }
@@ -221,6 +249,7 @@ export class GameStateManager {
       // Won all 5 combats — victory reward
       this._victory = true;
       this._gameState = GameState.REWARD;
+      this.emitTelemetry();
     } else {
       // More combats remain — pick event, then transition
       this.eventSystem.getNextEvent();
@@ -359,7 +388,25 @@ export class GameStateManager {
     this._currentRunId = null;
     this._metaRecorded = false;
     this._pendingUnlocks = [];
+    this._runStartTime = 0;
+    this._speedKills = 0;
+    this._hpRecovered = 0;
     this.eventSystem.reset();
+  }
+
+  private emitTelemetry(): void {
+    if (!this._survivor) return;
+    sendRunData({
+      survivorId: this._survivor.id,
+      survivorName: this._survivor.name,
+      victory: this._victory === true,
+      combatReached: this._currentCombat,
+      durationSeconds: Math.round((Date.now() - this._runStartTime) / 1000),
+      speedKills: this._speedKills,
+      hpRecovered: this._hpRecovered,
+      finalHP: this._survivor.currentHp,
+      maxHP: this._survivor.maxHp,
+    });
   }
 
   private finalizeCurrentRun(victory: boolean): void {

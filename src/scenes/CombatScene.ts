@@ -583,6 +583,15 @@ export function createCombatScene(game: GameStateManager, input: InputManager): 
   statusText.anchor.set(0.5, 0);
   root.addChild(statusText);
 
+  // Bonus HUD — shows active event bonuses
+  const bonusHud = new Text({
+    text: '',
+    style: { fontFamily: fonts.body, fontSize: fonts.sizes.small, fill: colors.text },
+  });
+  bonusHud.anchor.set(0.5, 0);
+  bonusHud.alpha = 0.7;
+  root.addChild(bonusHud);
+
   // Enemy card (top)
   let enemySprite: CardSprite | null = null;
 
@@ -626,6 +635,16 @@ export function createCombatScene(game: GameStateManager, input: InputManager): 
   // --- State ---
   let currentPhase: CombatPhase = 'rolling';
   let combatNumber = 0;
+
+  function buildBonusHud(d: CombatData): void {
+    const parts: string[] = [];
+    if (d.eventAtkBonus) parts.push(`ATK +${d.eventAtkBonus}`);
+    if (d.eventDefBonus) parts.push(`DEF +${d.eventDefBonus}`);
+    if (d.diceModifiers && d.diceModifiers.length > 0) {
+      parts.push(`Dice: ${d.diceModifiers.map(m => m.name).join(', ')}`);
+    }
+    bonusHud.text = parts.length > 0 ? parts.join('  |  ') : '';
+  }
 
   // --- Wire allocation callbacks ---
 
@@ -819,6 +838,9 @@ export function createCombatScene(game: GameStateManager, input: InputManager): 
     // Combat title
     headerText.position.set(centerX, sh * 0.03);
 
+    // Bonus HUD font size
+    bonusHud.style.fontSize = Math.max(14, rl.fontSize.small);
+
     if (rl.isMobile) {
       // Mobile: compact cards, enemy dice below card, no VS text
       const mobileCardScale = Math.min(1.2, (sw * 0.5) / CARD_WIDTH);
@@ -842,6 +864,10 @@ export function createCombatScene(game: GameStateManager, input: InputManager): 
       // Title
       headerText.position.set(centerX, y);
       y += Math.max(16, rl.fontSize.h3) + gap;
+
+      // Bonus HUD below title (only takes space if there's text)
+      bonusHud.position.set(centerX, y);
+      if (bonusHud.text) y += Math.max(14, rl.fontSize.small) + spacing.xs;
 
       // Enemy card centered
       if (enemySprite) {
@@ -886,6 +912,9 @@ export function createCombatScene(game: GameStateManager, input: InputManager): 
       if (playerSprite) { playerSprite.scale.set(rl.cardScale); playerSprite.setCompact(false); }
       vsText.visible = true;
       vsText.alpha = 1;
+
+      // Bonus HUD below header
+      bonusHud.position.set(centerX, sh * 0.03 + Math.max(16, rl.fontSize.h3) + spacing.xs);
 
       const cardAreaTop = sh * 0.08;
       const cardAreaBottom = sh - rl.cardH - sh * 0.05;
@@ -932,6 +961,7 @@ export function createCombatScene(game: GameStateManager, input: InputManager): 
     currentPhase = 'rolling';
 
     headerText.text = `Combat #${combatNumber}`;
+    buildBonusHud(d);
     statusText.text = 'Dice rolling...';
     allocPanel.visible = true;
     allocPanel.resetAllocation();

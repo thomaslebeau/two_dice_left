@@ -65,7 +65,7 @@ class ChoicePanel extends Container {
 
   onPress: (() => void) | null = null;
 
-  constructor(choice: EventChoice, accentColor: number) {
+  constructor(choice: EventChoice, accentColor: number, compact = false) {
     super();
     this.addChild(this.bg);
 
@@ -88,20 +88,22 @@ class ChoicePanel extends Container {
     this.addChild(label);
     yOff += label.height + spacing.xs;
 
-    // Description
-    const desc = new Text({
-      text: choice.description,
-      style: {
-        fontFamily: fonts.body,
-        fontSize: fonts.sizes.body,
-        fill: colors.text,
-        wordWrap: true,
-        wordWrapWidth: textW,
-      },
-    });
-    desc.position.set(PANEL_PADDING, yOff);
-    this.addChild(desc);
-    yOff += desc.height + spacing.sm;
+    if (!compact) {
+      // Description (hidden in compact mode)
+      const desc = new Text({
+        text: choice.description,
+        style: {
+          fontFamily: fonts.body,
+          fontSize: fonts.sizes.body,
+          fill: colors.text,
+          wordWrap: true,
+          wordWrapWidth: textW,
+        },
+      });
+      desc.position.set(PANEL_PADDING, yOff);
+      this.addChild(desc);
+      yOff += desc.height + spacing.sm;
+    }
 
     // Effect summary
     const effectStr = formatEffects(choice.effects);
@@ -125,7 +127,7 @@ class ChoicePanel extends Container {
       const pct = Math.round(choice.risk.chance * 100);
       const failStr = formatEffects(choice.risk.failEffects);
       const riskText = new Text({
-        text: `Risk: ${pct}% success — fail: ${failStr}`,
+        text: compact ? `${pct}% — fail: ${failStr}` : `Risk: ${pct}% success — fail: ${failStr}`,
         style: {
           fontFamily: fonts.body,
           fontSize: fonts.sizes.small,
@@ -137,23 +139,25 @@ class ChoicePanel extends Container {
       yOff += riskText.height + spacing.xs;
     }
 
-    // Dice modifier faces preview
-    const modEffect = choice.effects.find(e => e.type === 'diceModifier');
-    if (modEffect?.modifierId) {
-      const mod = DICE_MODIFIERS[modEffect.modifierId];
-      if (mod) {
-        const facesStr = `Faces: [${mod.faces.join(', ')}]`;
-        const facesText = new Text({
-          text: facesStr,
-          style: {
-            fontFamily: fonts.body,
-            fontSize: fonts.sizes.small,
-            fill: 0xD4A030,
-          },
-        });
-        facesText.position.set(PANEL_PADDING, yOff);
-        this.addChild(facesText);
-        yOff += facesText.height + spacing.xs;
+    if (!compact) {
+      // Dice modifier faces preview (hidden in compact mode)
+      const modEffect = choice.effects.find(e => e.type === 'diceModifier');
+      if (modEffect?.modifierId) {
+        const mod = DICE_MODIFIERS[modEffect.modifierId];
+        if (mod) {
+          const facesStr = `Faces: [${mod.faces.join(', ')}]`;
+          const facesText = new Text({
+            text: facesStr,
+            style: {
+              fontFamily: fonts.body,
+              fontSize: fonts.sizes.small,
+              fill: 0xD4A030,
+            },
+          });
+          facesText.position.set(PANEL_PADDING, yOff);
+          this.addChild(facesText);
+          yOff += facesText.height + spacing.xs;
+        }
       }
     }
 
@@ -304,9 +308,10 @@ export function createEventScene(game: GameStateManager, input: InputManager): S
     clearChoices();
     const accent = CATEGORY_COLORS[event.category] ?? colors.focus;
     const panelW = Math.min(PANEL_WIDTH, sw * 0.85);
+    const compact = getLayout(sw, sh).isMobile;
 
     event.choices.forEach((choice, i) => {
-      const panel = new ChoicePanel(choice, accent);
+      const panel = new ChoicePanel(choice, accent, compact);
       panel.setPanelWidth(panelW);
       panel.onPress = () => handleChoice(i);
       choicesContainer.addChild(panel);
@@ -326,8 +331,8 @@ export function createEventScene(game: GameStateManager, input: InputManager): S
     if (choicesLocked) return;
     choicesLocked = true;
 
-    // Disable all panels
-    for (const p of choicePanels) p.setEnabled(false);
+    // Hide all choice panels — replaced by result text + continue button
+    choicesContainer.visible = false;
 
     const result = game.handleEventChoice(index);
 
@@ -401,18 +406,21 @@ export function createEventScene(game: GameStateManager, input: InputManager): S
 
     resultText.style.fontSize = Math.max(16, rl.fontSize.h3);
     resultText.style.wordWrapWidth = Math.min(400, sw * 0.85);
-    // Position result text and continue button below choices
+
     if (resultText.visible) {
-      const choicesBottom = choicesContainer.y + choicesContainer.height;
-      resultText.position.set(cx, choicesBottom + spacing.md);
+      // Choices are hidden — center result text in the middle area
+      const resultY = sh * 0.35;
+      resultText.position.set(cx, resultY);
 
       if (continueBtn.visible) {
-        const btnY = resultText.y + resultText.height + spacing.md;
+        const btnY = Math.min(resultY + resultText.height + spacing.lg, sh * 0.85);
         continueBtn.position.set(cx - continueBtn.buttonWidth / 2, btnY);
       }
     }
 
-    layoutChoices();
+    if (!choicesLocked) {
+      layoutChoices();
+    }
   }
 
   // --- Scene lifecycle ---
@@ -422,6 +430,7 @@ export function createEventScene(game: GameStateManager, input: InputManager): S
     choicesLocked = false;
     resultText.visible = false;
     continueBtn.visible = false;
+    choicesContainer.visible = true;
 
     input.unregisterAll();
 

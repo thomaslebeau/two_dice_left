@@ -12,6 +12,7 @@ import { rollDice } from '../../engine/dice';
 import { allocateEnemy } from '../../engine/allocation';
 import { DIE_SIZE } from './DiceSprite';
 import { CommitButton } from './CommitButton';
+import { ResetButton } from './ResetButton';
 import { ResolutionAnimation } from './ResolutionAnimation';
 import { DiceAllocator } from './DiceAllocator';
 import { EquipmentGrid } from './EquipmentGrid';
@@ -26,7 +27,7 @@ const BONE = 0xD9CFBA;
 const RUST = 0x8B3A1A;
 const MOSS = 0x2D4A2E;
 const PADDING = 8;
-const GAP = 6;
+const GAP = 4;
 
 type CombatPhase = 'rolling' | 'allocating' | 'resolving' | 'results' | 'finished';
 
@@ -55,6 +56,7 @@ export class CombatScene extends Container implements Scene {
   private _creature = new CreaturePlaceholder();
   private _enemyDiceRow = new EnemyDiceRow();
   private _commitBtn = new CommitButton();
+  private _resetBtn = new ResetButton();
   private _resolution = new ResolutionAnimation();
   private _playerDiceZone = new Container();
 
@@ -70,7 +72,7 @@ export class CombatScene extends Container implements Scene {
     super();
     this.addChild(this._enemyHud, this._enemyGrid, this._enemyDiceRow);
     this.addChild(this._creature, this._resolution, this._playerDiceZone);
-    this.addChild(this._playerZone, this._commitBtn);
+    this.addChild(this._playerZone, this._resetBtn, this._commitBtn);
 
     this._tapPrompt = new Text({
       text: 'TAP TO CONTINUE',
@@ -84,8 +86,12 @@ export class CombatScene extends Container implements Scene {
     this.addChild(this._tapPrompt);
 
     this._commitBtn.onCommit = () => this._handleCommit();
+    this._resetBtn.onReset = () => { this._allocator.resetAllAllocations(); };
     this._playerZone.grid.onSlotTap = (i) => this._allocator.handleSlotTap(i);
-    this._allocator.onChange = () => this._commitBtn.setEnabled(this._allocator.isComplete());
+    this._allocator.onChange = () => {
+      this._commitBtn.setEnabled(this._allocator.isComplete());
+      this._resetBtn.setVisible(this._allocator.hasAllocations());
+    };
     this._allocator.onBringToFront = (d) => this.setChildIndex(d, this.children.length - 1);
 
     this.eventMode = 'static';
@@ -142,8 +148,8 @@ export class CombatScene extends Container implements Scene {
     this._enemyDiceRow.layout(avail);
     y += this._enemyDiceRow.rowHeight + GAP;
 
-    const bottomH = GAP + DIE_SIZE + GAP + this._playerZone.zoneHeight + GAP + this._commitBtn.buttonHeight + GAP;
-    const creatureH = Math.max(40, this._sh - y - bottomH - PADDING);
+    const bottomH = GAP + DIE_SIZE + GAP + this._playerZone.zoneHeight + GAP + this._commitBtn.buttonHeight + PADDING;
+    const creatureH = Math.max(20, this._sh - y - bottomH - PADDING);
     this._creature.position.set(PADDING, y);
     this._creature.layout(avail, creatureH);
     this._resolution.layoutAt(cx, y + 10, avail);
@@ -158,7 +164,12 @@ export class CombatScene extends Container implements Scene {
     this._playerZone.layout(avail);
     y += this._playerZone.zoneHeight + GAP;
 
-    this._commitBtn.position.set(cx - this._commitBtn.buttonWidth / 2, y);
+    // Buttons: Annuler (left) + Valider (right), centered together
+    const btnGap = 8;
+    const totalBtnW = this._resetBtn.buttonWidth + btnGap + this._commitBtn.buttonWidth;
+    const btnStartX = cx - totalBtnW / 2;
+    this._resetBtn.position.set(btnStartX, y);
+    this._commitBtn.position.set(btnStartX + this._resetBtn.buttonWidth + btnGap, y);
     this._tapPrompt.position.set(cx, this._creature.y + creatureH / 2);
   }
 
@@ -194,6 +205,7 @@ export class CombatScene extends Container implements Scene {
     this._enemyDiceRow.buildDice(ev);
     this._enemyDiceRow.visible = true;
     this._commitBtn.setEnabled(false);
+    this._resetBtn.setVisible(false);
     this._allocator.layoutDice();
     this._layout();
 
@@ -204,6 +216,7 @@ export class CombatScene extends Container implements Scene {
     if (this._phase !== 'allocating' || !this._data || !this._state) return;
     this._phase = 'resolving';
     this._commitBtn.setEnabled(false);
+    this._resetBtn.setVisible(false);
     this._allocator.setEnabled(false);
     this._playerZone.grid.lockAll();
 

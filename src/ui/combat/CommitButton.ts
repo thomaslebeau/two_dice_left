@@ -18,7 +18,7 @@ const MOSS = 0x2D4A2E;
 // ---------------------------------------------------------------------------
 
 const BTN_WIDTH = 160;
-const BTN_HEIGHT = 48;
+const BTN_HEIGHT = 36;
 const CORNER_RADIUS = 6;
 
 export class CommitButton extends Container {

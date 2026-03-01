@@ -16,6 +16,7 @@ import { EquipmentSlotIcon, ICON_SIZE } from './EquipmentSlotIcon';
 // ---------------------------------------------------------------------------
 
 const SLOT_GAP = 4;
+const ROW_GAP = 4;
 type CategoryKey = 'weapon' | 'shield' | 'utility';
 
 interface CategoryGroup {
@@ -88,25 +89,22 @@ export class EquipmentGrid extends Container {
   // Layout
   // -----------------------------------------------------------------------
 
-  /** Position slots within given width. Call after build(). */
+  /** Position slots in rows by category. Call after build(). */
   layout(_availWidth: number): void {
-    let x = 0;
     let y = 0;
-    let rowMaxH = 0;
 
     for (const group of this._groups) {
+      let x = 0;
       for (const slot of group.slots) {
         slot.position.set(x, y);
         x += ICON_SIZE + SLOT_GAP;
-        rowMaxH = ICON_SIZE;
       }
+      y += ICON_SIZE + ROW_GAP;
     }
 
-    if (rowMaxH > 0) {
-      y += rowMaxH;
-    }
-
-    this._gridHeight = y;
+    this._gridHeight = this._groups.length > 0
+      ? y - ROW_GAP  // remove trailing gap
+      : 0;
   }
 
   // -----------------------------------------------------------------------

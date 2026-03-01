@@ -13,7 +13,7 @@
 import { Container, Graphics, Text } from 'pixi.js';
 import type { Scene } from '../../engine/SceneManager';
 import type { Equipment, Survivor } from '../../engine/types';
-import { LootCard, CARD_W, CARD_H } from './LootCard';
+import { LootCard, CARD_W } from './LootCard';
 import {
   generateLootOptions,
   pickNarrative,
@@ -189,11 +189,9 @@ export class EventScene extends Container implements Scene {
     // Loot cards
     this._cardsContainer.position.set(0, y);
     if (narrow) {
-      this._layoutCardsStacked(y);
-      y += this._lootCards.length * (CARD_H + 8);
+      y += this._layoutCardsStacked(y);
     } else {
-      this._layoutCardsSideBySide(y);
-      y += CARD_H;
+      y += this._layoutCardsSideBySide(y);
     }
     y += SECTION_GAP;
 
@@ -213,25 +211,32 @@ export class EventScene extends Container implements Scene {
     this._loadoutContainer.position.set(PADDING, y);
   }
 
-  private _layoutCardsSideBySide(y: number): void {
+  /** Returns total height consumed by cards. */
+  private _layoutCardsSideBySide(y: number): number {
     const count = this._lootCards.length;
-    if (count === 0) return;
+    if (count === 0) return 0;
     const gap = 10;
     const totalW = count * CARD_W + (count - 1) * gap;
     let x = (this._sw - totalW) / 2;
+    let maxH = 0;
     for (const card of this._lootCards) {
       card.position.set(x, y);
       x += CARD_W + gap;
+      if (card.cardHeight > maxH) maxH = card.cardHeight;
     }
+    return maxH;
   }
 
-  private _layoutCardsStacked(startY: number): void {
+  /** Returns total height consumed by stacked cards. */
+  private _layoutCardsStacked(startY: number): number {
     const cx = this._sw / 2;
+    const gap = 6;
     let y = startY;
     for (const card of this._lootCards) {
       card.position.set(cx - CARD_W / 2, y);
-      y += CARD_H + 8;
+      y += card.cardHeight + gap;
     }
+    return y - startY;
   }
 
   // -----------------------------------------------------------------------

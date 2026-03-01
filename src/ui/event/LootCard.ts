@@ -24,7 +24,6 @@ const CHARCOAL = 0x1A1A1A;
 // ---------------------------------------------------------------------------
 
 export const CARD_W = 160;
-export const CARD_H = 220;
 const CORNER_R = 8;
 const MIN_TOUCH = 44;
 const DIE_FACE_SIZE = 20;
@@ -58,6 +57,7 @@ export class LootCard extends Container {
   private _bg = new Graphics();
   private _equipment: Equipment;
   private _selected = false;
+  private _cardH: number;
 
   /** Fired when the user taps this card. */
   onSelect: (() => void) | null = null;
@@ -85,13 +85,13 @@ export class LootCard extends Container {
     });
     nameText.position.set(10, y);
     this.addChild(nameText);
-    y += nameText.height + 8;
+    y += nameText.height + 6;
 
     // Die range — visual dice faces [1-6], highlight accepted
     const diceRow = this._buildDiceRange(equipment.minDie, equipment.maxDie);
     diceRow.position.set(10, y);
     this.addChild(diceRow);
-    y += DIE_FACE_SIZE + 10;
+    y += DIE_FACE_SIZE + 6;
 
     // Effect formula (from data, no effect() calls)
     const effectText = new Text({
@@ -107,9 +107,9 @@ export class LootCard extends Container {
     });
     effectText.position.set(10, y);
     this.addChild(effectText);
-    y += effectText.height + 8;
+    y += effectText.height + 6;
 
-    // Synergy line: slot count context
+    // Synergy line: slot count context — flows right after effect
     const slotLabel = currentSlotCount === 2
       ? '3e emplacement'
       : `${currentSlotCount + 1}e emplacement`;
@@ -122,16 +122,20 @@ export class LootCard extends Container {
         fill: tColor,
       },
     });
-    synergyText.position.set(10, CARD_H - 30);
+    synergyText.position.set(10, y);
     this.addChild(synergyText);
+    y += synergyText.height + 10;
+
+    // Auto height from content
+    this._cardH = y;
 
     // Interaction
     this.eventMode = 'static';
     this.cursor = 'pointer';
     this.hitArea = {
-      contains: (x: number, y: number) =>
-        x >= 0 && x <= Math.max(CARD_W, MIN_TOUCH)
-        && y >= 0 && y <= Math.max(CARD_H, MIN_TOUCH),
+      contains: (hx: number, hy: number) =>
+        hx >= 0 && hx <= Math.max(CARD_W, MIN_TOUCH)
+        && hy >= 0 && hy <= Math.max(this._cardH, MIN_TOUCH),
     };
     this.on('pointerdown', this._handlePress, this);
     this.on('pointerover', this._handleOver, this);
@@ -141,6 +145,7 @@ export class LootCard extends Container {
   }
 
   get equipment(): Equipment { return this._equipment; }
+  get cardHeight(): number { return this._cardH; }
 
   /** Toggle selected state with visual feedback. */
   setSelected(selected: boolean): void {
@@ -155,7 +160,7 @@ export class LootCard extends Container {
     this._bg.clear();
 
     // Fill
-    this._bg.roundRect(0, 0, CARD_W, CARD_H, CORNER_R);
+    this._bg.roundRect(0, 0, CARD_W, this._cardH, CORNER_R);
     this._bg.fill({ color: CHARCOAL, alpha: 0.9 });
 
     // Border
@@ -163,7 +168,7 @@ export class LootCard extends Container {
       ? typeColor(this._equipment.type)
       : 0x555555;
     const borderWidth = this._selected ? 3 : 1;
-    this._bg.roundRect(0, 0, CARD_W, CARD_H, CORNER_R);
+    this._bg.roundRect(0, 0, CARD_W, this._cardH, CORNER_R);
     this._bg.stroke({ color: borderColor, width: borderWidth });
   }
 

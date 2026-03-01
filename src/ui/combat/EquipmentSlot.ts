@@ -33,25 +33,21 @@ export type SlotState = 'empty' | 'valid-target' | 'filled' | 'locked';
 // Helpers
 // ---------------------------------------------------------------------------
 
-function formatEffect(effect: EquipmentEffect, type: Equipment['type']): string {
+/** Format the actual computed effect of a placed die. */
+function formatResult(effect: EquipmentEffect): string {
   const parts: string[] = [];
   if (effect.damage > 0) parts.push(`${effect.damage} dmg`);
-  if (effect.shield > 0) parts.push(`${effect.shield} shield`);
-  if (effect.heal > 0) parts.push(`${effect.heal} heal`);
+  if (effect.shield > 0) parts.push(`${effect.shield} abs`);
+  if (effect.heal > 0) parts.push(`${effect.heal} soin`);
   if (effect.poison > 0) parts.push(`${effect.poison}t poison`);
-  if (parts.length === 0) {
-    if (type === 'weapon') return '0 dmg';
-    if (type === 'shield') return '0 shield';
-    return 'no effect';
-  }
-  return parts.join(' + ');
+  return parts.join(' + ') || '0';
 }
 
-function typeIcon(type: Equipment['type']): string {
+function typeLabel(type: Equipment['type']): string {
   switch (type) {
-    case 'weapon': return '\u2694';   // crossed swords
-    case 'shield': return '\u26E8';   // shield
-    case 'utility': return '\u2726';  // star
+    case 'weapon': return 'ATK';
+    case 'shield': return 'DEF';
+    case 'utility': return 'UTL';
   }
 }
 
@@ -84,7 +80,7 @@ export class EquipmentSlot extends Container {
 
     this.addChild(this._bg);
 
-    const icon = typeIcon(equipment.type);
+    const icon = typeLabel(equipment.type);
     const tColor = typeColor(equipment.type);
 
     this._nameText = new Text({
@@ -100,7 +96,7 @@ export class EquipmentSlot extends Container {
     this.addChild(this._nameText);
 
     this._rangeText = new Text({
-      text: `[${equipment.minDie}-${equipment.maxDie}]`,
+      text: `[${equipment.minDie}-${equipment.maxDie}] ${equipment.description}`,
       style: {
         fontFamily: '"Courier New", monospace',
         fontSize: 11,
@@ -150,12 +146,12 @@ export class EquipmentSlot extends Container {
     this._draw();
   }
 
-  /** Place a die in this slot. Shows the calculated effect. */
+  /** Place a die in this slot. Shows the actual calculated result. */
   placeDie(dieValue: number): void {
     this._placedDieValue = dieValue;
     this._state = 'filled';
     const effect = this._equipment.effect(dieValue);
-    this._previewText.text = `\u2192 ${formatEffect(effect, this._equipment.type)}`;
+    this._previewText.text = `-> ${formatResult(effect)}`;
     this._previewText.style.fill = typeColor(this._equipment.type);
     this._draw();
   }
@@ -183,7 +179,7 @@ export class EquipmentSlot extends Container {
       return;
     }
     const effect = this._equipment.effect(dieValue);
-    this._previewText.text = `\u2192 ${formatEffect(effect, this._equipment.type)}`;
+    this._previewText.text = `-> ${formatResult(effect)}`;
     this._previewText.style.fill = typeColor(this._equipment.type);
   }
 

@@ -60,6 +60,8 @@ export interface ResolutionData {
   // Outcome
   combatEnded: boolean;
   playerWon: boolean;
+  /** HP recovered from speed kill (0 if not triggered). */
+  speedKillRecovery: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -94,6 +96,7 @@ export class ResolutionAnimation extends Container {
   private _calcLine1: Text;
   private _calcLine2: Text;
   private _resultText: Text;
+  private _speedKillText: Text;
   private _endText: Text;
 
   // HP bar references (set externally)
@@ -134,6 +137,18 @@ export class ResolutionAnimation extends Container {
     this._resultText.anchor.set(0.5, 0);
     this.addChild(this._resultText);
 
+    this._speedKillText = new Text({
+      text: '',
+      style: {
+        fontFamily: '"Courier New", monospace',
+        fontSize: 14,
+        fontWeight: 'bold',
+        fill: MOSS,
+      },
+    });
+    this._speedKillText.anchor.set(0.5, 0);
+    this.addChild(this._speedKillText);
+
     this._endText = new Text({
       text: '',
       style: {
@@ -165,10 +180,11 @@ export class ResolutionAnimation extends Container {
     this._calcLine1.position.set(centerX, topY);
     this._calcLine2.position.set(centerX, topY + lineGap);
     this._resultText.position.set(centerX, topY + lineGap * 2 + 8);
-    this._endText.position.set(centerX, topY + lineGap * 4);
+    this._speedKillText.position.set(centerX, topY + lineGap * 3 + 8);
+    this._endText.position.set(centerX, topY + lineGap * 4 + 8);
 
     this._overlay.clear();
-    this._overlay.rect(centerX - width / 2, topY - 10, width, lineGap * 5 + 20);
+    this._overlay.rect(centerX - width / 2, topY - 10, width, lineGap * 5 + 28);
     this._overlay.fill({ color: CHARCOAL, alpha: 0.85 });
   }
 
@@ -182,6 +198,7 @@ export class ResolutionAnimation extends Container {
     this._calcLine1.text = '';
     this._calcLine2.text = '';
     this._resultText.text = '';
+    this._speedKillText.text = '';
     this._endText.text = '';
 
     // Phase 1: reveal enemy allocations (done externally, just wait)
@@ -221,7 +238,12 @@ export class ResolutionAnimation extends Container {
 
     await wait(HP_ANIM_DELAY);
 
-    // Phase 4: combat end
+    // Phase 4: speed kill recovery + combat end
+    if (data.speedKillRecovery > 0) {
+      this._speedKillText.text =
+        `Victoire rapide! +${data.speedKillRecovery} PV`;
+    }
+
     if (data.combatEnded) {
       if (data.playerWon) {
         this._endText.text = 'VICTORY';
@@ -241,6 +263,7 @@ export class ResolutionAnimation extends Container {
     this._calcLine1.text = '';
     this._calcLine2.text = '';
     this._resultText.text = '';
+    this._speedKillText.text = '';
     this._endText.text = '';
   }
 

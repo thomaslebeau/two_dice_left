@@ -25,14 +25,15 @@ function enemyWeapon(
   maxDie: number,
   bonus: number,
 ): Equipment {
+  const desc = bonus > 0 ? `de+${bonus} dmg` : 'de dmg';
   return {
     id: `enemy_${name.toLowerCase().replace(/\s+/g, '_')}`,
     name,
     type: 'weapon',
-    minDie: minDie,
-    maxDie: maxDie,
+    minDie,
+    maxDie,
     effect: (die) => ({ ...NO_EFFECT, damage: die + bonus }),
-    description: `die+${bonus} damage (${minDie}-${maxDie})`,
+    description: desc,
   };
 }
 
@@ -43,14 +44,15 @@ function enemyShield(
   maxDie: number,
   bonus: number,
 ): Equipment {
+  const desc = bonus > 0 ? `de+${bonus} abs` : 'de abs';
   return {
     id: `enemy_${name.toLowerCase().replace(/\s+/g, '_')}`,
     name,
     type: 'shield',
-    minDie: minDie,
-    maxDie: maxDie,
+    minDie,
+    maxDie,
     effect: (die) => ({ ...NO_EFFECT, shield: die + bonus }),
-    description: `die+${bonus} absorption (${minDie}-${maxDie})`,
+    description: desc,
   };
 }
 
@@ -72,58 +74,58 @@ function createEnemy(
 // Enemy definitions (E1–E9)
 // ---------------------------------------------------------------------------
 
-/** E1 — Sécateur Rampant: basic neutral, Claw + Shell */
+/** E1 — Sécateur Rampant: basic neutral, Griffe + Carapace */
 export const SECATEUR_RAMPANT = createEnemy(1, 'Sécateur Rampant', 8, [
-  enemyWeapon('Claw', 1, 6, 0),
-  enemyShield('Shell', 1, 6, 0),
+  enemyWeapon('Griffe', 1, 6, 0),
+  enemyShield('Carapace', 1, 6, 0),
 ], 'neutral');
 
-/** E2 — Lampe Épineuse: aggressive, Spike(+1) + Spark */
+/** E2 — Lampe Épineuse: aggressive, Pointe(+1) + Étincelle */
 export const LAMPE_EPINEUSE = createEnemy(2, 'Lampe Épineuse', 6, [
-  enemyWeapon('Spike', 1, 6, 1),
-  enemyWeapon('Spark', 1, 3, 0),
+  enemyWeapon('Pointe', 1, 6, 1),
+  enemyWeapon('Étincelle', 1, 3, 0),
 ], 'aggressive');
 
-/** E3 — Fourchette Vrille: neutral, Prong + Guard */
+/** E3 — Fourchette Vrille: neutral, Dent + Garde */
 export const FOURCHETTE_VRILLE = createEnemy(3, 'Fourchette Vrille', 5, [
-  enemyWeapon('Prong', 1, 6, 0),
-  enemyShield('Guard', 1, 4, 0),
+  enemyWeapon('Dent', 1, 6, 0),
+  enemyShield('Garde', 1, 4, 0),
 ], 'neutral');
 
-/** E4 — Ventilateur Griffe: aggressive, Blade(+2) + Slash */
+/** E4 — Ventilateur Griffe: aggressive, Lame(+2) + Entaille */
 export const VENTILATEUR_GRIFFE = createEnemy(4, 'Ventilateur Griffe', 10, [
-  enemyWeapon('Blade', 1, 6, 2),
-  enemyWeapon('Slash', 3, 6, 0),
+  enemyWeapon('Lame', 1, 6, 2),
+  enemyWeapon('Entaille', 3, 6, 0),
 ], 'aggressive');
 
-/** E5 — Radiateur Mousse: defensive, Bump + Armor(+2) */
+/** E5 — Radiateur Mousse: defensive, Choc + Blindage(+2) */
 export const RADIATEUR_MOUSSE = createEnemy(5, 'Radiateur Mousse', 14, [
-  enemyWeapon('Bump', 1, 4, 0),
-  enemyShield('Armor', 1, 6, 2),
+  enemyWeapon('Choc', 1, 4, 0),
+  enemyShield('Blindage', 1, 6, 2),
 ], 'defensive');
 
-/** E6 — Tronçonneuse Lierre: aggressive, Chain(+2) + Bark absorb */
+/** E6 — Tronçonneuse Lierre: aggressive, Chaîne(+2) + Écorce absorb */
 export const TRONCONNEUSE_LIERRE = createEnemy(6, 'Tronçonneuse Lierre', 10, [
-  enemyWeapon('Chain', 1, 6, 2),
-  enemyShield('Bark', 3, 6, 0),
+  enemyWeapon('Chaîne', 1, 6, 2),
+  enemyShield('Écorce', 3, 6, 0),
 ], 'aggressive');
 
-/** E7 — Frigo Mâchoire: defensive, Bite + Hull(+2) */
+/** E7 — Frigo Mâchoire: defensive, Mâchoire + Coque(+2) */
 export const FRIGO_MACHOIRE = createEnemy(7, 'Frigo Mâchoire', 12, [
-  enemyWeapon('Bite', 1, 6, 0),
-  enemyShield('Hull', 2, 6, 2),
+  enemyWeapon('Mâchoire', 1, 6, 0),
+  enemyShield('Coque', 2, 6, 2),
 ], 'defensive');
 
-/** E8 — Voiture-Racine (boss): neutral, Ram(+2) + Chassis(+2) */
+/** E8 — Voiture-Racine (boss): neutral, Bélier(+2) + Châssis(+2) */
 export const VOITURE_RACINE = createEnemy(8, 'Voiture-Racine', 14, [
-  enemyWeapon('Ram', 3, 6, 2),
-  enemyShield('Chassis', 2, 6, 2),
+  enemyWeapon('Bélier', 3, 6, 2),
+  enemyShield('Châssis', 2, 6, 2),
 ], 'neutral');
 
-/** E9 — Grue Tentacule (boss): aggressive, Whip(+2) + Crush(+1) */
+/** E9 — Grue Tentacule (boss): aggressive, Fouet(+2) + Broyeur(+1) */
 export const GRUE_TENTACULE = createEnemy(9, 'Grue Tentacule', 13, [
-  enemyWeapon('Whip', 1, 6, 2),
-  enemyWeapon('Crush', 4, 6, 1),
+  enemyWeapon('Fouet', 1, 6, 2),
+  enemyWeapon('Broyeur', 4, 6, 1),
 ], 'aggressive');
 
 /** All enemy templates */

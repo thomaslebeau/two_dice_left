@@ -8,7 +8,7 @@
  */
 
 import { Container, Graphics, Text } from 'pixi.js';
-import type { Equipment, EquipmentEffect } from '../../engine/types';
+import type { Equipment } from '../../engine/types';
 
 // ---------------------------------------------------------------------------
 // V6 palette
@@ -34,11 +34,11 @@ const DIE_FACE_GAP = 3;
 // Helpers
 // ---------------------------------------------------------------------------
 
-function typeIcon(type: Equipment['type']): string {
+function typeLabel(type: Equipment['type']): string {
   switch (type) {
-    case 'weapon': return '\u2694';   // crossed swords
-    case 'shield': return '\u26E8';   // shield
-    case 'utility': return '\u2726';  // star
+    case 'weapon': return 'ATK';
+    case 'shield': return 'DEF';
+    case 'utility': return 'UTL';
   }
 }
 
@@ -48,15 +48,6 @@ function typeColor(type: Equipment['type']): number {
     case 'shield': return MOSS;
     case 'utility': return BONE;
   }
-}
-
-function formatEffect(effect: EquipmentEffect): string {
-  const parts: string[] = [];
-  if (effect.damage > 0) parts.push(`${effect.damage} dmg`);
-  if (effect.shield > 0) parts.push(`${effect.shield} shield`);
-  if (effect.heal > 0) parts.push(`${effect.heal} heal`);
-  if (effect.poison > 0) parts.push(`${effect.poison}t poison`);
-  return parts.join(' + ') || 'no effect';
 }
 
 // ---------------------------------------------------------------------------
@@ -82,7 +73,7 @@ export class LootCard extends Container {
 
     // Type icon + name
     const nameText = new Text({
-      text: `${typeIcon(equipment.type)} ${equipment.name}`,
+      text: `${typeLabel(equipment.type)} ${equipment.name}`,
       style: {
         fontFamily: '"Courier New", monospace',
         fontSize: 13,
@@ -102,19 +93,16 @@ export class LootCard extends Container {
     this.addChild(diceRow);
     y += DIE_FACE_SIZE + 10;
 
-    // Effect preview: show min/mid/max outcomes
-    const minEffect = equipment.effect(equipment.minDie);
-    const maxEffect = equipment.effect(equipment.maxDie);
-    const midDie = Math.ceil((equipment.minDie + equipment.maxDie) / 2);
-    const midEffect = equipment.effect(midDie);
-
+    // Effect formula (from data, no effect() calls)
     const effectText = new Text({
-      text: `min: ${formatEffect(minEffect)}\nmid: ${formatEffect(midEffect)}\nmax: ${formatEffect(maxEffect)}`,
+      text: `-> ${equipment.description}`,
       style: {
         fontFamily: '"Courier New", monospace',
-        fontSize: 10,
-        fill: BONE,
-        lineHeight: 14,
+        fontSize: 12,
+        fontWeight: 'bold',
+        fill: tColor,
+        wordWrap: true,
+        wordWrapWidth: CARD_W - 20,
       },
     });
     effectText.position.set(10, y);

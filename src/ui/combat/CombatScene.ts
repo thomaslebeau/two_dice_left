@@ -18,6 +18,7 @@ import type { Scene } from '../../engine/SceneManager';
 import type {
   Equipment,
   Allocation,
+  AllocationPattern,
   Enemy,
   Survivor,
 } from '../../engine/types';
@@ -36,6 +37,7 @@ import {
 // ---------------------------------------------------------------------------
 
 const BONE = 0xD9CFBA;
+const RUST = 0x8B3A1A;
 const MOSS = 0x2D4A2E;
 const BLOOD = 0x6B1C1C;
 
@@ -72,6 +74,22 @@ const PADDING = 12;
 const HP_BAR_HEIGHT = 10;
 const SECTION_GAP = 10;
 
+function patternLabel(p: AllocationPattern): string {
+  switch (p) {
+    case 'aggressive': return 'ATK Agressif';
+    case 'defensive': return 'DEF Defensif';
+    case 'neutral': return 'Neutre';
+  }
+}
+
+function patternColor(p: AllocationPattern): number {
+  switch (p) {
+    case 'aggressive': return RUST;
+    case 'defensive': return MOSS;
+    case 'neutral': return BONE;
+  }
+}
+
 function sumEffectField(
   allocs: readonly Allocation[],
   equipment: readonly Equipment[],
@@ -99,10 +117,13 @@ export class CombatScene extends Container implements Scene {
 
   // --- Components ---
   private _playerDice: DiceSprite[] = [];
+  private _enemyDiceSprites: DiceSprite[] = [];
+  private _enemyDiceValues: number[] = [];
   private _playerSlots: EquipmentSlot[] = [];
   private _enemySlots: EquipmentSlot[] = [];
   private _commitBtn = new CommitButton();
   private _resolution = new ResolutionAnimation();
+  private _enemyDiceZone = new Container();
 
   // --- HP bars ---
   private _playerHpBg = new Graphics();
@@ -112,7 +133,9 @@ export class CombatScene extends Container implements Scene {
   private _playerNameText: Text;
   private _playerHpText: Text;
   private _enemyNameText: Text;
+  private _enemyPatternText: Text;
   private _enemyHpText: Text;
+  private _enemyEquipContainer = new Container();
 
   // --- State ---
   private _phase: CombatPhase = 'rolling';
@@ -141,15 +164,18 @@ export class CombatScene extends Container implements Scene {
     super();
 
     // Text elements
-    this._enemyNameText = this._makeText('', 14, BONE, true);
-    this._enemyHpText = this._makeText('', 12, BONE);
+    this._enemyNameText = this._makeText('', 16, BONE, true);
+    this._enemyPatternText = this._makeText('', 12, BONE);
+    this._enemyHpText = this._makeText('', 11, BONE);
     this._playerNameText = this._makeText('', 14, BONE, true);
     this._playerHpText = this._makeText('', 12, BONE);
 
     // Build structure
     this._enemyZone.addChild(
-      this._enemyNameText, this._enemyHpBg,
-      this._enemyHpFill, this._enemyHpText,
+      this._enemyNameText, this._enemyPatternText,
+      this._enemyHpBg, this._enemyHpFill, this._enemyHpText,
+      this._enemyEquipContainer,
+      this._enemyDiceZone,
     );
     this._playerZone.addChild(
       this._playerNameText, this._playerHpBg,
@@ -202,8 +228,11 @@ export class CombatScene extends Container implements Scene {
     this._enemyPoisonTurns = 0;
 
     this._enemyNameText.text = d.enemy.name;
+    this._enemyPatternText.text = patternLabel(d.enemy.pattern);
+    this._enemyPatternText.style.fill = patternColor(d.enemy.pattern);
     this._playerNameText.text = d.survivor.name;
 
+    this._buildEnemyEquipInfo(d.enemy);
     this._buildSlots(d);
     this._updateHpDisplays();
     this._layout();
@@ -213,6 +242,7 @@ export class CombatScene extends Container implements Scene {
   onExit(): void {
     this._clearDice();
     this._clearSlots();
+    this._enemyEquipContainer.removeChildren();
     this._resolution.reset();
     this._stopTapPulse();
     this._tapPrompt.visible = false;
@@ -233,22 +263,43 @@ export class CombatScene extends Container implements Scene {
     const cx = w / 2;
     let y = PADDING;
 
-    // Enemy zone
+    // Enemy zone — name, pattern, HP bar, equipment info, then slots
     this._enemyZone.position.set(PADDING, y);
-    this._layoutCombatantZone(
-      this._enemyNameText, this._enemyHpBg,
-      this._enemyHpFill, this._enemyHpText,
-      w - PADDING * 2,
-    );
+    const availW = w - PADDING * 2;
+    let ey = 0;
 
-    // Enemy slots below name+HP
-    const enemySlotY = 40;
-    this._layoutSlotsRow(this._enemySlots, PADDING, enemySlotY, w);
+    // Enemy name (bold, 16px)
+    this._enemyNameText.position.set(0, ey);
+    ey += 22;
+
+    // Pattern indicator (12px, colored)
+    this._enemyPatternText.position.set(0, ey);
+    ey += 18;
+
+    // HP bar
+    this._drawHpBarBg(this._enemyHpBg, availW, ey);
+    this._enemyHpFill.position.set(0, ey);
+    ey += HP_BAR_HEIGHT + 2;
+    this._enemyHpText.position.set(0, ey);
+    ey += 16;
+
+    // Equipment info lines
+    this._enemyEquipContainer.position.set(0, ey);
+    ey += this._enemyEquipContainer.height + 6;
+
+    // Enemy equipment slots
+    this._layoutSlotsRow(this._enemySlots, 0, ey, availW);
     for (const s of this._enemySlots) {
       this._enemyZone.addChild(s);
     }
-    const enemyZoneH = enemySlotY + SLOT_HEIGHT + 4;
-    y += enemyZoneH + SECTION_GAP;
+    ey += SLOT_HEIGHT + 12;
+
+    // Enemy dice (muted, display-only) — below slots with clear gap
+    this._enemyDiceZone.position.set(0, ey);
+    this._layoutEnemyDice();
+    ey += (this._enemyDiceSprites.length > 0 ? DIE_SIZE * 0.6 + 6 : 0);
+
+    y += ey + SECTION_GAP;
 
     // Resolution zone
     this._resolutionZone.position.set(0, y);
@@ -321,6 +372,23 @@ export class CombatScene extends Container implements Scene {
     }
   }
 
+  /** Position enemy dice within _enemyDiceZone (scaled down). */
+  private _layoutEnemyDice(): void {
+    const scale = 0.6;
+    const gap = 8;
+    const dieW = DIE_SIZE * scale;
+    const count = this._enemyDiceSprites.length;
+    if (count === 0) return;
+    const totalW = count * dieW + (count - 1) * gap;
+    const availW = this._sw - PADDING * 2;
+    let x = (availW - totalW) / 2;
+    for (const die of this._enemyDiceSprites) {
+      die.scale.set(scale);
+      die.position.set(x, 0);
+      x += dieW + gap;
+    }
+  }
+
   // -----------------------------------------------------------------------
   // HP display
   // -----------------------------------------------------------------------
@@ -373,6 +441,27 @@ export class CombatScene extends Container implements Scene {
   // Slot & dice creation
   // -----------------------------------------------------------------------
 
+  /** Build descriptive text lines for enemy equipment using formula. */
+  private _buildEnemyEquipInfo(enemy: Enemy): void {
+    this._enemyEquipContainer.removeChildren();
+    let ly = 0;
+    for (const eq of enemy.equipment) {
+      const tag = eq.type === 'weapon' ? 'ATK' : 'DEF';
+      const color = eq.type === 'weapon' ? RUST : MOSS;
+      const line = new Text({
+        text: `${tag} ${eq.name} [${eq.minDie}-${eq.maxDie}] -> ${eq.description}`,
+        style: {
+          fontFamily: '"Courier New", monospace',
+          fontSize: 11,
+          fill: color,
+        },
+      });
+      line.position.set(0, ly);
+      this._enemyEquipContainer.addChild(line);
+      ly += 15;
+    }
+  }
+
   private _buildSlots(d: CombatSceneData): void {
     this._clearSlots();
 
@@ -400,6 +489,9 @@ export class CombatScene extends Container implements Scene {
   private _clearDice(): void {
     for (const d of this._playerDice) d.destroy();
     this._playerDice = [];
+    for (const d of this._enemyDiceSprites) d.destroy();
+    this._enemyDiceSprites = [];
+    this._enemyDiceValues = [];
     this._allocations.clear();
   }
 
@@ -417,25 +509,49 @@ export class CombatScene extends Container implements Scene {
     // Reset player slots
     for (const s of this._playerSlots) s.removeDie();
 
-    // Create dice
+    // Reset enemy slots from previous round
+    for (const s of this._enemySlots) s.removeDie();
+
+    // Roll BOTH sides simultaneously
     this._clearDice();
-    const values = rollDice(2);
-    for (let i = 0; i < values.length; i++) {
+    this._enemyDiceZone.visible = true;
+    const playerValues = rollDice(2);
+    this._enemyDiceValues = rollDice(2);
+
+    // Player dice — draggable
+    for (let i = 0; i < playerValues.length; i++) {
       const die = new DiceSprite(i);
       die.on('pointerdown', (e) => this._handleDieDown(i, e));
       this._playerDice.push(die);
       this.addChild(die);
-      die.roll(values[i]);
+      die.roll(playerValues[i]);
     }
+
+    // Enemy dice — muted, non-interactive display
+    this._buildEnemyDice();
 
     this._commitBtn.setEnabled(false);
     this._layoutDice(this._playerDiceZone.y);
+    this._layoutEnemyDice();
 
     // Transition to allocating after roll animation
     setTimeout(() => {
       this._phase = 'allocating';
       this._updateSlotHighlights();
     }, 2000);
+  }
+
+  /** Create muted enemy dice sprites for display only. */
+  private _buildEnemyDice(): void {
+    for (let i = 0; i < this._enemyDiceValues.length; i++) {
+      const die = new DiceSprite(i);
+      die.eventMode = 'none';
+      die.cursor = 'default';
+      die.alpha = 0.6;
+      this._enemyDiceSprites.push(die);
+      this._enemyDiceZone.addChild(die);
+      die.roll(this._enemyDiceValues[i]);
+    }
   }
 
   // -----------------------------------------------------------------------
@@ -625,18 +741,22 @@ export class CombatScene extends Container implements Scene {
       });
     }
 
-    // Enemy rolls and allocates
-    const enemyDice = rollDice(2);
+    // Enemy uses ALREADY ROLLED dice (visible since round start)
     const enemyAllocs = allocateEnemy(
-      enemyDice,
+      this._enemyDiceValues,
       this._data.enemy.equipment,
       this._data.enemy.pattern,
     );
 
-    // Reveal enemy allocations on their slots
+    // Reveal enemy allocation: snap dice into slots, then pause
     for (const ea of enemyAllocs) {
       this._enemySlots[ea.equipmentIndex]?.placeDie(ea.dieValue);
     }
+    // Hide the free-floating enemy dice display
+    this._enemyDiceZone.visible = false;
+
+    // 0.5s pause so player can read enemy allocation
+    await new Promise<void>((r) => setTimeout(r, 500));
 
     // Resolve effects (UI reads engine formulas)
     const pDmg = this._calcDamage(
@@ -705,11 +825,14 @@ export class CombatScene extends Container implements Scene {
     const playerWon = this._enemyHp <= 0;
 
     // Speed kill recovery
+    let speedKillRecovery = 0;
     if (playerWon && this._round <= 3) {
+      const hpBefore = this._playerHp;
       this._playerHp = Math.min(
         this._data.playerMaxHp,
         this._playerHp + 3,
       );
+      speedKillRecovery = this._playerHp - hpBefore;
     }
 
     // Play resolution animation
@@ -731,6 +854,7 @@ export class CombatScene extends Container implements Scene {
       enemyMaxHp: this._data.enemy.maxHp,
       combatEnded,
       playerWon,
+      speedKillRecovery,
     };
 
     await this._resolution.play(resData);

@@ -24,7 +24,7 @@ export const RUSTY_BLADE: Equipment = {
   minDie: 1,
   maxDie: 6,
   effect: (die) => ({ ...NO_EFFECT, damage: die + 1 }),
-  description: 'die+1 damage',
+  description: 'de+1 dmg',
 };
 
 /** Scrap Shield — baseline shield, die absorption */
@@ -35,18 +35,18 @@ export const SCRAP_SHIELD: Equipment = {
   minDie: 1,
   maxDie: 6,
   effect: (die) => ({ ...NO_EFFECT, shield: die }),
-  description: 'die absorption',
+  description: 'de abs',
 };
 
 /** Sharp Knife — glass cannon weapon, die+2 damage */
 export const SHARP_KNIFE: Equipment = {
   id: 'sharp_knife',
-  name: 'Couteau Aiguisé',
+  name: 'Couteau Aiguise',
   type: 'weapon',
   minDie: 1,
   maxDie: 6,
   effect: (die) => ({ ...NO_EFFECT, damage: die + 2 }),
-  description: 'die+2 damage',
+  description: 'de+2 dmg',
 };
 
 /** Twin Spike — low-range weapon, die+2 damage */
@@ -57,62 +57,62 @@ export const TWIN_SPIKE: Equipment = {
   minDie: 1,
   maxDie: 4,
   effect: (die) => ({ ...NO_EFFECT, damage: die + 2 }),
-  description: 'die+2 damage (1-4 only)',
+  description: 'de+2 dmg',
 };
 
 /** Heavy Wrench — high-range weapon, die+3 damage */
 export const HEAVY_WRENCH: Equipment = {
   id: 'heavy_wrench',
-  name: 'Clé Lourde',
+  name: 'Cle Lourde',
   type: 'weapon',
   minDie: 4,
   maxDie: 6,
   effect: (die) => ({ ...NO_EFFECT, damage: die + 3 }),
-  description: 'die+3 damage (4-6 only)',
+  description: 'de+3 dmg',
 };
 
 /** Sharpened Fork — low-range weapon, die+1 damage */
 export const SHARPENED_FORK: Equipment = {
   id: 'sharpened_fork',
-  name: 'Fourche Affûtée',
+  name: 'Fourche Affutee',
   type: 'weapon',
   minDie: 1,
   maxDie: 3,
   effect: (die) => ({ ...NO_EFFECT, damage: die + 1 }),
-  description: 'die+1 damage (1-3 only)',
+  description: 'de+1 dmg',
 };
 
 /** Reinforced Door — high-range shield, die+2 absorption */
 export const REINFORCED_DOOR: Equipment = {
   id: 'reinforced_door',
-  name: 'Porte Blindée',
+  name: 'Porte Blindee',
   type: 'shield',
   minDie: 3,
   maxDie: 6,
   effect: (die) => ({ ...NO_EFFECT, shield: die + 2 }),
-  description: 'die+2 absorption (3-6 only)',
+  description: 'de+2 abs',
 };
 
 /** Light Guard — low-range shield, die+1 absorption */
 export const LIGHT_GUARD: Equipment = {
   id: 'light_guard',
-  name: 'Garde Légère',
+  name: 'Garde Legere',
   type: 'shield',
   minDie: 1,
   maxDie: 4,
   effect: (die) => ({ ...NO_EFFECT, shield: die + 1 }),
-  description: 'die+1 absorption (1-4 only)',
+  description: 'de+1 abs',
 };
 
 /** Repair Kit — low-range utility, ceil(die/2)+1 heal */
 export const REPAIR_KIT: Equipment = {
   id: 'repair_kit',
-  name: 'Kit de Réparation',
+  name: 'Kit de Reparation',
   type: 'utility',
   minDie: 1,
   maxDie: 3,
   effect: (die) => ({ ...NO_EFFECT, heal: Math.ceil(die / 2) + 1 }),
-  description: 'ceil(die/2)+1 heal (1-3 only)',
+  description: 'soin',
 };
 
 // ---------------------------------------------------------------------------
@@ -127,13 +127,13 @@ export const HEAVY_HAMMER: Equipment = {
   minDie: 5,
   maxDie: 6,
   effect: (die) => ({ ...NO_EFFECT, damage: die + 3 }),
-  description: 'die+3 damage (5-6 only)',
+  description: 'de+3 dmg',
 };
 
 /** Poison Needle — 1 damage + poison (2 turns if die>=3) */
 export const POISON_NEEDLE: Equipment = {
   id: 'poison_needle',
-  name: 'Aiguille Empoisonnée',
+  name: 'Aiguille Empoisonnee',
   type: 'weapon',
   minDie: 1,
   maxDie: 6,
@@ -142,24 +142,24 @@ export const POISON_NEEDLE: Equipment = {
     damage: 1,
     poison: die >= 3 ? 2 : 0,
   }),
-  description: '1 dmg + poison (2 turns if die>=3)',
+  description: '1 dmg + poison',
 };
 
 /** Serrated Edge — mid-range weapon, die+1 damage */
 export const SERRATED_EDGE: Equipment = {
   id: 'serrated_edge',
-  name: 'Lame Crantée',
+  name: 'Lame Crantee',
   type: 'weapon',
   minDie: 2,
   maxDie: 5,
   effect: (die) => ({ ...NO_EFFECT, damage: die + 1 }),
-  description: 'die+1 damage (2-5 only)',
+  description: 'de+1 dmg',
 };
 
 /** Glass Shard — die damage, DOUBLE on 5-6 */
 export const GLASS_SHARD: Equipment = {
   id: 'glass_shard',
-  name: 'Éclat de Verre',
+  name: 'Eclat de Verre',
   type: 'weapon',
   minDie: 1,
   maxDie: 6,
@@ -167,18 +167,18 @@ export const GLASS_SHARD: Equipment = {
     ...NO_EFFECT,
     damage: die >= 5 ? die * 2 : die,
   }),
-  description: 'die damage, DOUBLE on 5-6',
+  description: 'de dmg (x2 si 5-6)',
 };
 
 /** Thick Bark — mid-range shield, die+1 absorption */
 export const THICK_BARK: Equipment = {
   id: 'thick_bark',
-  name: 'Écorce Épaisse',
+  name: 'Ecorce Epaisse',
   type: 'shield',
   minDie: 2,
   maxDie: 6,
   effect: (die) => ({ ...NO_EFFECT, shield: die + 1 }),
-  description: 'die+1 absorption (2-6 only)',
+  description: 'de+1 abs',
 };
 
 /** Mirror Plate — high-range shield, die+2 absorption + 1 reflect */
@@ -189,24 +189,24 @@ export const MIRROR_PLATE: Equipment = {
   minDie: 4,
   maxDie: 6,
   effect: (die) => ({ ...NO_EFFECT, shield: die + 2, damage: 1 }),
-  description: 'die+2 absorption + 1 reflect (4-6 only)',
+  description: 'de+2 abs + 1 renvoi',
 };
 
 /** Bandage Wrap — low-range utility, heal = die value */
 export const BANDAGE_WRAP: Equipment = {
   id: 'bandage_wrap',
-  name: 'Bandage Végétal',
+  name: 'Bandage Vegetal',
   type: 'utility',
   minDie: 1,
   maxDie: 4,
   effect: (die) => ({ ...NO_EFFECT, heal: die }),
-  description: 'heal = die value (1-4 only)',
+  description: 'soin de PV',
 };
 
 /** Adrenaline Root — full-range utility, split damage + shield */
 export const ADRENALINE_ROOT: Equipment = {
   id: 'adrenaline_root',
-  name: 'Racine Adrénaline',
+  name: 'Racine Adrenaline',
   type: 'utility',
   minDie: 1,
   maxDie: 6,
@@ -215,7 +215,7 @@ export const ADRENALINE_ROOT: Equipment = {
     damage: Math.ceil(die / 2),
     shield: Math.ceil(die / 2),
   }),
-  description: 'ceil(die/2) dmg + ceil(die/2) shield',
+  description: 'de/2 dmg + de/2 abs',
 };
 
 // ---------------------------------------------------------------------------

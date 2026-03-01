@@ -269,14 +269,16 @@ export class EventScene extends Container implements Scene {
     let y = 20;
 
     for (const eq of d.playerEquipment) {
-      const icon = eq.type === 'weapon' ? '\u2694'
-        : eq.type === 'shield' ? '\u26E8' : '\u2726';
+      const tag = eq.type === 'weapon' ? 'ATK'
+        : eq.type === 'shield' ? 'DEF' : 'UTL';
+      const color = eq.type === 'weapon' ? RUST
+        : eq.type === 'shield' ? MOSS : BONE;
       const line = new Text({
-        text: `${icon} ${eq.name} [${eq.minDie}-${eq.maxDie}]`,
+        text: `${tag} ${eq.name} [${eq.minDie}-${eq.maxDie}] -> ${eq.description}`,
         style: {
           fontFamily: '"Courier New", monospace',
           fontSize: 11,
-          fill: BONE,
+          fill: color,
           wordWrap: true,
           wordWrapWidth: availW,
         },

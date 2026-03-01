@@ -15,6 +15,7 @@ import { EventScene } from './ui/event/EventScene.ts';
 import type { EventSceneData } from './ui/event/EventScene.ts';
 import { ALL_SURVIVORS } from './data/survivors.ts';
 import type { Survivor } from './engine/types.ts';
+import { sendRunData } from './core/Telemetry.ts';
 
 // ---------------------------------------------------------------------------
 // V6 palette (matches combat/event scenes)
@@ -373,21 +374,43 @@ async function main() {
         break;
       }
 
-      case 'victory':
+      case 'victory': {
+        const snap = orchestrator.snapshot();
+        sendRunData({
+          survivorId: t.survivor.id,
+          survivorName: t.survivor.name,
+          victory: true,
+          combatReached: 5,
+          finalHP: t.playerHp,
+          maxHP: snap.playerMaxHp,
+          equipment: snap.equipment.map(e => e.name).join(', '),
+        });
         scenes.switchTo('end', {
           victory: true,
           survivorName: t.survivor.name,
           detail: `${t.playerHp} PV restants`,
         });
         break;
+      }
 
-      case 'defeat':
+      case 'defeat': {
+        const snap = orchestrator.snapshot();
+        sendRunData({
+          survivorId: t.survivor.id,
+          survivorName: t.survivor.name,
+          victory: false,
+          combatReached: t.combatNumber,
+          finalHP: 0,
+          maxHP: snap.playerMaxHp,
+          equipment: snap.equipment.map(e => e.name).join(', '),
+        });
         scenes.switchTo('end', {
           victory: false,
           survivorName: t.survivor.name,
           detail: `Combat ${t.combatNumber}/5`,
         });
         break;
+      }
     }
   });
 

@@ -22,8 +22,8 @@ const BLOOD = 0x6B1C1C;
 // Constants
 // ---------------------------------------------------------------------------
 
-export const SLOT_WIDTH = 140;
-export const SLOT_HEIGHT = 72;
+export const SLOT_WIDTH = 110;
+export const SLOT_HEIGHT = 58;
 const CORNER_RADIUS = 6;
 const MIN_TOUCH_SIZE = 44;
 
@@ -87,35 +87,35 @@ export class EquipmentSlot extends Container {
       text: `${icon} ${equipment.name}`,
       style: {
         fontFamily: '"Courier New", monospace',
-        fontSize: 12,
+        fontSize: 10,
         fontWeight: 'bold',
         fill: tColor,
       },
     });
-    this._nameText.position.set(8, 6);
+    this._nameText.position.set(6, 4);
     this.addChild(this._nameText);
 
     this._rangeText = new Text({
       text: `[${equipment.minDie}-${equipment.maxDie}] ${equipment.description}`,
       style: {
         fontFamily: '"Courier New", monospace',
-        fontSize: 11,
+        fontSize: 9,
         fill: BONE,
       },
     });
-    this._rangeText.position.set(8, 24);
+    this._rangeText.position.set(6, 18);
     this.addChild(this._rangeText);
 
     this._previewText = new Text({
       text: '',
       style: {
         fontFamily: '"Courier New", monospace',
-        fontSize: 12,
+        fontSize: 10,
         fontWeight: 'bold',
         fill: BONE,
       },
     });
-    this._previewText.position.set(8, 44);
+    this._previewText.position.set(6, 34);
     this.addChild(this._previewText);
 
     this.eventMode = 'static';

@@ -19,9 +19,9 @@ const CHARCOAL_LIGHT = 0x2A2A2A;
 // Constants
 // ---------------------------------------------------------------------------
 
-export const DIE_SIZE = 64;
-const CORNER_RADIUS = 8;
-const PIP_RADIUS = 5;
+export const DIE_SIZE = 36;
+const CORNER_RADIUS = 5;
+const PIP_RADIUS = 3;
 const PIP_COLOR = CHARCOAL;
 const ROLL_DURATION = 1800;
 const ROLL_START_SPEED = 40;
@@ -71,7 +71,7 @@ export class DiceSprite extends Container {
       text: '',
       style: {
         fontFamily: '"Courier New", monospace',
-        fontSize: 28,
+        fontSize: 16,
         fontWeight: 'bold',
         fill: CHARCOAL,
       },

@@ -71,9 +71,9 @@ export interface CombatSceneData {
 // Helpers
 // ---------------------------------------------------------------------------
 
-const PADDING = 12;
-const HP_BAR_HEIGHT = 10;
-const SECTION_GAP = 10;
+const PADDING = 8;
+const HP_BAR_HEIGHT = 8;
+const SECTION_GAP = 6;
 
 function patternLabel(p: AllocationPattern): string {
   switch (p) {
@@ -174,11 +174,11 @@ export class CombatScene extends Container implements Scene {
     super();
 
     // Text elements
-    this._enemyNameText = this._makeText('', 16, BONE, true);
-    this._enemyPatternText = this._makeText('', 12, BONE);
-    this._enemyHpText = this._makeText('', 11, BONE);
-    this._playerNameText = this._makeText('', 14, BONE, true);
-    this._playerHpText = this._makeText('', 12, BONE);
+    this._enemyNameText = this._makeText('', 14, BONE, true);
+    this._enemyPatternText = this._makeText('', 11, BONE);
+    this._enemyHpText = this._makeText('', 10, BONE);
+    this._playerNameText = this._makeText('', 12, BONE, true);
+    this._playerHpText = this._makeText('', 10, BONE);
 
     // Build poison badges
     this._playerPoisonText = this._buildPoisonBadge(
@@ -290,13 +290,13 @@ export class CombatScene extends Container implements Scene {
     const availW = w - PADDING * 2;
     let ey = 0;
 
-    // Enemy name (bold, 16px)
+    // Enemy name (bold, 14px)
     this._enemyNameText.position.set(0, ey);
-    ey += 22;
-
-    // Pattern indicator (12px, colored)
-    this._enemyPatternText.position.set(0, ey);
     ey += 18;
+
+    // Pattern indicator (11px, colored)
+    this._enemyPatternText.position.set(0, ey);
+    ey += 14;
 
     // HP bar
     this._drawHpBarBg(this._enemyHpBg, availW, ey);
@@ -307,29 +307,29 @@ export class CombatScene extends Container implements Scene {
     this._enemyPoisonBadge.position.set(
       this._enemyHpText.width + 8, ey,
     );
-    ey += 16;
+    ey += 14;
 
     // Equipment info lines
     this._enemyEquipContainer.position.set(0, ey);
-    ey += this._enemyEquipContainer.height + 6;
+    ey += this._enemyEquipContainer.height + 4;
 
     // Enemy equipment slots
     this._layoutSlotsRow(this._enemySlots, 0, ey, availW);
     for (const s of this._enemySlots) {
       this._enemyZone.addChild(s);
     }
-    ey += SLOT_HEIGHT + 12;
+    ey += SLOT_HEIGHT + 8;
 
     // Enemy dice (muted, display-only) — below slots with clear gap
     this._enemyDiceZone.position.set(0, ey);
     this._layoutEnemyDice();
-    ey += (this._enemyDiceSprites.length > 0 ? DIE_SIZE * 0.6 + 6 : 0);
+    ey += (this._enemyDiceSprites.length > 0 ? DIE_SIZE * 0.55 + 4 : 0);
 
     y += ey + SECTION_GAP;
 
     // Resolution zone
     this._resolutionZone.position.set(0, y);
-    const resH = 120;
+    const resH = 90;
     this._resolution.layoutAt(cx, y, w - PADDING * 2);
     y += resH + SECTION_GAP;
 
@@ -358,12 +358,12 @@ export class CombatScene extends Container implements Scene {
       w - PADDING * 2,
     );
     // Player poison badge right of HP text
-    const pHpTextY = 20 + HP_BAR_HEIGHT + 2;
+    const pHpTextY = 16 + HP_BAR_HEIGHT + 2;
     this._playerPoisonBadge.position.set(
       this._playerHpText.width + 8, pHpTextY,
     );
-    // Player zone height: name(20) + bar(10) + gap(2) + hpText(~14)
-    y += 46 + SECTION_GAP;
+    // Player zone height: name(16) + bar(8) + gap(2) + hpText(~12)
+    y += 38 + SECTION_GAP;
 
     // Tap prompt — centered in the screen
     this._tapPrompt.position.set(cx, this._sh / 2);
@@ -375,7 +375,7 @@ export class CombatScene extends Container implements Scene {
     availW: number,
   ): void {
     nameText.position.set(0, 0);
-    const barY = 20;
+    const barY = 16;
     this._drawHpBarBg(hpBg, availW, barY);
     hpFill.position.set(0, barY);
     hpText.position.set(0, barY + HP_BAR_HEIGHT + 2);
@@ -388,27 +388,29 @@ export class CombatScene extends Container implements Scene {
     screenW: number,
   ): void {
     if (slots.length === 0) return;
-    const totalW = slots.length * SLOT_WIDTH + (slots.length - 1) * 8;
+    const gap = 6;
+    const totalW = slots.length * SLOT_WIDTH + (slots.length - 1) * gap;
     let x = Math.max(startX, (screenW - totalW) / 2);
     for (const slot of slots) {
       slot.position.set(x, y);
-      x += SLOT_WIDTH + 8;
+      x += SLOT_WIDTH + gap;
     }
   }
 
   private _layoutDice(y: number): void {
+    const gap = 12;
     const totalW = this._playerDice.length * DIE_SIZE
-      + (this._playerDice.length - 1) * 16;
+      + (this._playerDice.length - 1) * gap;
     let x = (this._sw - totalW) / 2;
     for (const die of this._playerDice) {
       die.position.set(x, y);
-      x += DIE_SIZE + 16;
+      x += DIE_SIZE + gap;
     }
   }
 
-  /** Position enemy dice within _enemyDiceZone (scaled down). */
+  /** Position enemy dice within _enemyDiceZone (slightly scaled down). */
   private _layoutEnemyDice(): void {
-    const scale = 0.6;
+    const scale = 0.85;
     const gap = 8;
     const dieW = DIE_SIZE * scale;
     const count = this._enemyDiceSprites.length;
@@ -798,10 +800,11 @@ export class CombatScene extends Container implements Scene {
   }
 
   private _snapDieHome(die: DiceSprite): void {
+    const gap = 12;
     const totalW = this._playerDice.length * DIE_SIZE
-      + (this._playerDice.length - 1) * 16;
+      + (this._playerDice.length - 1) * gap;
     const startX = (this._sw - totalW) / 2;
-    die.x = startX + die.dieIndex * (DIE_SIZE + 16);
+    die.x = startX + die.dieIndex * (DIE_SIZE + gap);
     die.y = this._playerDiceZone.y;
   }
 

@@ -4,7 +4,8 @@
  * Supports drag-drop and tap-to-place.
  */
 
-import { Container, Graphics, Text } from 'pixi.js';
+import { Container, Graphics, Text, Ticker } from 'pixi.js';
+import { tickerSteps } from './tickerUtils';
 
 // ---------------------------------------------------------------------------
 // V6 palette
@@ -54,8 +55,9 @@ export class DiceSprite extends Container {
   private _state: DieState = 'idle';
   private _value = 1;
   private _dieIndex: number;
-  private _timerId: ReturnType<typeof setTimeout> | null = null;
-  private _rollStart = 0;
+  private _rollCb: ((ticker: Ticker) => void) | null = null;
+  private _rollElapsed = 0;
+  private _rollNextAt = 0;
   private _finalValue = 1;
 
   constructor(dieIndex: number) {
@@ -114,23 +116,39 @@ export class DiceSprite extends Container {
   roll(finalValue: number): void {
     this._stopRoll();
     this._finalValue = finalValue;
-    this._rollStart = Date.now();
+    this._rollElapsed = 0;
+    this._rollNextAt = ROLL_START_SPEED;
     this.alpha = 0.7;
-    this._scheduleRoll(ROLL_START_SPEED);
+
+    const cb = (ticker: Ticker): void => {
+      this._rollElapsed += ticker.deltaMS;
+      if (this._rollElapsed < this._rollNextAt) return;
+
+      const progress = this._rollElapsed / ROLL_DURATION;
+      if (progress >= ROLL_STOP_POINT) {
+        this._value = this._finalValue;
+        this._drawPips(this._finalValue);
+        this.alpha = 1;
+        this._stopRoll();
+        return;
+      }
+
+      this._drawPips(Math.floor(Math.random() * 6) + 1);
+      this._rollNextAt = this._rollElapsed + (
+        progress >= ROLL_SLOW_POINT ? ROLL_SLOW_SPEED : ROLL_START_SPEED
+      );
+    };
+
+    this._rollCb = cb;
+    Ticker.shared.add(cb);
   }
 
   /** Play a brief shake to indicate incompatible drop. */
   shake(): void {
     const origX = this.x;
-    let step = 0;
-    const interval = setInterval(() => {
-      step++;
+    void tickerSteps(6, 40, (step) => {
       this.x = origX + (step % 2 === 0 ? 3 : -3);
-      if (step >= 6) {
-        clearInterval(interval);
-        this.x = origX;
-      }
-    }, 40);
+    }).then(() => { this.x = origX; });
   }
 
   destroy(): void {
@@ -171,32 +189,10 @@ export class DiceSprite extends Container {
 
   // --- Roll animation ---
 
-  private _scheduleRoll(speed: number): void {
-    this._timerId = setTimeout(() => {
-      const elapsed = Date.now() - this._rollStart;
-      const progress = elapsed / ROLL_DURATION;
-
-      if (progress >= ROLL_STOP_POINT) {
-        this._value = this._finalValue;
-        this._drawPips(this._finalValue);
-        this.alpha = 1;
-        this._timerId = null;
-        return;
-      }
-
-      const randomVal = Math.floor(Math.random() * 6) + 1;
-      this._drawPips(randomVal);
-
-      const nextSpeed = progress >= ROLL_SLOW_POINT
-        ? ROLL_SLOW_SPEED : ROLL_START_SPEED;
-      this._scheduleRoll(nextSpeed);
-    }, speed);
-  }
-
   private _stopRoll(): void {
-    if (this._timerId !== null) {
-      clearTimeout(this._timerId);
-      this._timerId = null;
+    if (this._rollCb) {
+      Ticker.shared.remove(this._rollCb);
+      this._rollCb = null;
     }
   }
 }

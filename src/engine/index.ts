@@ -25,7 +25,8 @@ export { rollDie, rollDice, canUseDie } from './dice';
 export { allocateOptimal, allocateEnemy } from './allocation';
 
 // Combat
-export { simulateCombat } from './combat';
+export { simulateCombat, resolveRound, sumAllocEffects } from './combat';
+export type { RoundOutcome } from './combat';
 
 // Run
 export { simulateRun } from './run';

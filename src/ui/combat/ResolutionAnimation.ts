@@ -13,8 +13,9 @@
  */
 
 import { Container, Graphics, Text } from 'pixi.js';
-import type { Allocation, Equipment, EquipmentEffect } from '../../engine/types';
-import { canUseDie } from '../../engine/dice';
+import type { Allocation, Equipment } from '../../engine/types';
+import { sumAllocEffects } from '../../engine/combat';
+import { tickerWait, tickerTween } from './tickerUtils';
 
 // ---------------------------------------------------------------------------
 // V6 palette
@@ -62,29 +63,6 @@ export interface ResolutionData {
   playerWon: boolean;
   /** HP recovered from speed kill (0 if not triggered). */
   speedKillRecovery: number;
-}
-
-// ---------------------------------------------------------------------------
-// Helper
-// ---------------------------------------------------------------------------
-
-function wait(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-function sumEffectField(
-  allocations: readonly Allocation[],
-  equipment: readonly Equipment[],
-  field: keyof EquipmentEffect,
-): number {
-  let total = 0;
-  for (const alloc of allocations) {
-    const eq = equipment[alloc.equipmentIndex];
-    if (canUseDie(eq, alloc.dieValue)) {
-      total += eq.effect(alloc.dieValue)[field];
-    }
-  }
-  return total;
 }
 
 // ---------------------------------------------------------------------------
@@ -202,14 +180,14 @@ export class ResolutionAnimation extends Container {
     this._endText.text = '';
 
     // Phase 1: reveal enemy allocations (done externally, just wait)
-    await wait(REVEAL_DELAY);
+    await tickerWait(REVEAL_DELAY);
 
     // Phase 2: show damage calculations
-    const pAtk = sumEffectField(data.playerAllocations, data.playerEquipment, 'damage');
-    const eShield = sumEffectField(data.enemyAllocations, data.enemyEquipment, 'shield');
+    const pAtk = sumAllocEffects(data.playerAllocations, data.playerEquipment, 'damage');
+    const eShield = sumAllocEffects(data.enemyAllocations, data.enemyEquipment, 'shield');
 
-    const eAtk = sumEffectField(data.enemyAllocations, data.enemyEquipment, 'damage');
-    const pShield = sumEffectField(data.playerAllocations, data.playerEquipment, 'shield');
+    const eAtk = sumAllocEffects(data.enemyAllocations, data.enemyEquipment, 'damage');
+    const pShield = sumAllocEffects(data.playerAllocations, data.playerEquipment, 'shield');
 
     this._calcLine1.text = `You: ${pAtk} atk - ${eShield} shield = ${data.playerDamageToEnemy} dmg`;
     this._calcLine1.style.fill = data.playerDamageToEnemy > 0 ? MOSS : BONE;
@@ -217,7 +195,7 @@ export class ResolutionAnimation extends Container {
     this._calcLine2.text = `Foe: ${eAtk} atk - ${pShield} shield = ${data.enemyDamageToPlayer} dmg`;
     this._calcLine2.style.fill = data.enemyDamageToPlayer > 0 ? BLOOD : BONE;
 
-    await wait(CALC_DELAY);
+    await tickerWait(CALC_DELAY);
 
     // Phase 3: animate HP bars
     this._animateHpBar(
@@ -236,7 +214,7 @@ export class ResolutionAnimation extends Container {
     if (data.playerHealTotal > 0) parts.push(`You +${data.playerHealTotal} heal`);
     this._resultText.text = parts.join('  |  ') || 'No damage';
 
-    await wait(HP_ANIM_DELAY);
+    await tickerWait(HP_ANIM_DELAY);
 
     // Phase 4: speed kill recovery + combat end
     if (data.speedKillRecovery > 0) {
@@ -252,7 +230,7 @@ export class ResolutionAnimation extends Container {
         this._endText.text = 'DEFEAT';
         this._endText.style.fill = BLOOD;
       }
-      await wait(END_DELAY);
+      await tickerWait(END_DELAY);
     }
   }
 
@@ -278,24 +256,17 @@ export class ResolutionAnimation extends Container {
   ): void {
     if (!bar) return;
 
-    const startPct = Math.max(0, hpBefore / maxHp);
+    const startW = Math.max(0, hpBefore / maxHp) * maxWidth;
+    const endW = Math.max(0, hpAfter / maxHp) * maxWidth;
     const endPct = Math.max(0, hpAfter / maxHp);
-    const startW = startPct * maxWidth;
-    const endW = endPct * maxWidth;
-    const steps = 10;
-    const stepTime = HP_ANIM_DELAY / steps;
-    let step = 0;
 
-    const interval = setInterval(() => {
-      step++;
-      const t = step / steps;
+    void tickerTween(HP_ANIM_DELAY, (t) => {
       const w = startW + (endW - startW) * t;
       bar.clear();
       if (w > 0) {
         bar.rect(0, 0, w, 10);
         bar.fill({ color: endPct > 0.3 ? MOSS : BLOOD });
       }
-      if (step >= steps) clearInterval(interval);
-    }, stepTime);
+    });
   }
 }

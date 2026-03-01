@@ -69,7 +69,7 @@ function sumField(
 // Round resolution
 // ---------------------------------------------------------------------------
 
-interface RoundOutcome {
+export interface RoundOutcome {
   damageToEnemy: number;
   damageToPlayer: number;
   playerHeal: number;
@@ -78,7 +78,7 @@ interface RoundOutcome {
   playerUsedWeapon: boolean;
 }
 
-function resolveRound(
+export function resolveRound(
   playerAllocations: readonly Allocation[],
   playerEquipment: readonly Equipment[],
   enemyAllocations: readonly Allocation[],
@@ -127,6 +127,25 @@ function resolveRound(
     enemyPoison: playerWeaponPoison + sumField(player.utilities, 'poison'),
     playerUsedWeapon,
   };
+}
+
+/**
+ * Sum a single effect field across allocations.
+ * Useful for UI display (e.g. total shield, total damage).
+ */
+export function sumAllocEffects(
+  allocations: readonly Allocation[],
+  equipment: readonly Equipment[],
+  field: keyof EquipmentEffect,
+): number {
+  let total = 0;
+  for (const alloc of allocations) {
+    const eq = equipment[alloc.equipmentIndex];
+    if (alloc.dieValue >= eq.minDie && alloc.dieValue <= eq.maxDie) {
+      total += eq.effect(alloc.dieValue)[field];
+    }
+  }
+  return total;
 }
 
 // ---------------------------------------------------------------------------

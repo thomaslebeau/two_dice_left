@@ -13,24 +13,25 @@
  * UI never computes damage — reads engine results only.
  */
 
-import { Container, Graphics, Text } from 'pixi.js';
+import { Container, Text } from 'pixi.js';
 import type { Scene } from '../../engine/SceneManager';
 import type {
-  Equipment,
-  Allocation,
   AllocationPattern,
   Enemy,
+  Equipment,
   Survivor,
 } from '../../engine/types';
 import { rollDice } from '../../engine/dice';
 import { allocateEnemy } from '../../engine/allocation';
-import { DiceSprite, DIE_SIZE } from './DiceSprite';
-import { EquipmentSlot, SLOT_WIDTH, SLOT_HEIGHT } from './EquipmentSlot';
+import { DIE_SIZE } from './DiceSprite';
 import { CommitButton } from './CommitButton';
-import {
-  ResolutionAnimation,
-  type ResolutionData,
-} from './ResolutionAnimation';
+import { ResolutionAnimation } from './ResolutionAnimation';
+import { DiceAllocator } from './DiceAllocator';
+import { EquipmentGrid } from './EquipmentGrid';
+import { CombatantHud } from './CombatantHud';
+import { EnemyInfoPanel } from './EnemyInfoPanel';
+import { CombatState, type PoisonSnapshot } from './CombatState';
+import { tickerWait, tickerLoop, type TickerHandle } from './tickerUtils';
 
 // ---------------------------------------------------------------------------
 // V6 palette
@@ -39,8 +40,6 @@ import {
 const BONE = 0xD9CFBA;
 const RUST = 0x8B3A1A;
 const MOSS = 0x2D4A2E;
-const BLOOD = 0x6B1C1C;
-const VENOM = 0x7B2D8B;
 
 // ---------------------------------------------------------------------------
 // Combat phase
@@ -72,7 +71,6 @@ export interface CombatSceneData {
 // ---------------------------------------------------------------------------
 
 const PADDING = 8;
-const HP_BAR_HEIGHT = 8;
 const SECTION_GAP = 6;
 
 function patternLabel(p: AllocationPattern): string {
@@ -91,19 +89,6 @@ function patternColor(p: AllocationPattern): number {
   }
 }
 
-function sumEffectField(
-  allocs: readonly Allocation[],
-  equipment: readonly Equipment[],
-  field: 'damage' | 'shield' | 'heal' | 'poison',
-): number {
-  let total = 0;
-  for (const a of allocs) {
-    const eq = equipment[a.equipmentIndex];
-    total += eq.effect(a.dieValue)[field];
-  }
-  return total;
-}
-
 // ---------------------------------------------------------------------------
 // CombatScene
 // ---------------------------------------------------------------------------
@@ -113,58 +98,25 @@ export class CombatScene extends Container implements Scene {
   private _enemyZone = new Container();
   private _resolutionZone = new Container();
   private _playerDiceZone = new Container();
-  private _playerSlotsZone = new Container();
-  private _playerZone = new Container();
 
   // --- Components ---
-  private _playerDice: DiceSprite[] = [];
-  private _enemyDiceSprites: DiceSprite[] = [];
-  private _enemyDiceValues: number[] = [];
-  private _playerSlots: EquipmentSlot[] = [];
-  private _enemySlots: EquipmentSlot[] = [];
+  private _allocator = new DiceAllocator();
+  private _playerGrid = new EquipmentGrid();
+  private _enemyGrid = new EquipmentGrid();
+  private _playerHud = new CombatantHud(12);
+  private _enemyHud = new CombatantHud(14, true);
+  private _enemyInfo = new EnemyInfoPanel();
   private _commitBtn = new CommitButton();
   private _resolution = new ResolutionAnimation();
-  private _enemyDiceZone = new Container();
-
-  // --- HP bars ---
-  private _playerHpBg = new Graphics();
-  private _playerHpFill = new Graphics();
-  private _enemyHpBg = new Graphics();
-  private _enemyHpFill = new Graphics();
-  private _playerNameText: Text;
-  private _playerHpText: Text;
-  private _enemyNameText: Text;
-  private _enemyPatternText: Text;
-  private _enemyHpText: Text;
-  private _enemyEquipContainer = new Container();
-
-  // --- Poison badges ---
-  private _playerPoisonBadge = new Container();
-  private _playerPoisonBg = new Graphics();
-  private _playerPoisonText: Text | null = null;
-  private _enemyPoisonBadge = new Container();
-  private _enemyPoisonBg = new Graphics();
-  private _enemyPoisonText: Text | null = null;
 
   // --- State ---
   private _phase: CombatPhase = 'rolling';
   private _data: CombatSceneData | null = null;
-  private _round = 0;
-  private _playerHp = 0;
-  private _enemyHp = 0;
-  private _playerPoisonTurns = 0;
-  private _enemyPoisonTurns = 0;
+  private _state: CombatState | null = null;
 
   // Tap-to-continue prompt
   private _tapPrompt: Text;
-  private _tapPulseId: ReturnType<typeof setInterval> | null = null;
-
-  // Drag state
-  private _draggingDie: DiceSprite | null = null;
-  private _dragOffset = { x: 0, y: 0 };
-
-  // Allocation tracking (for undo)
-  private _allocations = new Map<number, number>(); // dieIndex → equipmentIndex
+  private _tapPulseHandle: TickerHandle | null = null;
 
   // Screen dims
   private _sw = 390;
@@ -173,41 +125,15 @@ export class CombatScene extends Container implements Scene {
   constructor() {
     super();
 
-    // Text elements
-    this._enemyNameText = this._makeText('', 14, BONE, true);
-    this._enemyPatternText = this._makeText('', 11, BONE);
-    this._enemyHpText = this._makeText('', 10, BONE);
-    this._playerNameText = this._makeText('', 12, BONE, true);
-    this._playerHpText = this._makeText('', 10, BONE);
-
-    // Build poison badges
-    this._playerPoisonText = this._buildPoisonBadge(
-      this._playerPoisonBadge, this._playerPoisonBg,
-    );
-    this._enemyPoisonText = this._buildPoisonBadge(
-      this._enemyPoisonBadge, this._enemyPoisonBg,
-    );
-
-    // Build structure
-    this._enemyZone.addChild(
-      this._enemyNameText, this._enemyPatternText,
-      this._enemyHpBg, this._enemyHpFill, this._enemyHpText,
-      this._enemyPoisonBadge,
-      this._enemyEquipContainer,
-      this._enemyDiceZone,
-    );
-    this._playerZone.addChild(
-      this._playerNameText, this._playerHpBg,
-      this._playerHpFill, this._playerHpText,
-      this._playerPoisonBadge,
-    );
+    // Enemy zone: HUD + info panel + grid
+    this._enemyZone.addChild(this._enemyHud, this._enemyInfo);
 
     this.addChild(this._enemyZone);
     this.addChild(this._resolutionZone);
     this.addChild(this._playerDiceZone);
-    this.addChild(this._playerSlotsZone);
+    this.addChild(this._playerGrid);
     this.addChild(this._commitBtn);
-    this.addChild(this._playerZone);
+    this.addChild(this._playerHud);
     this.addChild(this._resolution);
 
     // Tap-to-continue prompt (hidden by default)
@@ -227,11 +153,24 @@ export class CombatScene extends Container implements Scene {
 
     this._commitBtn.onCommit = () => this._handleCommit();
 
-    // Global pointer move/up for drag
+    // Wire player grid slot taps to allocator
+    this._playerGrid.onSlotTap = (idx) => this._allocator.handleSlotTap(idx);
+
+    // Wire allocator callbacks
+    this._allocator.onChange = () => {
+      this._commitBtn.setEnabled(this._allocator.isComplete());
+    };
+    this._allocator.onBringToFront = (die) => {
+      this.setChildIndex(die, this.children.length - 1);
+    };
+
+    // Global pointer move/up for drag (forwarded to allocator)
     this.eventMode = 'static';
-    this.on('pointermove', this._handlePointerMove, this);
-    this.on('pointerup', this._handlePointerUp, this);
-    this.on('pointerupoutside', this._handlePointerUp, this);
+    this.on('pointermove', (e: { global: { x: number; y: number } }) => {
+      this._allocator.handlePointerMove(e.global);
+    });
+    this.on('pointerup', () => this._allocator.handlePointerUp());
+    this.on('pointerupoutside', () => this._allocator.handlePointerUp());
   }
 
   // -----------------------------------------------------------------------
@@ -241,33 +180,35 @@ export class CombatScene extends Container implements Scene {
   onEnter(data?: unknown): void {
     const d = data as CombatSceneData;
     this._data = d;
-    this._round = 0;
-    this._playerHp = d.playerHp;
-    this._enemyHp = d.enemy.hp;
-    this._playerPoisonTurns = 0;
-    this._enemyPoisonTurns = 0;
+    this._state = new CombatState(
+      d.playerHp, d.playerMaxHp, d.enemy.hp, d.enemy.maxHp,
+    );
 
-    this._enemyNameText.text = d.enemy.name;
-    this._enemyPatternText.text = patternLabel(d.enemy.pattern);
-    this._enemyPatternText.style.fill = patternColor(d.enemy.pattern);
-    this._playerNameText.text = d.survivor.name;
+    this._enemyHud.setName(d.enemy.name);
+    this._enemyHud.setPattern(
+      patternLabel(d.enemy.pattern), patternColor(d.enemy.pattern),
+    );
+    this._playerHud.setName(d.survivor.name);
 
-    this._buildEnemyEquipInfo(d.enemy);
-    this._buildSlots(d);
+    this._enemyInfo.buildEquipInfo(d.enemy.equipment);
+    this._buildGrids(d);
     this._updateHpDisplays();
-    this._updatePoisonBadges();
+    this._playerHud.setPoisonTurns(0);
+    this._enemyHud.setPoisonTurns(0);
     this._layout();
     this._startRound();
   }
 
   onExit(): void {
-    this._clearDice();
-    this._clearSlots();
-    this._enemyEquipContainer.removeChildren();
+    this._allocator.reset();
+    this._enemyInfo.clear();
+    this._playerGrid.clear();
+    this._enemyGrid.clear();
     this._resolution.reset();
     this._stopTapPulse();
     this._tapPrompt.visible = false;
     this._data = null;
+    this._state = null;
   }
 
   onResize(width: number, height: number): void {
@@ -285,45 +226,25 @@ export class CombatScene extends Container implements Scene {
     const cx = w / 2;
     let y = PADDING;
 
-    // Enemy zone — name, pattern, HP bar, equipment info, then slots
+    // Enemy zone — HUD, equipment info, grid, dice
     this._enemyZone.position.set(PADDING, y);
     const availW = w - PADDING * 2;
     let ey = 0;
 
-    // Enemy name (bold, 14px)
-    this._enemyNameText.position.set(0, ey);
-    ey += 18;
+    // Enemy HUD (name + pattern + HP bar + poison)
+    this._enemyHud.position.set(0, ey);
+    this._enemyHud.layout();
+    ey += this._enemyHud.hudHeight + 2;
 
-    // Pattern indicator (11px, colored)
-    this._enemyPatternText.position.set(0, ey);
-    ey += 14;
+    // Enemy info panel (equip descriptions + dice)
+    this._enemyInfo.position.set(0, ey);
+    this._enemyInfo.layout(availW);
+    ey += this._enemyInfo.panelHeight + 4;
 
-    // HP bar
-    this._drawHpBarBg(this._enemyHpBg, availW, ey);
-    this._enemyHpFill.position.set(0, ey);
-    ey += HP_BAR_HEIGHT + 2;
-    this._enemyHpText.position.set(0, ey);
-    // Poison badge right of HP text
-    this._enemyPoisonBadge.position.set(
-      this._enemyHpText.width + 8, ey,
-    );
-    ey += 14;
-
-    // Equipment info lines
-    this._enemyEquipContainer.position.set(0, ey);
-    ey += this._enemyEquipContainer.height + 4;
-
-    // Enemy equipment slots
-    this._layoutSlotsRow(this._enemySlots, 0, ey, availW);
-    for (const s of this._enemySlots) {
-      this._enemyZone.addChild(s);
-    }
-    ey += SLOT_HEIGHT + 8;
-
-    // Enemy dice (muted, display-only) — below slots with clear gap
-    this._enemyDiceZone.position.set(0, ey);
-    this._layoutEnemyDice();
-    ey += (this._enemyDiceSprites.length > 0 ? DIE_SIZE * 0.55 + 4 : 0);
+    // Enemy equipment grid (by category)
+    this._enemyGrid.position.set(0, ey);
+    this._enemyGrid.layout(availW);
+    ey += this._enemyGrid.gridHeight + 8;
 
     y += ey + SECTION_GAP;
 
@@ -335,13 +256,14 @@ export class CombatScene extends Container implements Scene {
 
     // Player dice
     this._playerDiceZone.position.set(0, y);
-    this._layoutDice(y);
+    this._allocator.updateLayout(this._sw, y);
+    this._allocator.layoutDice();
     y += DIE_SIZE + SECTION_GAP;
 
-    // Player equipment slots
-    this._playerSlotsZone.position.set(0, y);
-    this._layoutSlotsRow(this._playerSlots, PADDING, 0, w);
-    y += SLOT_HEIGHT + SECTION_GAP;
+    // Player equipment grid (by category)
+    this._playerGrid.position.set(PADDING, y);
+    this._playerGrid.layout(availW);
+    y += this._playerGrid.gridHeight + SECTION_GAP;
 
     // Commit button
     this._commitBtn.position.set(
@@ -350,728 +272,161 @@ export class CombatScene extends Container implements Scene {
     );
     y += this._commitBtn.buttonHeight + SECTION_GAP;
 
-    // Player zone
-    this._playerZone.position.set(PADDING, y);
-    this._layoutCombatantZone(
-      this._playerNameText, this._playerHpBg,
-      this._playerHpFill, this._playerHpText,
-      w - PADDING * 2,
-    );
-    // Player poison badge right of HP text
-    const pHpTextY = 16 + HP_BAR_HEIGHT + 2;
-    this._playerPoisonBadge.position.set(
-      this._playerHpText.width + 8, pHpTextY,
-    );
-    // Player zone height: name(16) + bar(8) + gap(2) + hpText(~12)
-    y += 38 + SECTION_GAP;
+    // Player HUD (name + HP bar + poison)
+    this._playerHud.position.set(PADDING, y);
+    this._playerHud.layout();
+    y += this._playerHud.hudHeight + SECTION_GAP;
 
     // Tap prompt — centered in the screen
     this._tapPrompt.position.set(cx, this._sh / 2);
   }
 
-  private _layoutCombatantZone(
-    nameText: Text, hpBg: Graphics,
-    hpFill: Graphics, hpText: Text,
-    availW: number,
-  ): void {
-    nameText.position.set(0, 0);
-    const barY = 16;
-    this._drawHpBarBg(hpBg, availW, barY);
-    hpFill.position.set(0, barY);
-    hpText.position.set(0, barY + HP_BAR_HEIGHT + 2);
-  }
-
-  private _layoutSlotsRow(
-    slots: EquipmentSlot[],
-    startX: number,
-    y: number,
-    screenW: number,
-  ): void {
-    if (slots.length === 0) return;
-    const gap = 6;
-    const totalW = slots.length * SLOT_WIDTH + (slots.length - 1) * gap;
-    let x = Math.max(startX, (screenW - totalW) / 2);
-    for (const slot of slots) {
-      slot.position.set(x, y);
-      x += SLOT_WIDTH + gap;
-    }
-  }
-
-  private _layoutDice(y: number): void {
-    const gap = 12;
-    const totalW = this._playerDice.length * DIE_SIZE
-      + (this._playerDice.length - 1) * gap;
-    let x = (this._sw - totalW) / 2;
-    for (const die of this._playerDice) {
-      die.position.set(x, y);
-      x += DIE_SIZE + gap;
-    }
-  }
-
-  /** Position enemy dice within _enemyDiceZone (slightly scaled down). */
-  private _layoutEnemyDice(): void {
-    const scale = 0.85;
-    const gap = 8;
-    const dieW = DIE_SIZE * scale;
-    const count = this._enemyDiceSprites.length;
-    if (count === 0) return;
-    const totalW = count * dieW + (count - 1) * gap;
-    const availW = this._sw - PADDING * 2;
-    let x = (availW - totalW) / 2;
-    for (const die of this._enemyDiceSprites) {
-      die.scale.set(scale);
-      die.position.set(x, 0);
-      x += dieW + gap;
-    }
-  }
 
   // -----------------------------------------------------------------------
   // HP display
   // -----------------------------------------------------------------------
 
-  private _drawHpBarBg(bg: Graphics, w: number, y: number): void {
-    bg.clear();
-    bg.roundRect(0, y, w, HP_BAR_HEIGHT, 3);
-    bg.fill({ color: 0x333333 });
-  }
-
-  private _drawHpFill(
-    fill: Graphics, current: number,
-    max: number, w: number,
-  ): void {
-    fill.clear();
-    const pct = Math.max(0, current / max);
-    const barW = pct * w;
-    if (barW > 0) {
-      fill.roundRect(0, 0, barW, HP_BAR_HEIGHT, 3);
-      fill.fill({ color: pct > 0.3 ? MOSS : BLOOD });
-    }
-  }
-
   private _updateHpDisplays(): void {
-    if (!this._data) return;
+    if (!this._state) return;
     const barW = this._sw - PADDING * 2;
 
-    this._drawHpFill(
-      this._playerHpFill, this._playerHp,
-      this._data.playerMaxHp, barW,
+    this._playerHud.updateHp(
+      this._state.playerHp, this._state.playerMaxHp, barW,
     );
-    this._playerHpText.text =
-      `${this._playerHp}/${this._data.playerMaxHp}`;
-
-    this._drawHpFill(
-      this._enemyHpFill, this._enemyHp,
-      this._data.enemy.maxHp, barW,
+    this._enemyHud.updateHp(
+      this._state.enemyHp, this._state.enemyMaxHp, barW,
     );
-    this._enemyHpText.text =
-      `${this._enemyHp}/${this._data.enemy.maxHp}`;
 
     // Feed HP bars to resolution animation
     this._resolution.setHpBars(
-      this._playerHpFill, barW,
-      this._enemyHpFill, barW,
+      this._playerHud.hpFillGraphics, barW,
+      this._enemyHud.hpFillGraphics, barW,
     );
   }
 
-  // -----------------------------------------------------------------------
-  // Poison badges
-  // -----------------------------------------------------------------------
-
-  /** Create a poison badge (hidden by default). Returns the text node. */
-  private _buildPoisonBadge(
-    badge: Container, bg: Graphics,
-  ): Text {
-    badge.visible = false;
-    badge.addChild(bg);
-    const label = new Text({
-      text: '',
-      style: {
-        fontFamily: '"Courier New", monospace',
-        fontSize: 11,
-        fontWeight: 'bold',
-        fill: BONE,
-      },
-    });
-    label.position.set(6, 3);
-    badge.addChild(label);
-    return label;
-  }
-
-  /** Redraw a single poison badge background. */
-  private _drawPoisonBg(bg: Graphics, textW: number): void {
-    bg.clear();
-    const w = textW + 12;
-    bg.roundRect(0, 0, w, 18, 4);
-    bg.fill({ color: VENOM, alpha: 0.85 });
-  }
-
-  /** Update both poison badges based on current state. */
-  private _updatePoisonBadges(): void {
-    this._setPoisonBadge(
-      this._playerPoisonBadge, this._playerPoisonBg,
-      this._playerPoisonText, this._playerPoisonTurns,
-    );
-    this._setPoisonBadge(
-      this._enemyPoisonBadge, this._enemyPoisonBg,
-      this._enemyPoisonText, this._enemyPoisonTurns,
-    );
-  }
-
-  private _setPoisonBadge(
-    badge: Container, bg: Graphics,
-    label: Text | null, turns: number,
-  ): void {
-    if (turns <= 0) {
-      badge.visible = false;
-      return;
-    }
-    badge.visible = true;
-    if (!label) return;
-    label.text = `\u2620 ${turns}t`;
-    this._drawPoisonBg(bg, label.width);
-  }
-
-  /** Brief pulse animation when poison ticks (1 HP lost). */
-  private _pulsePoisonBadge(badge: Container): void {
-    if (!badge.visible) return;
-    badge.alpha = 1;
-    let step = 0;
-    const id = setInterval(() => {
-      step++;
-      badge.alpha = step % 2 === 0 ? 1 : 0.3;
-      if (step >= 6) {
-        clearInterval(id);
-        badge.alpha = 1;
-      }
-    }, 80);
-  }
-
-  /** Show "N -> M" stacking transition, then settle on final value. */
-  private _showPoisonStack(
-    badge: Container, bg: Graphics,
-    label: Text | null, before: number, after: number,
-  ): void {
-    if (!label || after <= 0) return;
-    badge.visible = true;
-    // Show transition text
-    label.text = `\u2620 ${before} \u2192 ${after}t`;
-    this._drawPoisonBg(bg, label.width);
-    // After 800ms, settle to final value
-    setTimeout(() => {
-      if (after <= 0) { badge.visible = false; return; }
-      label.text = `\u2620 ${after}t`;
-      this._drawPoisonBg(bg, label.width);
-    }, 800);
-  }
 
   // -----------------------------------------------------------------------
   // Slot & dice creation
   // -----------------------------------------------------------------------
 
-  /** Build descriptive text lines for enemy equipment using formula. */
-  private _buildEnemyEquipInfo(enemy: Enemy): void {
-    this._enemyEquipContainer.removeChildren();
-    let ly = 0;
-    for (const eq of enemy.equipment) {
-      const tag = eq.type === 'weapon' ? 'ATK' : 'DEF';
-      const color = eq.type === 'weapon' ? RUST : MOSS;
-      const line = new Text({
-        text: `${tag} ${eq.name} [${eq.minDie}-${eq.maxDie}] -> ${eq.description}`,
-        style: {
-          fontFamily: '"Courier New", monospace',
-          fontSize: 11,
-          fill: color,
-        },
-      });
-      line.position.set(0, ly);
-      this._enemyEquipContainer.addChild(line);
-      ly += 15;
-    }
+
+  private _buildGrids(d: CombatSceneData): void {
+    this._playerGrid.clear();
+    this._enemyGrid.clear();
+
+    this._playerGrid.build(d.playerEquipment);
+    this._enemyGrid.build(d.enemy.equipment, true);
+
+    // Add enemy grid to enemy zone
+    this._enemyZone.addChild(this._enemyGrid);
   }
 
-  private _buildSlots(d: CombatSceneData): void {
-    this._clearSlots();
-
-    for (let i = 0; i < d.playerEquipment.length; i++) {
-      const slot = new EquipmentSlot(d.playerEquipment[i], i);
-      slot.on('pointerdown', () => this._handleSlotTap(i));
-      this._playerSlots.push(slot);
-      this._playerSlotsZone.addChild(slot);
-    }
-
-    for (let i = 0; i < d.enemy.equipment.length; i++) {
-      const slot = new EquipmentSlot(d.enemy.equipment[i], i);
-      slot.lock();
-      this._enemySlots.push(slot);
-    }
-  }
-
-  private _clearSlots(): void {
-    for (const s of this._playerSlots) s.destroy({ children: true });
-    for (const s of this._enemySlots) s.destroy({ children: true });
-    this._playerSlots = [];
-    this._enemySlots = [];
-  }
-
-  private _clearDice(): void {
-    for (const d of this._playerDice) d.destroy();
-    this._playerDice = [];
-    for (const d of this._enemyDiceSprites) d.destroy();
-    this._enemyDiceSprites = [];
-    this._enemyDiceValues = [];
-    this._allocations.clear();
-  }
 
   // -----------------------------------------------------------------------
   // Round flow
   // -----------------------------------------------------------------------
 
   private _startRound(): void {
-    if (!this._data) return;
-    this._round++;
+    if (!this._data || !this._state) return;
+    this._state.nextRound();
     this._phase = 'rolling';
-    this._allocations.clear();
     this._resolution.reset();
 
-    // Reset player slots
-    for (const s of this._playerSlots) s.removeDie();
-
-    // Reset enemy slots from previous round
-    for (const s of this._enemySlots) s.removeDie();
+    // Reset slot states
+    this._playerGrid.resetAll();
+    this._enemyGrid.resetAll();
 
     // Roll BOTH sides simultaneously
-    this._clearDice();
-    this._enemyDiceZone.visible = true;
+    this._allocator.reset();
+    this._enemyInfo.clearDice();
     const playerValues = rollDice(2);
-    this._enemyDiceValues = rollDice(2);
+    const enemyValues = rollDice(2);
 
-    // Player dice — draggable
-    for (let i = 0; i < playerValues.length; i++) {
-      const die = new DiceSprite(i);
-      die.on('pointerdown', (e) => this._handleDieDown(i, e));
-      this._playerDice.push(die);
-      this.addChild(die);
-      die.roll(playerValues[i]);
-    }
+    // Player dice — via allocator
+    const homeY = this._playerDiceZone.y;
+    const dice = this._allocator.setup(
+      playerValues, [...this._playerGrid.slots], this._sw, homeY,
+    );
+    for (const die of dice) this.addChild(die);
 
     // Enemy dice — muted, non-interactive display
-    this._buildEnemyDice();
+    this._enemyInfo.buildDice(enemyValues);
+    this._enemyInfo.setDiceVisible(true);
 
     this._commitBtn.setEnabled(false);
-    this._layoutDice(this._playerDiceZone.y);
-    this._layoutEnemyDice();
+    this._allocator.layoutDice();
+    this._layout();
 
     // Transition to allocating after roll animation
-    setTimeout(() => {
+    void tickerWait(2000).then(() => {
       this._phase = 'allocating';
-      this._updateSlotHighlights();
-    }, 2000);
+      this._allocator.setEnabled(true);
+    });
   }
 
-  /** Create muted enemy dice sprites for display only. */
-  private _buildEnemyDice(): void {
-    for (let i = 0; i < this._enemyDiceValues.length; i++) {
-      const die = new DiceSprite(i);
-      die.eventMode = 'none';
-      die.cursor = 'default';
-      die.alpha = 0.6;
-      this._enemyDiceSprites.push(die);
-      this._enemyDiceZone.addChild(die);
-      die.roll(this._enemyDiceValues[i]);
-    }
-  }
-
-  // -----------------------------------------------------------------------
-  // Drag-drop
-  // -----------------------------------------------------------------------
-
-  private _handleDieDown(
-    dieIndex: number,
-    e: { global: { x: number; y: number } },
-  ): void {
-    if (this._phase !== 'allocating') return;
-    const die = this._playerDice[dieIndex];
-    if (!die) return;
-
-    // If die is already placed, undo placement first
-    if (this._allocations.has(dieIndex)) {
-      this._undoPlacement(dieIndex);
-    }
-
-    die.setState('dragging');
-    this._draggingDie = die;
-    this._dragOffset.x = e.global.x - die.x;
-    this._dragOffset.y = e.global.y - die.y;
-
-    // Bring to front
-    this.setChildIndex(die, this.children.length - 1);
-    this._updateSlotHighlights();
-  }
-
-  private _handlePointerMove(
-    e: { global: { x: number; y: number } },
-  ): void {
-    if (!this._draggingDie) return;
-    this._draggingDie.x = e.global.x - this._dragOffset.x;
-    this._draggingDie.y = e.global.y - this._dragOffset.y;
-
-    // Preview on hovered slot
-    for (const slot of this._playerSlots) {
-      if (this._isOverSlot(this._draggingDie, slot)) {
-        slot.showPreview(this._draggingDie.value);
-      } else {
-        slot.clearPreview();
-      }
-    }
-  }
-
-  private _handlePointerUp(): void {
-    if (!this._draggingDie) return;
-    const die = this._draggingDie;
-    this._draggingDie = null;
-
-    // Check if dropped on a valid slot
-    let placed = false;
-    for (const slot of this._playerSlots) {
-      if (slot.slotState === 'filled' || slot.slotState === 'locked') {
-        continue;
-      }
-      if (!this._isOverSlot(die, slot)) continue;
-
-      if (slot.isCompatible(die.value)) {
-        this._placeDie(die.dieIndex, slot.equipmentIndex);
-        placed = true;
-      } else {
-        die.shake();
-      }
-      break;
-    }
-
-    if (!placed) {
-      die.setState('idle');
-      this._snapDieHome(die);
-    }
-
-    // Clear all slot previews
-    for (const s of this._playerSlots) s.clearPreview();
-    this._updateSlotHighlights();
-    this._updateCommitButton();
-  }
-
-  /** Tap-to-place: place the first unplaced die into tapped slot. */
-  private _handleSlotTap(slotIndex: number): void {
-    if (this._phase !== 'allocating') return;
-    const slot = this._playerSlots[slotIndex];
-    if (!slot || slot.slotState === 'filled') return;
-
-    // Find first unplaced die compatible with this slot
-    for (const die of this._playerDice) {
-      if (this._allocations.has(die.dieIndex)) continue;
-      if (!slot.isCompatible(die.value)) continue;
-
-      this._placeDie(die.dieIndex, slotIndex);
-      this._updateSlotHighlights();
-      this._updateCommitButton();
-      return;
-    }
-  }
-
-  private _placeDie(dieIndex: number, slotIndex: number): void {
-    const die = this._playerDice[dieIndex];
-    const slot = this._playerSlots[slotIndex];
-    if (!die || !slot) return;
-
-    this._allocations.set(dieIndex, slotIndex);
-    slot.placeDie(die.value);
-    die.setState('placed');
-
-    // Snap die visually onto slot center
-    die.x = slot.getGlobalPosition().x + SLOT_WIDTH / 2 - DIE_SIZE / 2;
-    die.y = slot.getGlobalPosition().y - DIE_SIZE - 4;
-  }
-
-  private _undoPlacement(dieIndex: number): void {
-    const slotIndex = this._allocations.get(dieIndex);
-    if (slotIndex === undefined) return;
-
-    this._allocations.delete(dieIndex);
-    this._playerSlots[slotIndex]?.removeDie();
-    this._snapDieHome(this._playerDice[dieIndex]);
-  }
-
-  private _snapDieHome(die: DiceSprite): void {
-    const gap = 12;
-    const totalW = this._playerDice.length * DIE_SIZE
-      + (this._playerDice.length - 1) * gap;
-    const startX = (this._sw - totalW) / 2;
-    die.x = startX + die.dieIndex * (DIE_SIZE + gap);
-    die.y = this._playerDiceZone.y;
-  }
-
-  private _isOverSlot(die: DiceSprite, slot: EquipmentSlot): boolean {
-    const slotBounds = slot.getBounds();
-    const dieCX = die.x + DIE_SIZE / 2;
-    const dieCY = die.y + DIE_SIZE / 2;
-    return dieCX >= slotBounds.x
-      && dieCX <= slotBounds.x + slotBounds.width
-      && dieCY >= slotBounds.y
-      && dieCY <= slotBounds.y + slotBounds.height;
-  }
-
-  // -----------------------------------------------------------------------
-  // Slot highlighting
-  // -----------------------------------------------------------------------
-
-  private _updateSlotHighlights(): void {
-    if (this._phase !== 'allocating') return;
-
-    // Find currently dragged die value (if any)
-    const dragValue = this._draggingDie?.value ?? null;
-
-    for (const slot of this._playerSlots) {
-      if (slot.slotState === 'filled' || slot.slotState === 'locked') {
-        continue;
-      }
-      if (dragValue !== null && slot.isCompatible(dragValue)) {
-        slot.setState('valid-target');
-      } else {
-        slot.setState('empty');
-      }
-    }
-  }
-
-  private _updateCommitButton(): void {
-    // Enable commit when all dice are placed
-    const allPlaced = this._playerDice.every(
-      (d) => this._allocations.has(d.dieIndex),
-    );
-    this._commitBtn.setEnabled(allPlaced);
-  }
 
   // -----------------------------------------------------------------------
   // Commit & resolution
   // -----------------------------------------------------------------------
 
   private async _handleCommit(): Promise<void> {
-    if (this._phase !== 'allocating' || !this._data) return;
+    if (this._phase !== 'allocating' || !this._data || !this._state) return;
     this._phase = 'resolving';
     this._commitBtn.setEnabled(false);
+    this._allocator.setEnabled(false);
+    this._playerGrid.lockAll();
 
-    // Lock player slots
-    for (const s of this._playerSlots) s.lock();
-
-    // Build player allocations
-    const playerAllocs: Allocation[] = [];
-    for (const [dieIdx, eqIdx] of this._allocations) {
-      playerAllocs.push({
-        equipmentIndex: eqIdx,
-        dieValue: this._playerDice[dieIdx].value,
-      });
-    }
-
-    // Enemy uses ALREADY ROLLED dice (visible since round start)
+    // Build allocations
+    const playerAllocs = this._allocator.getAllocations();
     const enemyAllocs = allocateEnemy(
-      this._enemyDiceValues,
+      [...this._enemyInfo.diceValues],
       this._data.enemy.equipment,
       this._data.enemy.pattern,
     );
 
-    // Reveal enemy allocation: snap dice into slots, then pause
+    // Reveal enemy allocation visually
     for (const ea of enemyAllocs) {
-      this._enemySlots[ea.equipmentIndex]?.placeDie(ea.dieValue);
+      this._enemyGrid.placeDie(ea.equipmentIndex, ea.dieValue);
     }
-    // Hide the free-floating enemy dice display
-    this._enemyDiceZone.visible = false;
+    this._enemyInfo.setDiceVisible(false);
+    await tickerWait(500);
 
-    // 0.5s pause so player can read enemy allocation
-    await new Promise<void>((r) => setTimeout(r, 500));
-
-    // Resolve effects (UI reads engine formulas)
-    const pDmg = this._calcDamage(
-      playerAllocs, this._data.playerEquipment,
-      enemyAllocs, this._data.enemy.equipment,
-      true,
-    );
-    const eDmg = this._calcDamage(
-      enemyAllocs, this._data.enemy.equipment,
-      playerAllocs, this._data.playerEquipment,
-      false,
-    );
-    const pHeal = sumEffectField(
-      playerAllocs, [...this._data.playerEquipment], 'heal',
-    );
-    const pShield = sumEffectField(
-      playerAllocs, [...this._data.playerEquipment], 'shield',
-    );
-    const eShield = sumEffectField(
-      enemyAllocs, [...this._data.enemy.equipment], 'shield',
+    // Resolve via CombatState (engine + state mutation)
+    const result = this._state.applyRound(
+      playerAllocs, [...this._data.playerEquipment],
+      enemyAllocs, [...this._data.enemy.equipment],
     );
 
-    // Poison
-    const newPlayerPoison = sumEffectField(
-      enemyAllocs, [...this._data.enemy.equipment], 'poison',
-    );
-    const newEnemyPoison = sumEffectField(
-      playerAllocs, [...this._data.playerEquipment], 'poison',
-    );
+    // Update poison HUDs
+    this._applyPoisonHud(this._playerHud, result.playerPoison);
+    this._applyPoisonHud(this._enemyHud, result.enemyPoison);
 
-    // HP before
-    const playerHpBefore = this._playerHp;
-    const enemyHpBefore = this._enemyHp;
-
-    // Apply damage (simultaneous)
-    this._enemyHp -= pDmg;
-    this._playerHp -= eDmg;
-
-    // Apply existing poison ticks
-    const playerPoisonTicked = this._playerPoisonTurns > 0;
-    const enemyPoisonTicked = this._enemyPoisonTurns > 0;
-    if (playerPoisonTicked) {
-      this._playerHp -= 1;
-      this._playerPoisonTurns--;
-    }
-    if (enemyPoisonTicked) {
-      this._enemyHp -= 1;
-      this._enemyPoisonTurns--;
-    }
-
-    // Snapshot after tick, before queuing new poison
-    const playerPoisonAfterTick = this._playerPoisonTurns;
-    const enemyPoisonAfterTick = this._enemyPoisonTurns;
-
-    // Queue new poison
-    this._playerPoisonTurns += newPlayerPoison;
-    this._enemyPoisonTurns += newEnemyPoison;
-
-    // Update poison badges
-    // Stacking: show "N -> M" transition when new poison added on existing
-    if (newPlayerPoison > 0 && playerPoisonAfterTick > 0) {
-      this._showPoisonStack(
-        this._playerPoisonBadge, this._playerPoisonBg,
-        this._playerPoisonText,
-        playerPoisonAfterTick, this._playerPoisonTurns,
-      );
-    } else {
-      this._setPoisonBadge(
-        this._playerPoisonBadge, this._playerPoisonBg,
-        this._playerPoisonText, this._playerPoisonTurns,
-      );
-    }
-    if (newEnemyPoison > 0 && enemyPoisonAfterTick > 0) {
-      this._showPoisonStack(
-        this._enemyPoisonBadge, this._enemyPoisonBg,
-        this._enemyPoisonText,
-        enemyPoisonAfterTick, this._enemyPoisonTurns,
-      );
-    } else {
-      this._setPoisonBadge(
-        this._enemyPoisonBadge, this._enemyPoisonBg,
-        this._enemyPoisonText, this._enemyPoisonTurns,
-      );
-    }
-
-    // Pulse on tick (1 HP lost)
-    if (playerPoisonTicked) {
-      this._pulsePoisonBadge(this._playerPoisonBadge);
-    }
-    if (enemyPoisonTicked) {
-      this._pulsePoisonBadge(this._enemyPoisonBadge);
-    }
-
-    // Heal (after poison, capped at max)
-    if (this._playerHp > 0 && pHeal > 0) {
-      this._playerHp = Math.min(
-        this._data.playerMaxHp,
-        this._playerHp + pHeal,
-      );
-    }
-
-    // Clamp
-    this._playerHp = Math.max(0, this._playerHp);
-    this._enemyHp = Math.max(0, this._enemyHp);
-
-    const combatEnded = this._playerHp <= 0 || this._enemyHp <= 0;
-    const playerWon = this._enemyHp <= 0;
-
-    // Speed kill recovery
-    let speedKillRecovery = 0;
-    if (playerWon && this._round <= 3) {
-      const hpBefore = this._playerHp;
-      this._playerHp = Math.min(
-        this._data.playerMaxHp,
-        this._playerHp + 3,
-      );
-      speedKillRecovery = this._playerHp - hpBefore;
-    }
-
-    // Play resolution animation
-    const resData: ResolutionData = {
-      playerAllocations: playerAllocs,
-      playerEquipment: [...this._data.playerEquipment],
-      playerDamageToEnemy: pDmg,
-      playerShieldTotal: pShield,
-      playerHealTotal: pHeal,
-      enemyAllocations: enemyAllocs,
-      enemyEquipment: [...this._data.enemy.equipment],
-      enemyDamageToPlayer: eDmg,
-      enemyShieldTotal: eShield,
-      playerHpBefore,
-      playerHpAfter: this._playerHp,
-      playerMaxHp: this._data.playerMaxHp,
-      enemyHpBefore,
-      enemyHpAfter: this._enemyHp,
-      enemyMaxHp: this._data.enemy.maxHp,
-      combatEnded,
-      playerWon,
-      speedKillRecovery,
-    };
-
-    await this._resolution.play(resData);
-
+    // Animate resolution
+    await this._resolution.play(result.resolutionData);
     this._updateHpDisplays();
     this._phase = 'results';
 
-    // Wait for player to read results and tap
     await this._waitForTap();
 
-    if (combatEnded) {
+    const rd = result.resolutionData;
+    if (rd.combatEnded) {
       this._phase = 'finished';
-      this._data.onCombatEnd(playerWon, this._playerHp);
+      this._data.onCombatEnd(rd.playerWon, this._state.playerHp);
     } else {
       this._startRound();
     }
   }
 
-  /**
-   * Calculate damage from attacker to defender.
-   * Mirrors engine/combat.ts resolveRound logic.
-   * Asymmetric min-1: player always does ≥1 if weapon used.
-   */
-  private _calcDamage(
-    attackerAllocs: readonly Allocation[],
-    attackerEquipment: readonly Equipment[],
-    defenderAllocs: readonly Allocation[],
-    defenderEquipment: readonly Equipment[],
-    isPlayer: boolean,
-  ): number {
-    let totalAtk = 0;
-    let usedWeapon = false;
-    for (const a of attackerAllocs) {
-      const eq = attackerEquipment[a.equipmentIndex];
-      const eff = eq.effect(a.dieValue);
-      totalAtk += eff.damage;
-      if (eq.type === 'weapon' || eff.damage > 0) usedWeapon = true;
+  /** Drive a HUD's poison badge from a PoisonSnapshot. */
+  private _applyPoisonHud(
+    hud: CombatantHud, snap: PoisonSnapshot,
+  ): void {
+    if (snap.newPoison > 0 && snap.poisonAfterTick > 0) {
+      hud.showPoisonStack(snap.poisonAfterTick, snap.totalAfter);
+    } else {
+      hud.setPoisonTurns(snap.totalAfter);
     }
-
-    let totalDef = 0;
-    for (const a of defenderAllocs) {
-      const eq = defenderEquipment[a.equipmentIndex];
-      totalDef += eq.effect(a.dieValue).shield;
-    }
-
-    const raw = totalAtk - totalDef;
-    if (isPlayer && usedWeapon) return Math.max(1, raw);
-    return Math.max(0, raw);
+    if (snap.ticked) hud.pulsePoisonBadge();
   }
 
   // -----------------------------------------------------------------------
@@ -1103,35 +458,15 @@ export class CombatScene extends Container implements Scene {
   private _startTapPulse(): void {
     this._stopTapPulse();
     this._tapPrompt.alpha = 1;
-    let on = true;
-    this._tapPulseId = setInterval(() => {
-      on = !on;
-      this._tapPrompt.visible = on;
-    }, 500);
+    this._tapPulseHandle = tickerLoop((elapsed) => {
+      // Toggle every 500ms
+      this._tapPrompt.visible = Math.floor(elapsed / 500) % 2 === 0;
+    });
   }
 
   private _stopTapPulse(): void {
-    if (this._tapPulseId !== null) {
-      clearInterval(this._tapPulseId);
-      this._tapPulseId = null;
-    }
+    this._tapPulseHandle?.stop();
+    this._tapPulseHandle = null;
   }
 
-  // -----------------------------------------------------------------------
-  // Utilities
-  // -----------------------------------------------------------------------
-
-  private _makeText(
-    content: string, size: number, color: number, bold = false,
-  ): Text {
-    return new Text({
-      text: content,
-      style: {
-        fontFamily: '"Courier New", monospace',
-        fontSize: size,
-        fontWeight: bold ? 'bold' : 'normal',
-        fill: color,
-      },
-    });
-  }
 }

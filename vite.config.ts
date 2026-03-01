@@ -2,7 +2,7 @@ import { defineConfig } from 'vite'
 import { resolve } from 'path'
 
 export default defineConfig({
-  base: '/dice_and_card/',
+  base: '/two_dice_left/',
   resolve: {
     alias: {
       '@': resolve(__dirname, './src'),

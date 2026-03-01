@@ -40,6 +40,7 @@ const BONE = 0xD9CFBA;
 const RUST = 0x8B3A1A;
 const MOSS = 0x2D4A2E;
 const BLOOD = 0x6B1C1C;
+const VENOM = 0x7B2D8B;
 
 // ---------------------------------------------------------------------------
 // Combat phase
@@ -137,6 +138,14 @@ export class CombatScene extends Container implements Scene {
   private _enemyHpText: Text;
   private _enemyEquipContainer = new Container();
 
+  // --- Poison badges ---
+  private _playerPoisonBadge = new Container();
+  private _playerPoisonBg = new Graphics();
+  private _playerPoisonText: Text | null = null;
+  private _enemyPoisonBadge = new Container();
+  private _enemyPoisonBg = new Graphics();
+  private _enemyPoisonText: Text | null = null;
+
   // --- State ---
   private _phase: CombatPhase = 'rolling';
   private _data: CombatSceneData | null = null;
@@ -159,6 +168,7 @@ export class CombatScene extends Container implements Scene {
 
   // Screen dims
   private _sw = 390;
+  private _sh = 844;
 
   constructor() {
     super();
@@ -170,16 +180,26 @@ export class CombatScene extends Container implements Scene {
     this._playerNameText = this._makeText('', 14, BONE, true);
     this._playerHpText = this._makeText('', 12, BONE);
 
+    // Build poison badges
+    this._playerPoisonText = this._buildPoisonBadge(
+      this._playerPoisonBadge, this._playerPoisonBg,
+    );
+    this._enemyPoisonText = this._buildPoisonBadge(
+      this._enemyPoisonBadge, this._enemyPoisonBg,
+    );
+
     // Build structure
     this._enemyZone.addChild(
       this._enemyNameText, this._enemyPatternText,
       this._enemyHpBg, this._enemyHpFill, this._enemyHpText,
+      this._enemyPoisonBadge,
       this._enemyEquipContainer,
       this._enemyDiceZone,
     );
     this._playerZone.addChild(
       this._playerNameText, this._playerHpBg,
       this._playerHpFill, this._playerHpText,
+      this._playerPoisonBadge,
     );
 
     this.addChild(this._enemyZone);
@@ -235,6 +255,7 @@ export class CombatScene extends Container implements Scene {
     this._buildEnemyEquipInfo(d.enemy);
     this._buildSlots(d);
     this._updateHpDisplays();
+    this._updatePoisonBadges();
     this._layout();
     this._startRound();
   }
@@ -249,8 +270,9 @@ export class CombatScene extends Container implements Scene {
     this._data = null;
   }
 
-  onResize(width: number, _height: number): void {
+  onResize(width: number, height: number): void {
     this._sw = width;
+    this._sh = height;
     this._layout();
   }
 
@@ -281,6 +303,10 @@ export class CombatScene extends Container implements Scene {
     this._enemyHpFill.position.set(0, ey);
     ey += HP_BAR_HEIGHT + 2;
     this._enemyHpText.position.set(0, ey);
+    // Poison badge right of HP text
+    this._enemyPoisonBadge.position.set(
+      this._enemyHpText.width + 8, ey,
+    );
     ey += 16;
 
     // Equipment info lines
@@ -322,8 +348,6 @@ export class CombatScene extends Container implements Scene {
       cx - this._commitBtn.buttonWidth / 2,
       y,
     );
-    // Tap prompt (overlaps commit area during results phase)
-    this._tapPrompt.position.set(cx, y + this._commitBtn.buttonHeight / 2);
     y += this._commitBtn.buttonHeight + SECTION_GAP;
 
     // Player zone
@@ -333,6 +357,16 @@ export class CombatScene extends Container implements Scene {
       this._playerHpFill, this._playerHpText,
       w - PADDING * 2,
     );
+    // Player poison badge right of HP text
+    const pHpTextY = 20 + HP_BAR_HEIGHT + 2;
+    this._playerPoisonBadge.position.set(
+      this._playerHpText.width + 8, pHpTextY,
+    );
+    // Player zone height: name(20) + bar(10) + gap(2) + hpText(~14)
+    y += 46 + SECTION_GAP;
+
+    // Tap prompt — centered in the screen
+    this._tapPrompt.position.set(cx, this._sh / 2);
   }
 
   private _layoutCombatantZone(
@@ -435,6 +469,97 @@ export class CombatScene extends Container implements Scene {
       this._playerHpFill, barW,
       this._enemyHpFill, barW,
     );
+  }
+
+  // -----------------------------------------------------------------------
+  // Poison badges
+  // -----------------------------------------------------------------------
+
+  /** Create a poison badge (hidden by default). Returns the text node. */
+  private _buildPoisonBadge(
+    badge: Container, bg: Graphics,
+  ): Text {
+    badge.visible = false;
+    badge.addChild(bg);
+    const label = new Text({
+      text: '',
+      style: {
+        fontFamily: '"Courier New", monospace',
+        fontSize: 11,
+        fontWeight: 'bold',
+        fill: BONE,
+      },
+    });
+    label.position.set(6, 3);
+    badge.addChild(label);
+    return label;
+  }
+
+  /** Redraw a single poison badge background. */
+  private _drawPoisonBg(bg: Graphics, textW: number): void {
+    bg.clear();
+    const w = textW + 12;
+    bg.roundRect(0, 0, w, 18, 4);
+    bg.fill({ color: VENOM, alpha: 0.85 });
+  }
+
+  /** Update both poison badges based on current state. */
+  private _updatePoisonBadges(): void {
+    this._setPoisonBadge(
+      this._playerPoisonBadge, this._playerPoisonBg,
+      this._playerPoisonText, this._playerPoisonTurns,
+    );
+    this._setPoisonBadge(
+      this._enemyPoisonBadge, this._enemyPoisonBg,
+      this._enemyPoisonText, this._enemyPoisonTurns,
+    );
+  }
+
+  private _setPoisonBadge(
+    badge: Container, bg: Graphics,
+    label: Text | null, turns: number,
+  ): void {
+    if (turns <= 0) {
+      badge.visible = false;
+      return;
+    }
+    badge.visible = true;
+    if (!label) return;
+    label.text = `\u2620 ${turns}t`;
+    this._drawPoisonBg(bg, label.width);
+  }
+
+  /** Brief pulse animation when poison ticks (1 HP lost). */
+  private _pulsePoisonBadge(badge: Container): void {
+    if (!badge.visible) return;
+    badge.alpha = 1;
+    let step = 0;
+    const id = setInterval(() => {
+      step++;
+      badge.alpha = step % 2 === 0 ? 1 : 0.3;
+      if (step >= 6) {
+        clearInterval(id);
+        badge.alpha = 1;
+      }
+    }, 80);
+  }
+
+  /** Show "N -> M" stacking transition, then settle on final value. */
+  private _showPoisonStack(
+    badge: Container, bg: Graphics,
+    label: Text | null, before: number, after: number,
+  ): void {
+    if (!label || after <= 0) return;
+    badge.visible = true;
+    // Show transition text
+    label.text = `\u2620 ${before} \u2192 ${after}t`;
+    this._drawPoisonBg(bg, label.width);
+    // After 800ms, settle to final value
+    setTimeout(() => {
+      if (after <= 0) { badge.visible = false; return; }
+      label.text = `\u2620 ${after}t`;
+      this._drawPoisonBg(bg, label.width);
+    }, 800);
   }
 
   // -----------------------------------------------------------------------
@@ -796,18 +921,59 @@ export class CombatScene extends Container implements Scene {
     this._playerHp -= eDmg;
 
     // Apply existing poison ticks
-    if (this._playerPoisonTurns > 0) {
+    const playerPoisonTicked = this._playerPoisonTurns > 0;
+    const enemyPoisonTicked = this._enemyPoisonTurns > 0;
+    if (playerPoisonTicked) {
       this._playerHp -= 1;
       this._playerPoisonTurns--;
     }
-    if (this._enemyPoisonTurns > 0) {
+    if (enemyPoisonTicked) {
       this._enemyHp -= 1;
       this._enemyPoisonTurns--;
     }
 
+    // Snapshot after tick, before queuing new poison
+    const playerPoisonAfterTick = this._playerPoisonTurns;
+    const enemyPoisonAfterTick = this._enemyPoisonTurns;
+
     // Queue new poison
     this._playerPoisonTurns += newPlayerPoison;
     this._enemyPoisonTurns += newEnemyPoison;
+
+    // Update poison badges
+    // Stacking: show "N -> M" transition when new poison added on existing
+    if (newPlayerPoison > 0 && playerPoisonAfterTick > 0) {
+      this._showPoisonStack(
+        this._playerPoisonBadge, this._playerPoisonBg,
+        this._playerPoisonText,
+        playerPoisonAfterTick, this._playerPoisonTurns,
+      );
+    } else {
+      this._setPoisonBadge(
+        this._playerPoisonBadge, this._playerPoisonBg,
+        this._playerPoisonText, this._playerPoisonTurns,
+      );
+    }
+    if (newEnemyPoison > 0 && enemyPoisonAfterTick > 0) {
+      this._showPoisonStack(
+        this._enemyPoisonBadge, this._enemyPoisonBg,
+        this._enemyPoisonText,
+        enemyPoisonAfterTick, this._enemyPoisonTurns,
+      );
+    } else {
+      this._setPoisonBadge(
+        this._enemyPoisonBadge, this._enemyPoisonBg,
+        this._enemyPoisonText, this._enemyPoisonTurns,
+      );
+    }
+
+    // Pulse on tick (1 HP lost)
+    if (playerPoisonTicked) {
+      this._pulsePoisonBadge(this._playerPoisonBadge);
+    }
+    if (enemyPoisonTicked) {
+      this._pulsePoisonBadge(this._enemyPoisonBadge);
+    }
 
     // Heal (after poison, capped at max)
     if (this._playerHp > 0 && pHeal > 0) {
@@ -933,14 +1099,12 @@ export class CombatScene extends Container implements Scene {
 
   private _startTapPulse(): void {
     this._stopTapPulse();
-    let t = 0;
+    this._tapPrompt.alpha = 1;
+    let on = true;
     this._tapPulseId = setInterval(() => {
-      t += 50;
-      // Oscillate alpha between 0.4 and 1.0 over 800ms cycle
-      const cycle = (t % 800) / 800;
-      const alpha = 0.4 + 0.6 * (0.5 + 0.5 * Math.cos(cycle * Math.PI * 2));
-      this._tapPrompt.alpha = alpha;
-    }, 50);
+      on = !on;
+      this._tapPrompt.visible = on;
+    }, 500);
   }
 
   private _stopTapPulse(): void {

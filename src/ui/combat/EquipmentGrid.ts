@@ -16,8 +16,6 @@ import { EquipmentSlotIcon, ICON_SIZE } from './EquipmentSlotIcon';
 // ---------------------------------------------------------------------------
 
 const SLOT_GAP = 4;
-const ROW_GAP = 4;
-
 type CategoryKey = 'weapon' | 'shield' | 'utility';
 
 interface CategoryGroup {

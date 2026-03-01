@@ -1,272 +1,165 @@
 /**
- * V6 resolution animation — reveals enemy allocation, shows damage
- * calculations, animates HP bars, and handles combat end transition.
- *
- * Sequence:
- * 1. Reveal enemy dice placement (0.5s)
- * 2. Show damage calculation text (0.5s)
- * 3. Animate HP bar changes (0.3s)
- * 4. If combat ends: show victory/defeat overlay
- *
- * The animation is driven by calling play() which returns a Promise
- * that resolves when the full sequence is complete.
+ * Resolution animation — damage calculations, HP animations,
+ * combat end overlay. Supports circular badge (player) + rect bar (enemy).
  */
 
 import { Container, Graphics, Text } from 'pixi.js';
 import type { Allocation, Equipment } from '../../engine/types';
 import { sumAllocEffects } from '../../engine/combat';
+import type { CircularHpBadge } from './CircularHpBadge';
 import { tickerWait, tickerTween } from './tickerUtils';
-
-// ---------------------------------------------------------------------------
-// V6 palette
-// ---------------------------------------------------------------------------
 
 const BONE = 0xD9CFBA;
 const MOSS = 0x2D4A2E;
 const BLOOD = 0x6B1C1C;
 const CHARCOAL = 0x1A1A1A;
-
-// ---------------------------------------------------------------------------
-// Timing
-// ---------------------------------------------------------------------------
-
-const REVEAL_DELAY = 500;
-const CALC_DELAY = 500;
-const HP_ANIM_DELAY = 300;
-const END_DELAY = 800;
-
-// ---------------------------------------------------------------------------
-// Types
-// ---------------------------------------------------------------------------
+const REVEAL_MS = 500;
+const CALC_MS = 500;
+const HP_MS = 300;
+const END_MS = 800;
 
 export interface ResolutionData {
-  // Player side
   playerAllocations: readonly Allocation[];
   playerEquipment: readonly Equipment[];
   playerDamageToEnemy: number;
   playerShieldTotal: number;
   playerHealTotal: number;
-  // Enemy side
   enemyAllocations: readonly Allocation[];
   enemyEquipment: readonly Equipment[];
   enemyDamageToPlayer: number;
   enemyShieldTotal: number;
-  // HP state
   playerHpBefore: number;
   playerHpAfter: number;
   playerMaxHp: number;
   enemyHpBefore: number;
   enemyHpAfter: number;
   enemyMaxHp: number;
-  // Outcome
   combatEnded: boolean;
   playerWon: boolean;
-  /** HP recovered from speed kill (0 if not triggered). */
   speedKillRecovery: number;
 }
 
-// ---------------------------------------------------------------------------
-// ResolutionAnimation
-// ---------------------------------------------------------------------------
+function mkText(size: number, color: number, bold = false): Text {
+  const t = new Text({
+    text: '',
+    style: {
+      fontFamily: '"Courier New", monospace', fontSize: size,
+      fontWeight: bold ? 'bold' : 'normal', fill: color,
+    },
+  });
+  t.anchor.set(0.5, 0);
+  return t;
+}
 
 export class ResolutionAnimation extends Container {
   private _overlay = new Graphics();
-  private _calcLine1: Text;
-  private _calcLine2: Text;
-  private _resultText: Text;
-  private _speedKillText: Text;
-  private _endText: Text;
-
-  // HP bar references (set externally)
-  private _playerHpBar: Graphics | null = null;
-  private _enemyHpBar: Graphics | null = null;
-  private _playerHpBarWidth = 0;
-  private _enemyHpBarWidth = 0;
+  private _calc1 = mkText(14, BONE);
+  private _calc2 = mkText(14, BONE);
+  private _result = mkText(16, BONE, true);
+  private _speed = mkText(14, MOSS, true);
+  private _end: Text;
+  private _playerBadge: CircularHpBadge | null = null;
+  private _enemyBar: Graphics | null = null;
+  private _enemyBarW = 0;
 
   constructor() {
     super();
-
     this._overlay.visible = false;
     this.addChild(this._overlay);
-
-    const calcStyle = {
-      fontFamily: '"Courier New", monospace' as string,
-      fontSize: 14,
-      fill: BONE,
-    };
-
-    this._calcLine1 = new Text({ text: '', style: { ...calcStyle } });
-    this._calcLine1.anchor.set(0.5, 0);
-    this.addChild(this._calcLine1);
-
-    this._calcLine2 = new Text({ text: '', style: { ...calcStyle } });
-    this._calcLine2.anchor.set(0.5, 0);
-    this.addChild(this._calcLine2);
-
-    this._resultText = new Text({
-      text: '',
-      style: {
-        fontFamily: '"Courier New", monospace',
-        fontSize: 16,
-        fontWeight: 'bold',
-        fill: BONE,
+    this._end = new Text({
+      text: '', style: {
+        fontFamily: '"Courier New", monospace', fontSize: 28,
+        fontWeight: 'bold', fill: BONE, letterSpacing: 3,
       },
     });
-    this._resultText.anchor.set(0.5, 0);
-    this.addChild(this._resultText);
-
-    this._speedKillText = new Text({
-      text: '',
-      style: {
-        fontFamily: '"Courier New", monospace',
-        fontSize: 14,
-        fontWeight: 'bold',
-        fill: MOSS,
-      },
-    });
-    this._speedKillText.anchor.set(0.5, 0);
-    this.addChild(this._speedKillText);
-
-    this._endText = new Text({
-      text: '',
-      style: {
-        fontFamily: '"Courier New", monospace',
-        fontSize: 28,
-        fontWeight: 'bold',
-        fill: BONE,
-        letterSpacing: 3,
-      },
-    });
-    this._endText.anchor.set(0.5);
-    this.addChild(this._endText);
+    this._end.anchor.set(0.5);
+    this.addChild(this._calc1, this._calc2, this._result, this._speed, this._end);
   }
 
-  /** Set external HP bar graphics for animated fill. */
-  setHpBars(
-    playerBar: Graphics, playerWidth: number,
-    enemyBar: Graphics, enemyWidth: number,
-  ): void {
-    this._playerHpBar = playerBar;
-    this._playerHpBarWidth = playerWidth;
-    this._enemyHpBar = enemyBar;
-    this._enemyHpBarWidth = enemyWidth;
+  setHpBars(badge: CircularHpBadge, _pw: number, bar: Graphics, ew: number): void {
+    this._playerBadge = badge;
+    this._enemyBar = bar;
+    this._enemyBarW = ew;
   }
 
-  /** Position the resolution text elements. */
-  layoutAt(centerX: number, topY: number, width: number): void {
-    const lineGap = 22;
-    this._calcLine1.position.set(centerX, topY);
-    this._calcLine2.position.set(centerX, topY + lineGap);
-    this._resultText.position.set(centerX, topY + lineGap * 2 + 8);
-    this._speedKillText.position.set(centerX, topY + lineGap * 3 + 8);
-    this._endText.position.set(centerX, topY + lineGap * 4 + 8);
-
+  layoutAt(cx: number, top: number, w: number): void {
+    const g = 22;
+    this._calc1.position.set(cx, top);
+    this._calc2.position.set(cx, top + g);
+    this._result.position.set(cx, top + g * 2 + 8);
+    this._speed.position.set(cx, top + g * 3 + 8);
+    this._end.position.set(cx, top + g * 4 + 8);
     this._overlay.clear();
-    this._overlay.rect(centerX - width / 2, topY - 10, width, lineGap * 5 + 28);
+    this._overlay.rect(cx - w / 2, top - 10, w, g * 5 + 28);
     this._overlay.fill({ color: CHARCOAL, alpha: 0.85 });
   }
 
-  /**
-   * Play the full resolution animation sequence.
-   * Caller should update enemy slot visuals before calling this.
-   */
-  async play(data: ResolutionData): Promise<void> {
+  async play(d: ResolutionData): Promise<void> {
     this.visible = true;
     this._overlay.visible = true;
-    this._calcLine1.text = '';
-    this._calcLine2.text = '';
-    this._resultText.text = '';
-    this._speedKillText.text = '';
-    this._endText.text = '';
+    this._clearTexts();
+    await tickerWait(REVEAL_MS);
 
-    // Phase 1: reveal enemy allocations (done externally, just wait)
-    await tickerWait(REVEAL_DELAY);
+    const pAtk = sumAllocEffects(d.playerAllocations, d.playerEquipment, 'damage');
+    const eShd = sumAllocEffects(d.enemyAllocations, d.enemyEquipment, 'shield');
+    const eAtk = sumAllocEffects(d.enemyAllocations, d.enemyEquipment, 'damage');
+    const pShd = sumAllocEffects(d.playerAllocations, d.playerEquipment, 'shield');
 
-    // Phase 2: show damage calculations
-    const pAtk = sumAllocEffects(data.playerAllocations, data.playerEquipment, 'damage');
-    const eShield = sumAllocEffects(data.enemyAllocations, data.enemyEquipment, 'shield');
+    this._calc1.text = `You: ${pAtk} atk - ${eShd} shield = ${d.playerDamageToEnemy} dmg`;
+    this._calc1.style.fill = d.playerDamageToEnemy > 0 ? MOSS : BONE;
+    this._calc2.text = `Foe: ${eAtk} atk - ${pShd} shield = ${d.enemyDamageToPlayer} dmg`;
+    this._calc2.style.fill = d.enemyDamageToPlayer > 0 ? BLOOD : BONE;
+    await tickerWait(CALC_MS);
 
-    const eAtk = sumAllocEffects(data.enemyAllocations, data.enemyEquipment, 'damage');
-    const pShield = sumAllocEffects(data.playerAllocations, data.playerEquipment, 'shield');
+    this._animateEnemyBar(d.enemyHpBefore, d.enemyHpAfter, d.enemyMaxHp);
+    this._animatePlayerBadge(d.playerHpBefore, d.playerHpAfter, d.playerMaxHp);
 
-    this._calcLine1.text = `You: ${pAtk} atk - ${eShield} shield = ${data.playerDamageToEnemy} dmg`;
-    this._calcLine1.style.fill = data.playerDamageToEnemy > 0 ? MOSS : BONE;
-
-    this._calcLine2.text = `Foe: ${eAtk} atk - ${pShield} shield = ${data.enemyDamageToPlayer} dmg`;
-    this._calcLine2.style.fill = data.enemyDamageToPlayer > 0 ? BLOOD : BONE;
-
-    await tickerWait(CALC_DELAY);
-
-    // Phase 3: animate HP bars
-    this._animateHpBar(
-      this._enemyHpBar, this._enemyHpBarWidth,
-      data.enemyHpBefore, data.enemyHpAfter, data.enemyMaxHp,
-    );
-    this._animateHpBar(
-      this._playerHpBar, this._playerHpBarWidth,
-      data.playerHpBefore, data.playerHpAfter, data.playerMaxHp,
-    );
-
-    // Show net result
     const parts: string[] = [];
-    if (data.playerDamageToEnemy > 0) parts.push(`Enemy -${data.playerDamageToEnemy} HP`);
-    if (data.enemyDamageToPlayer > 0) parts.push(`You -${data.enemyDamageToPlayer} HP`);
-    if (data.playerHealTotal > 0) parts.push(`You +${data.playerHealTotal} heal`);
-    this._resultText.text = parts.join('  |  ') || 'No damage';
+    if (d.playerDamageToEnemy > 0) parts.push(`Enemy -${d.playerDamageToEnemy} HP`);
+    if (d.enemyDamageToPlayer > 0) parts.push(`You -${d.enemyDamageToPlayer} HP`);
+    if (d.playerHealTotal > 0) parts.push(`You +${d.playerHealTotal} heal`);
+    this._result.text = parts.join('  |  ') || 'No damage';
+    await tickerWait(HP_MS);
 
-    await tickerWait(HP_ANIM_DELAY);
-
-    // Phase 4: speed kill recovery + combat end
-    if (data.speedKillRecovery > 0) {
-      this._speedKillText.text =
-        `Victoire rapide! +${data.speedKillRecovery} PV`;
-    }
-
-    if (data.combatEnded) {
-      if (data.playerWon) {
-        this._endText.text = 'VICTORY';
-        this._endText.style.fill = MOSS;
-      } else {
-        this._endText.text = 'DEFEAT';
-        this._endText.style.fill = BLOOD;
-      }
-      await tickerWait(END_DELAY);
+    if (d.speedKillRecovery > 0) this._speed.text = `Victoire rapide! +${d.speedKillRecovery} PV`;
+    if (d.combatEnded) {
+      this._end.text = d.playerWon ? 'VICTORY' : 'DEFEAT';
+      this._end.style.fill = d.playerWon ? MOSS : BLOOD;
+      await tickerWait(END_MS);
     }
   }
 
-  /** Reset animation state. */
   reset(): void {
     this.visible = false;
     this._overlay.visible = false;
-    this._calcLine1.text = '';
-    this._calcLine2.text = '';
-    this._resultText.text = '';
-    this._speedKillText.text = '';
-    this._endText.text = '';
+    this._clearTexts();
   }
 
-  // --- HP bar animation ---
-
-  private _animateHpBar(
-    bar: Graphics | null,
-    maxWidth: number,
-    hpBefore: number,
-    hpAfter: number,
-    maxHp: number,
-  ): void {
+  private _animateEnemyBar(before: number, after: number, max: number): void {
+    const bar = this._enemyBar;
     if (!bar) return;
-
-    const startW = Math.max(0, hpBefore / maxHp) * maxWidth;
-    const endW = Math.max(0, hpAfter / maxHp) * maxWidth;
-    const endPct = Math.max(0, hpAfter / maxHp);
-
-    void tickerTween(HP_ANIM_DELAY, (t) => {
-      const w = startW + (endW - startW) * t;
+    const mw = this._enemyBarW;
+    const sw = Math.max(0, before / max) * mw;
+    const ew = Math.max(0, after / max) * mw;
+    const ep = Math.max(0, after / max);
+    void tickerTween(HP_MS, (t) => {
+      const w = sw + (ew - sw) * t;
       bar.clear();
-      if (w > 0) {
-        bar.rect(0, 0, w, 10);
-        bar.fill({ color: endPct > 0.3 ? MOSS : BLOOD });
-      }
+      if (w > 0) { bar.rect(0, 0, w, 10); bar.fill({ color: ep > 0.3 ? MOSS : BLOOD }); }
     });
+  }
+
+  private _animatePlayerBadge(before: number, after: number, max: number): void {
+    if (!this._playerBadge) return;
+    const b = this._playerBadge;
+    void tickerTween(HP_MS, (t) => b.updateHp(Math.round(before + (after - before) * t), max));
+  }
+
+  private _clearTexts(): void {
+    this._calc1.text = '';
+    this._calc2.text = '';
+    this._result.text = '';
+    this._speed.text = '';
+    this._end.text = '';
   }
 }

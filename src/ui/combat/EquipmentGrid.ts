@@ -1,62 +1,28 @@
 /**
- * Equipment grid — organizes equipment slots into category rows.
+ * Equipment grid — compact icon layout for equipment slots.
  *
- * Layout:
- *   [ATK] [slot] [slot] ...
- *   [DEF] [slot] [slot] ...
- *   [UTL] [slot] ...
+ * Flat horizontal flow: slots arranged left-to-right, wrapping by
+ * category group. Type-colored borders on icons replace category labels.
  *
- * Empty categories are hidden. Handles creation, layout, and cleanup
- * of EquipmentSlot instances.
+ * Handles creation, layout, and cleanup of EquipmentSlotIcon instances.
  */
 
-import { Container, Text } from 'pixi.js';
+import { Container } from 'pixi.js';
 import type { Equipment } from '../../engine/types';
-import { EquipmentSlot, SLOT_WIDTH, SLOT_HEIGHT } from './EquipmentSlot';
-
-// ---------------------------------------------------------------------------
-// V6 palette
-// ---------------------------------------------------------------------------
-
-const BONE = 0xD9CFBA;
-const RUST = 0x8B3A1A;
-const MOSS = 0x2D4A2E;
+import { EquipmentSlotIcon, ICON_SIZE } from './EquipmentSlotIcon';
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
 
-const SLOT_GAP = 6;
+const SLOT_GAP = 4;
 const ROW_GAP = 4;
-const LABEL_WIDTH = 30;
-const LABEL_FONT_SIZE = 9;
 
 type CategoryKey = 'weapon' | 'shield' | 'utility';
 
-interface CategoryRow {
+interface CategoryGroup {
   key: CategoryKey;
-  label: Text;
-  slots: EquipmentSlot[];
-}
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function categoryLabel(key: CategoryKey): string {
-  switch (key) {
-    case 'weapon': return 'ATK';
-    case 'shield': return 'DEF';
-    case 'utility': return 'UTL';
-  }
-}
-
-function categoryColor(key: CategoryKey): number {
-  switch (key) {
-    case 'weapon': return RUST;
-    case 'shield': return MOSS;
-    case 'utility': return BONE;
-  }
+  slots: EquipmentSlotIcon[];
 }
 
 // ---------------------------------------------------------------------------
@@ -64,15 +30,15 @@ function categoryColor(key: CategoryKey): number {
 // ---------------------------------------------------------------------------
 
 export class EquipmentGrid extends Container {
-  private _rows: CategoryRow[] = [];
-  private _allSlots: EquipmentSlot[] = [];
+  private _groups: CategoryGroup[] = [];
+  private _allSlots: EquipmentSlotIcon[] = [];
   private _gridHeight = 0;
 
   /** Fired when a slot is tapped. Receives the slot's equipmentIndex. */
   onSlotTap: ((equipmentIndex: number) => void) | null = null;
 
   /** All slots in original equipment order (for allocator). */
-  get slots(): readonly EquipmentSlot[] { return this._allSlots; }
+  get slots(): readonly EquipmentSlotIcon[] { return this._allSlots; }
 
   /** Total height of the grid after layout. */
   get gridHeight(): number { return this._gridHeight; }
@@ -89,34 +55,23 @@ export class EquipmentGrid extends Container {
     this.clear();
 
     // Group equipment by type, preserving original indices
-    const groups = new Map<CategoryKey, { eq: Equipment; idx: number }[]>();
+    const grouped = new Map<CategoryKey, { eq: Equipment; idx: number }[]>();
     for (let i = 0; i < equipment.length; i++) {
       const eq = equipment[i];
       const key = eq.type as CategoryKey;
-      if (!groups.has(key)) groups.set(key, []);
-      groups.get(key)!.push({ eq, idx: i }); // safe: just created
+      if (!grouped.has(key)) grouped.set(key, []);
+      grouped.get(key)!.push({ eq, idx: i }); // safe: just created
     }
 
-    // Build rows in fixed order: weapon, shield, utility
+    // Build groups in fixed order: weapon, shield, utility
     const order: CategoryKey[] = ['weapon', 'shield', 'utility'];
     for (const key of order) {
-      const items = groups.get(key);
+      const items = grouped.get(key);
       if (!items || items.length === 0) continue;
 
-      const label = new Text({
-        text: categoryLabel(key),
-        style: {
-          fontFamily: '"Courier New", monospace',
-          fontSize: LABEL_FONT_SIZE,
-          fontWeight: 'bold',
-          fill: categoryColor(key),
-        },
-      });
-      this.addChild(label);
-
-      const slots: EquipmentSlot[] = [];
+      const slots: EquipmentSlotIcon[] = [];
       for (const { eq, idx } of items) {
-        const slot = new EquipmentSlot(eq, idx);
+        const slot = new EquipmentSlotIcon(eq, idx);
         if (locked) {
           slot.lock();
         } else {
@@ -127,7 +82,7 @@ export class EquipmentGrid extends Container {
         this._allSlots.push(slot);
       }
 
-      this._rows.push({ key, label, slots });
+      this._groups.push({ key, slots });
     }
   }
 
@@ -135,25 +90,25 @@ export class EquipmentGrid extends Container {
   // Layout
   // -----------------------------------------------------------------------
 
-  /** Position rows within given width. Call after build(). */
-  layout(availWidth: number): void {
+  /** Position slots within given width. Call after build(). */
+  layout(_availWidth: number): void {
+    let x = 0;
     let y = 0;
+    let rowMaxH = 0;
 
-    for (const row of this._rows) {
-      // Label on the left, vertically centered on slot
-      row.label.position.set(0, y + (SLOT_HEIGHT - LABEL_FONT_SIZE) / 2);
-
-      // Slots start after label
-      let x = LABEL_WIDTH;
-      for (const slot of row.slots) {
+    for (const group of this._groups) {
+      for (const slot of group.slots) {
         slot.position.set(x, y);
-        x += SLOT_WIDTH + SLOT_GAP;
+        x += ICON_SIZE + SLOT_GAP;
+        rowMaxH = ICON_SIZE;
       }
-
-      y += SLOT_HEIGHT + ROW_GAP;
     }
 
-    this._gridHeight = Math.max(0, y - ROW_GAP);
+    if (rowMaxH > 0) {
+      y += rowMaxH;
+    }
+
+    this._gridHeight = y;
   }
 
   // -----------------------------------------------------------------------
@@ -172,7 +127,9 @@ export class EquipmentGrid extends Container {
 
   /** Place a die into a specific slot by equipmentIndex. */
   placeDie(equipmentIndex: number, dieValue: number): void {
-    const slot = this._allSlots.find(s => s.equipmentIndex === equipmentIndex);
+    const slot = this._allSlots.find(
+      s => s.equipmentIndex === equipmentIndex,
+    );
     slot?.placeDie(dieValue);
   }
 
@@ -182,9 +139,8 @@ export class EquipmentGrid extends Container {
 
   clear(): void {
     for (const s of this._allSlots) s.destroy({ children: true });
-    for (const row of this._rows) row.label.destroy();
     this._allSlots = [];
-    this._rows = [];
+    this._groups = [];
     this._gridHeight = 0;
     this.removeChildren();
   }

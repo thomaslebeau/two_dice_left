@@ -1,16 +1,17 @@
 /**
- * V6 Monte Carlo balance simulation.
+ * V6.1 Monte Carlo balance simulation with passive & synergy support.
  * Run: npx tsx src/sim/balance.ts
  *
- * Runs 10,000 iterations per survivor × strategy combo.
+ * Runs 10,000 iterations per survivor x strategy combo.
  * Reports win rates, strategy hierarchy, zero-round stats,
- * death distribution, and balance flags.
+ * death distribution, passive A/B impact, and balance flags.
  *
  * If smart strategy is outside 35-45%, auto-tunes HP multipliers and re-runs.
  */
 
-import type { Equipment, Enemy, Survivor, Strategy, CombatResult } from '../engine/types';
+import type { Equipment, Enemy, Survivor, Strategy, CombatResult, PassiveId, PassiveState } from '../engine/types';
 import { simulateCombat } from '../engine/combat';
+import { createPassiveState, resetPassiveForCombat } from '../engine/passives';
 import { ALL_SURVIVORS } from '../data/survivors';
 import { ALL_LOOT } from '../data/equipment';
 import { ENEMY_TEMPLATES, COMBAT_TIERS } from '../data/enemies';
@@ -40,7 +41,7 @@ function chooseBalancedEvent(
 }
 
 // ---------------------------------------------------------------------------
-// Run simulation (local, with tunable multipliers)
+// Run simulation (local, with tunable multipliers + passive threading)
 // ---------------------------------------------------------------------------
 
 interface DetailedRunResult {
@@ -50,7 +51,7 @@ interface DetailedRunResult {
   totalRounds: number;
   totalZeroRounds: number;
   totalCombats: number;
-  roundsPerCombat: number[];  // index 0-4 = combat 1-5
+  roundsPerCombat: number[];
   zeroPerCombat: number[];
 }
 
@@ -81,11 +82,15 @@ function simulateRun(
   tiers: readonly CombatTier[],
   enemies: readonly Enemy[],
   lootPool: readonly Equipment[],
+  usePassive: boolean,
 ): DetailedRunResult {
   let hp = survivor.hp;
   const maxHp = survivor.maxHp;
   let equipment = [...survivor.equipment];
   const usedLootIds = new Set<string>();
+  const passiveId: PassiveId | undefined = usePassive ? survivor.passive : undefined;
+  let passiveState: PassiveState = createPassiveState();
+  let lastSpeedKill = false;
 
   let combatReached = 0;
   let speedKills = 0;
@@ -99,17 +104,27 @@ function simulateRun(
     combatReached = i + 1;
     totalCombats++;
 
+    // Reset passive between combats (not before first)
+    if (i > 0 && usePassive) {
+      const hasTrophy = equipment.some(e => e.id === 'rusty_trophy');
+      passiveState = resetPassiveForCombat(
+        passiveState, lastSpeedKill, hp / maxHp, hasTrophy,
+      );
+    }
+
     const enemy = pickEnemy(i, tiers, enemies);
     const result: CombatResult = simulateCombat(
       hp, maxHp, equipment,
       enemy.hp, enemy.equipment, enemy.pattern,
-      strategy,
+      strategy, passiveId, passiveState,
     );
 
     totalRounds += result.rounds;
     totalZeroRounds += result.zeroRounds;
     roundsPerCombat.push(result.rounds);
     zeroPerCombat.push(result.zeroRounds);
+    if (result.passiveState) passiveState = result.passiveState;
+    lastSpeedKill = result.speedKill;
 
     if (!result.won) {
       return { won: false, combatReached, speedKills, totalRounds, totalZeroRounds, totalCombats, roundsPerCombat, zeroPerCombat };
@@ -145,10 +160,10 @@ interface StrategyStats {
   totalRounds: number;
   totalZeroRounds: number;
   totalCombats: number;
-  deaths: number[];  // index = combat number (1-5), value = count
-  tierRounds: number[];  // index 0-4, sum of rounds for that tier
-  tierCombats: number[]; // index 0-4, count of combats at that tier
-  tierZero: number[];    // index 0-4, sum of zero-damage rounds
+  deaths: number[];
+  tierRounds: number[];
+  tierCombats: number[];
+  tierZero: number[];
 }
 
 interface SurvivorStats {
@@ -158,15 +173,33 @@ interface SurvivorStats {
 function createEmptyStats(): StrategyStats {
   return {
     wins: 0, runs: 0, totalRounds: 0, totalZeroRounds: 0, totalCombats: 0,
-    deaths: [0, 0, 0, 0, 0, 0],  // index 0 unused, 1-5 = combat number
+    deaths: [0, 0, 0, 0, 0, 0],
     tierRounds: [0, 0, 0, 0, 0],
     tierCombats: [0, 0, 0, 0, 0],
     tierZero: [0, 0, 0, 0, 0],
   };
 }
 
+function accumulateResult(stats: StrategyStats, result: DetailedRunResult): void {
+  stats.runs++;
+  stats.totalRounds += result.totalRounds;
+  stats.totalZeroRounds += result.totalZeroRounds;
+  stats.totalCombats += result.totalCombats;
+  for (let c = 0; c < result.roundsPerCombat.length; c++) {
+    stats.tierRounds[c] += result.roundsPerCombat[c];
+    stats.tierCombats[c]++;
+    stats.tierZero[c] += result.zeroPerCombat[c];
+  }
+  if (result.won) {
+    stats.wins++;
+  } else {
+    stats.deaths[result.combatReached]++;
+  }
+}
+
 function runSimulation(
   tiers: readonly CombatTier[],
+  usePassive = true,
 ): Map<string, SurvivorStats> {
   const results = new Map<string, SurvivorStats>();
 
@@ -177,21 +210,8 @@ function runSimulation(
       const stats = createEmptyStats();
 
       for (let i = 0; i < ITERATIONS; i++) {
-        const result = simulateRun(survivor, strategy, tiers, ENEMY_TEMPLATES, ALL_LOOT);
-        stats.runs++;
-        stats.totalRounds += result.totalRounds;
-        stats.totalZeroRounds += result.totalZeroRounds;
-        stats.totalCombats += result.totalCombats;
-        for (let c = 0; c < result.roundsPerCombat.length; c++) {
-          stats.tierRounds[c] += result.roundsPerCombat[c];
-          stats.tierCombats[c]++;
-          stats.tierZero[c] += result.zeroPerCombat[c];
-        }
-        if (result.won) {
-          stats.wins++;
-        } else {
-          stats.deaths[result.combatReached]++;
-        }
+        const result = simulateRun(survivor, strategy, tiers, ENEMY_TEMPLATES, ALL_LOOT, usePassive);
+        accumulateResult(stats, result);
       }
 
       survivorStats.byStrategy.set(strategy, stats);
@@ -218,11 +238,11 @@ function printReport(
 ): { smartWinRate: number; hierarchy: boolean } {
   const mults = tiers.map(t => t.hpMultiplier);
   console.log(`\n${'='.repeat(70)}`);
-  console.log(`  V6 BALANCE REPORT — HP multipliers: [${mults.map(m => f2(m)).join(', ')}]`);
-  console.log(`  ${ITERATIONS.toLocaleString()} iterations per combo, ${ALL_SURVIVORS.length} survivors × ${STRATEGIES.length} strategies`);
+  console.log(`  V6.1 BALANCE REPORT — HP multipliers: [${mults.map(m => f2(m)).join(', ')}]`);
+  console.log(`  ${ITERATIONS.toLocaleString()} iterations per combo, ${ALL_SURVIVORS.length} survivors x ${STRATEGIES.length} strategies`);
   console.log(`${'='.repeat(70)}`);
 
-  // 1. Win rate by strategy (aggregate across all survivors)
+  // 1. Win rate by strategy
   const stratTotals = new Map<Strategy, { wins: number; runs: number }>();
   for (const s of STRATEGIES) stratTotals.set(s, { wins: 0, runs: 0 });
 
@@ -289,7 +309,7 @@ function printReport(
     console.log(`  ${status}  ${c.label}: ${f1(c.a)}% vs ${f1(c.b)}%`);
   }
 
-  // 4. Zero-damage rounds per combat
+  // 4. Zero-damage rounds
   console.log('\n--- 4. ZERO-DAMAGE ROUNDS ---');
   let allZeroRounds = 0;
   let allCombats = 0;
@@ -323,7 +343,7 @@ function printReport(
   const avgRounds = allCombats > 0 ? allRounds / allCombats : 0;
   console.log(`  Avg rounds/combat: ${f1(avgRounds)} (target: 3-5) ${avgRounds >= 3 && avgRounds <= 5 ? 'OK' : 'MISS'}`);
 
-  // 5b. Per-tier breakdown (smart strategy, all survivors aggregated)
+  // 5b. Per-tier breakdown
   console.log('\n  Per-combat-tier breakdown (smart):');
   console.log(`  ${pad('Tier', 6)} ${pad('Avg Rds', 10)} ${pad('Zero/combat', 14)} ${pad('Combats', 10)}`);
   console.log('  ' + '-'.repeat(42));
@@ -344,7 +364,7 @@ function printReport(
     console.log(`  ${pad('C' + (c + 1), 6)} ${pad(f1(avgR), 10)} ${pad(f2(avgZ), 14)} ${tierCombats[c]}`);
   }
 
-  // 6. Death distribution (smart strategy only)
+  // 6. Death distribution
   console.log('\n--- 6. DEATH DISTRIBUTION (smart strategy) ---');
   const deathByCombat = [0, 0, 0, 0, 0, 0];
   let totalDeaths = 0;
@@ -366,6 +386,41 @@ function printReport(
 }
 
 // ---------------------------------------------------------------------------
+// Passive A/B comparison
+// ---------------------------------------------------------------------------
+
+function printPassiveImpact(tiers: readonly CombatTier[]): void {
+  console.log(`\n${'='.repeat(70)}`);
+  console.log('  PASSIVE A/B IMPACT (smart strategy, with vs without passives)');
+  console.log(`${'='.repeat(70)}`);
+  console.log(`${pad('Survivor', 20)} ${pad('With', 8)} ${pad('Without', 8)} ${pad('Delta', 8)} ${pad('Status', 8)}`);
+  console.log('-'.repeat(54));
+
+  for (const survivor of ALL_SURVIVORS) {
+    let winsWith = 0;
+    let winsWithout = 0;
+
+    for (let i = 0; i < ITERATIONS; i++) {
+      const rWith = simulateRun(survivor, 'smart', tiers, ENEMY_TEMPLATES, ALL_LOOT, true);
+      if (rWith.won) winsWith++;
+      const rWithout = simulateRun(survivor, 'smart', tiers, ENEMY_TEMPLATES, ALL_LOOT, false);
+      if (rWithout.won) winsWithout++;
+    }
+
+    const wrWith = (winsWith / ITERATIONS) * 100;
+    const wrWithout = (winsWithout / ITERATIONS) * 100;
+    const delta = wrWith - wrWithout;
+    const ok = delta >= 0.5 && delta <= 3.0;
+    console.log(
+      `${pad(survivor.name, 20)} ${pad(f1(wrWith) + '%', 8)} ${pad(f1(wrWithout) + '%', 8)} ${pad((delta >= 0 ? '+' : '') + f1(delta) + 'pp', 8)} ${ok ? 'OK' : 'CHECK'}`,
+    );
+  }
+
+  console.log('\nTarget: each passive +1-2pp, spread < 5pp');
+  console.log(`${'='.repeat(70)}\n`);
+}
+
+// ---------------------------------------------------------------------------
 // Auto-tuning loop
 // ---------------------------------------------------------------------------
 
@@ -373,19 +428,13 @@ function tuneTiers(
   baseTiers: readonly CombatTier[],
   smartWinRate: number,
 ): CombatTier[] {
-  // Scale multipliers proportionally to move smart win rate toward 40%
   const targetMid = 40;
   const ratio = smartWinRate / targetMid;
-
-  // If win rate too high, increase multipliers (harder enemies).
-  // If too low, decrease (easier enemies).
-  // Dampen adjustment to avoid oscillation.
   const dampening = 0.5;
   const adjustment = 1 + (ratio - 1) * dampening;
 
   return baseTiers.map(t => ({
     ...t,
-    // Clamp between 0.05 and 2.0
     hpMultiplier: Math.min(2.0, Math.max(0.05, t.hpMultiplier * adjustment)),
   }));
 }
@@ -403,14 +452,13 @@ function main(): void {
     console.log(`\n>>> PASS ${pass + 1} / ${MAX_TUNING_PASSES}`);
     const t0 = performance.now();
 
-    const results = runSimulation(currentTiers);
+    const results = runSimulation(currentTiers, true);
     const elapsed = ((performance.now() - t0) / 1000).toFixed(1);
     console.log(`  Simulation completed in ${elapsed}s`);
 
     const { smartWinRate, hierarchy } = printReport(results, currentTiers);
     finalTiers = currentTiers;
 
-    // Check if we're in target range
     if (smartWinRate >= 35 && smartWinRate <= 45) {
       console.log(`>>> SMART WIN RATE ${f1(smartWinRate)}% — IN TARGET RANGE [35-45%]`);
       if (hierarchy) {
@@ -430,12 +478,15 @@ function main(): void {
     }
   }
 
-  // Print final multipliers for updating enemies.ts
+  // Print final multipliers
   console.log('\n>>> FINAL HP MULTIPLIERS:');
   const mults = finalTiers.map(t => Number(t.hpMultiplier.toFixed(4)));
   console.log(`  [${mults.join(', ')}]`);
   console.log('\nUpdate src/data/enemies.ts COMBAT_TIERS with these values.');
   console.log('Update src/engine/run.ts HP_MULTIPLIERS with these values.');
+
+  // A/B passive impact
+  printPassiveImpact(finalTiers);
 }
 
 main();

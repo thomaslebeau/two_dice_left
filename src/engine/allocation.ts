@@ -79,6 +79,7 @@ function generatePermutations(
 
     for (let eqIdx = 0; eqIdx < equipment.length; eqIdx++) {
       if (usedSlots.has(eqIdx)) continue;
+      if (equipment[eqIdx].isPassive) continue;
       if (!canUseDie(equipment[eqIdx], dieValue)) continue;
 
       usedSlots.add(eqIdx);

@@ -13,8 +13,10 @@ import type {
   RunResult,
   Strategy,
   EventStrategy,
+  PassiveState,
 } from './types';
 import { simulateCombat } from './combat';
+import { createPassiveState, resetPassiveForCombat } from './passives';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -130,6 +132,9 @@ export function simulateRun(
   const maxHp = survivorDef.maxHp;
   let equipment = [...survivorDef.equipment];
   const usedLootIds = new Set<string>();
+  const passiveId = survivorDef.passive;
+  let passiveState: PassiveState = createPassiveState();
+  let lastSpeedKill = false;
 
   let combatReached = 0;
   let speedKills = 0;
@@ -138,15 +143,25 @@ export function simulateRun(
   for (let i = 0; i < MAX_COMBATS; i++) {
     combatReached = i + 1;
 
+    // Reset passive state between combats (not before the first)
+    if (i > 0) {
+      const hasTrophy = equipment.some(e => e.id === 'rusty_trophy');
+      passiveState = resetPassiveForCombat(
+        passiveState, lastSpeedKill, hp / maxHp, hasTrophy,
+      );
+    }
+
     const enemy = pickEnemy(i, enemyDatabase);
 
     const result = simulateCombat(
       hp, maxHp, equipment,
       enemy.hp, enemy.equipment, enemy.pattern,
-      strategy,
+      strategy, passiveId, passiveState,
     );
 
     totalRounds += result.rounds;
+    if (result.passiveState) passiveState = result.passiveState;
+    lastSpeedKill = result.speedKill;
 
     if (!result.won) {
       return {

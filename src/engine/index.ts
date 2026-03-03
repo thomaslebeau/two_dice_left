@@ -7,6 +7,7 @@
 export type {
   EquipmentType,
   EquipmentEffect,
+  EffectContext,
   Equipment,
   Survivor,
   Enemy,
@@ -16,6 +17,8 @@ export type {
   CombatResult,
   RunResult,
   EventStrategy,
+  PassiveId,
+  PassiveState,
 } from './types';
 
 // Dice
@@ -30,3 +33,15 @@ export type { RoundOutcome } from './combat';
 
 // Run
 export { simulateRun } from './run';
+
+// Passives
+export {
+  createPassiveState,
+  resetPassiveForCombat,
+  applyRecycleur,
+  computeEffectContext,
+  applySurvivant,
+  computeRempartCarry,
+  applyIngenieux,
+  tickTropheeStacks,
+} from './passives';

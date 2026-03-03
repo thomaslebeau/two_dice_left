@@ -4,7 +4,7 @@
  * Every effect is a pure function: (dieValue) => EquipmentEffect.
  */
 
-import type { Equipment, EquipmentEffect } from '../engine/types';
+import type { Equipment, EquipmentEffect, EffectContext } from '../engine/types';
 
 // ---------------------------------------------------------------------------
 // Helper: zero-effect base
@@ -27,15 +27,15 @@ export const RUSTY_BLADE: Equipment = {
   description: 'de+1 dmg',
 };
 
-/** Scrap Shield — baseline shield, die absorption */
+/** Scrap Shield — baseline shield, die+1 absorption */
 export const SCRAP_SHIELD: Equipment = {
   id: 'scrap_shield',
   name: 'Bouclier de Ferraille',
   type: 'shield',
   minDie: 1,
   maxDie: 6,
-  effect: (die) => ({ ...NO_EFFECT, shield: die }),
-  description: 'de abs',
+  effect: (die) => ({ ...NO_EFFECT, shield: die + 1 }),
+  description: 'de+1 abs',
 };
 
 /** Sharp Knife — glass cannon weapon, die+2 damage */
@@ -60,15 +60,15 @@ export const TWIN_SPIKE: Equipment = {
   description: 'de+2 dmg',
 };
 
-/** Heavy Wrench — high-range weapon, die+3 damage */
+/** Heavy Wrench — high-range weapon, die+2 damage */
 export const HEAVY_WRENCH: Equipment = {
   id: 'heavy_wrench',
   name: 'Cle Lourde',
   type: 'weapon',
   minDie: 4,
   maxDie: 6,
-  effect: (die) => ({ ...NO_EFFECT, damage: die + 3 }),
-  description: 'de+3 dmg',
+  effect: (die) => ({ ...NO_EFFECT, damage: die + 2 }),
+  description: 'de+2 dmg',
 };
 
 /** Sharpened Fork — low-range weapon, die+1 damage */
@@ -82,37 +82,37 @@ export const SHARPENED_FORK: Equipment = {
   description: 'de+1 dmg',
 };
 
-/** Reinforced Door — high-range shield, die+2 absorption */
+/** Reinforced Door — high-range shield, die+1 absorption */
 export const REINFORCED_DOOR: Equipment = {
   id: 'reinforced_door',
   name: 'Porte Blindee',
   type: 'shield',
   minDie: 3,
   maxDie: 6,
-  effect: (die) => ({ ...NO_EFFECT, shield: die + 2 }),
-  description: 'de+2 abs',
+  effect: (die) => ({ ...NO_EFFECT, shield: die + 1 }),
+  description: 'de+1 abs',
 };
 
-/** Light Guard — low-range shield, die+1 absorption */
+/** Light Guard — full-range shield, die+1 absorption */
 export const LIGHT_GUARD: Equipment = {
   id: 'light_guard',
   name: 'Garde Legere',
   type: 'shield',
   minDie: 1,
-  maxDie: 4,
+  maxDie: 6,
   effect: (die) => ({ ...NO_EFFECT, shield: die + 1 }),
   description: 'de+1 abs',
 };
 
-/** Repair Kit — low-range utility, ceil(die/2)+1 heal */
+/** Repair Kit — narrow-range utility, ceil(die/2)+1 heal */
 export const REPAIR_KIT: Equipment = {
   id: 'repair_kit',
   name: 'Kit de Reparation',
   type: 'utility',
   minDie: 1,
-  maxDie: 3,
+  maxDie: 2,
   effect: (die) => ({ ...NO_EFFECT, heal: Math.ceil(die / 2) + 1 }),
-  description: 'soin',
+  description: 'soin de+1',
 };
 
 // ---------------------------------------------------------------------------
@@ -219,10 +219,80 @@ export const ADRENALINE_ROOT: Equipment = {
 };
 
 // ---------------------------------------------------------------------------
+// Synergy loot pool (v6.1)
+// ---------------------------------------------------------------------------
+
+/** Lame Corrosive — die+1 dmg, doubled if target is poisoned */
+export const CORROSIVE_BLADE: Equipment = {
+  id: 'corrosive_blade',
+  name: 'Lame Corrosive',
+  type: 'weapon',
+  minDie: 1,
+  maxDie: 6,
+  effect: (die: number, ctx?: EffectContext) => ({
+    ...NO_EFFECT,
+    damage: ctx?.targetPoisoned ? (die + 1) * 2 : die + 1,
+  }),
+  description: 'de+1 dmg (x2 si poison)',
+};
+
+/** Sac a Spores — +1 poison turn (utility, no weapon slot cost) */
+export const SPORE_SAC: Equipment = {
+  id: 'spore_sac',
+  name: 'Sac a Spores',
+  type: 'utility',
+  minDie: 1,
+  maxDie: 4,
+  effect: () => ({ ...NO_EFFECT, poison: 1 }),
+  description: '+1 poison',
+};
+
+/** Bouclier a Epines — die/2 absorption + die/2 reflect damage */
+export const THORN_SHIELD: Equipment = {
+  id: 'thorn_shield',
+  name: 'Bouclier a Epines',
+  type: 'shield',
+  minDie: 1,
+  maxDie: 6,
+  effect: (die: number) => ({
+    ...NO_EFFECT,
+    shield: Math.floor(die / 2),
+    damage: Math.floor(die / 2),
+  }),
+  description: 'de/2 abs + de/2 renvoi',
+};
+
+/** Cable Tresse — die dmg, +2 if another die is also in a weapon slot */
+export const BRAIDED_CABLE: Equipment = {
+  id: 'braided_cable',
+  name: 'Cable Tresse',
+  type: 'weapon',
+  minDie: 1,
+  maxDie: 6,
+  effect: (die: number, ctx?: EffectContext) => ({
+    ...NO_EFFECT,
+    damage: ctx?.otherDieInWeapon ? die + 2 : die,
+  }),
+  description: 'de dmg (+2 si duo arme)',
+};
+
+/** Trophee Rouille — passive: +1 dmg for 3 rounds after speed kill (cap 2) */
+export const RUSTY_TROPHY: Equipment = {
+  id: 'rusty_trophy',
+  name: 'Trophee Rouille',
+  type: 'utility',
+  minDie: 1,
+  maxDie: 6,
+  isPassive: true,
+  effect: () => NO_EFFECT,
+  description: '+1 dmg/3 tours apres speed kill',
+};
+
+// ---------------------------------------------------------------------------
 // Aggregates
 // ---------------------------------------------------------------------------
 
-/** All loot equipment available from events (8 items) */
+/** All loot equipment available from events (13 items) */
 export const ALL_LOOT: readonly Equipment[] = [
   HEAVY_HAMMER,
   POISON_NEEDLE,
@@ -232,4 +302,9 @@ export const ALL_LOOT: readonly Equipment[] = [
   MIRROR_PLATE,
   BANDAGE_WRAP,
   ADRENALINE_ROOT,
+  CORROSIVE_BLADE,
+  SPORE_SAC,
+  THORN_SHIELD,
+  BRAIDED_CABLE,
+  RUSTY_TROPHY,
 ];

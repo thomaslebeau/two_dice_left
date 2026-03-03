@@ -9,8 +9,16 @@
  * Zero Pixi imports — pure TypeScript.
  */
 
-import type { Allocation, Equipment } from '../../engine/types';
+import type { Allocation, Equipment, PassiveId, PassiveState } from '../../engine/types';
 import { resolveRound, sumAllocEffects } from '../../engine/combat';
+import {
+  createPassiveState,
+  computeEffectContext,
+  applySurvivant,
+  computeRempartCarry,
+  applyIngenieux,
+  tickTropheeStacks,
+} from '../../engine/passives';
 import type { ResolutionData } from './ResolutionAnimation';
 
 // ---------------------------------------------------------------------------
@@ -49,6 +57,8 @@ export class CombatState {
   private _enemyMaxHp: number;
   private _playerPoisonTurns = 0;
   private _enemyPoisonTurns = 0;
+  private _passiveId?: PassiveId;
+  private _passiveState: PassiveState;
 
   get round(): number { return this._round; }
   get playerHp(): number { return this._playerHp; }
@@ -61,11 +71,14 @@ export class CombatState {
   constructor(
     playerHp: number, playerMaxHp: number,
     enemyHp: number, enemyMaxHp: number,
+    passiveId?: PassiveId, passiveState?: PassiveState,
   ) {
     this._playerHp = playerHp;
     this._playerMaxHp = playerMaxHp;
     this._enemyHp = enemyHp;
     this._enemyMaxHp = enemyMaxHp;
+    this._passiveId = passiveId;
+    this._passiveState = passiveState ?? createPassiveState();
   }
 
   /** Advance round counter. Call at the start of each round. */
@@ -81,17 +94,56 @@ export class CombatState {
     enemyAllocs: readonly Allocation[],
     enemyEquipment: readonly Equipment[],
   ): RoundResult {
+    const state = this._passiveState;
+    state.currentRound = this._round;
+
+    // Build synergy context
+    const enemyPoisoned = this._enemyPoisonTurns > 0;
+    const contextBuilder = (alloc: Allocation) =>
+      computeEffectContext(alloc, playerAllocs, playerEquipment, enemyPoisoned);
+
     const outcome = resolveRound(
       playerAllocs, playerEquipment,
       enemyAllocs, enemyEquipment,
+      contextBuilder,
     );
+
+    // Apply passive damage modifiers
+    let dmgToEnemy = outcome.damageToEnemy;
+    dmgToEnemy = applySurvivant(
+      this._passiveId, this._playerHp, this._playerMaxHp,
+      dmgToEnemy, outcome.playerUsedWeapon,
+    );
+    const ingBonus = applyIngenieux(this._passiveId, playerAllocs, playerEquipment);
+    dmgToEnemy += ingBonus.bonusDmg;
+    let dmgToPlayer = outcome.damageToPlayer;
+    dmgToPlayer = Math.max(0, dmgToPlayer - ingBonus.bonusShield);
+
+    // Elan: +1 dmg round 1 if active (mark combat as boosted for no-chain)
+    if (this._passiveId === 'elan' && state.elanActive && this._round === 1) {
+      dmgToEnemy += 1;
+      state.elanBoostedCombat = true;
+    }
+    // Trophee stacks
+    if (state.tropheeStacks > 0 && outcome.playerUsedWeapon) {
+      dmgToEnemy += state.tropheeStacks;
+    }
+    // Rempart carry
+    if (state.rempartCarryShield > 0) {
+      dmgToPlayer = Math.max(0, dmgToPlayer - state.rempartCarryShield);
+      state.rempartCarryShield = 0;
+    }
+    // Re-apply min-1
+    if (outcome.playerUsedWeapon) {
+      dmgToEnemy = Math.max(1, dmgToEnemy);
+    }
 
     const playerHpBefore = this._playerHp;
     const enemyHpBefore = this._enemyHp;
 
     // 1. Damage (simultaneous)
-    this._enemyHp -= outcome.damageToEnemy;
-    this._playerHp -= outcome.damageToPlayer;
+    this._enemyHp -= dmgToEnemy;
+    this._playerHp -= dmgToPlayer;
 
     // 2. Poison ticks
     const pPoison = this._tickPoison(
@@ -125,18 +177,26 @@ export class CombatState {
       speedKillRecovery = this._playerHp - before;
     }
 
+    // Rempart: compute carry for next round
+    state.rempartCarryShield = computeRempartCarry(
+      this._passiveId, outcome.playerShieldTotal, outcome.enemyRawDmg,
+      this._playerHp, this._playerMaxHp,
+    );
+    // Tick trophee stacks
+    tickTropheeStacks(state);
+
     // Build ResolutionData for animation
     const resolutionData: ResolutionData = {
       playerAllocations: playerAllocs,
       playerEquipment: [...playerEquipment],
-      playerDamageToEnemy: outcome.damageToEnemy,
+      playerDamageToEnemy: dmgToEnemy,
       playerShieldTotal: sumAllocEffects(
         playerAllocs, playerEquipment, 'shield',
       ),
       playerHealTotal: outcome.playerHeal,
       enemyAllocations: enemyAllocs,
       enemyEquipment: [...enemyEquipment],
-      enemyDamageToPlayer: outcome.damageToPlayer,
+      enemyDamageToPlayer: dmgToPlayer,
       enemyShieldTotal: sumAllocEffects(
         enemyAllocs, enemyEquipment, 'shield',
       ),

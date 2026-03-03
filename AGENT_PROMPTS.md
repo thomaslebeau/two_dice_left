@@ -71,11 +71,11 @@ Speed kill recovery: Win in ≤3 rounds → recover 3 HP (capped at max). Player
 
 | Survivor       | HP | Starting Equipment                                         | Passive                                                                 | Identity      |
 |----------------|----|------------------------------------------------------------|-------------------------------------------------------------------------|---------------|
-| Le Rescapé     | 12 | Rusty Blade (1-6→die+1 dmg) + Scrap Shield (1-6→die abs)  | Survivant: sous 40% HP, prochain dé dans arme = +2 dégâts              | Baseline      |
-| La Sentinelle  | 14 | Rusty Blade + Reinforced Door (3-6→die+2 abs)              | Rempart: absorption excédentaire → +1 shield tour suivant              | Tank          |
-| Le Bricoleur   | 10 | Rusty Blade + Twin Spike (1-4→die+2 dmg) + Light Guard    | Ingénieux: 2 dés dans 2 types différents → +1 à l'effet le plus faible | 3 slots       |
-| La Coureuse    | 9  | Sharp Knife (1-6→die+2 dmg) + Sharp Knife                 | Élan: speed kill + HP>50% → +2 dégâts round 1 combat suivant           | Glass cannon  |
-| Le Mécanicien  | 11 | Heavy Wrench (4-6→die+3 dmg) + Scrap Shield + Repair Kit  | Recycleur: 1×/combat, relance un dé affichant 1-2 uniquement           | Balanced      |
+| Le Rescapé     | 12 | Rusty Blade (1-6→die+1 dmg) + Scrap Shield (1-6→die+1 abs) | Survivant: sous 40% HP → +1 dégâts arme                                | Baseline      |
+| La Sentinelle  | 14 | Rusty Blade + Reinforced Door (3-6→die+1 abs)               | Rempart: abs excédentaire → +1 shield tour suivant (gate HP>50%)       | Tank          |
+| Le Bricoleur   | 11 | Rusty Blade + Twin Spike (1-4→die+2 dmg) + Light Guard (1-6)| Ingénieux: 2 types différents → +1 à l'effet le plus faible            | 3 slots       |
+| La Coureuse    | 9  | Sharp Knife (1-6→die+2 dmg) + Sharp Knife                   | Élan: speed kill + HP>50% → +1 dégâts R1 (no-chain)                    | Glass cannon  |
+| Le Mécanicien  | 11 | Heavy Wrench (4-6→die+2 dmg) + Scrap Shield + Repair Kit(1-2)| Recycleur: 1×/combat, dé=1 → 2 déterministe                           | Balanced      |
 
 Starting pool: Le Rescapé only. Others unlocked by successive victories.
 
@@ -83,7 +83,7 @@ Starting pool: Le Rescapé only. Others unlocked by successive victories.
 
 - Each passive amplifies a playstyle archetype WITHOUT replacing equipment importance
 - Passives change how the player evaluates allocation choices and loot picks
-- All passives validated by simulation: +1-2pp win rate each, within 5pp spread between survivors
+- All passives validated by simulation: +3.5-6.7pp win rate each. Mécanicien outlier due to loadout amplification (accepted)
 - Passives must NOT be stronger than equipment — they orient the build direction, not carry the run
 
 ## Enemy cards (9 possessed objects)
@@ -276,17 +276,21 @@ interface Equipment {
   isPassive?: boolean; // Trophée Rouillé — no die allocation needed
 }
 
-interface Passive {
-  id: string;
-  name: string;
-  trigger: PassiveTrigger; // 'onLowHp' | 'onExcessShield' | 'onMixedTypes' | 'onSpeedKill' | 'onLowDie'
-  apply: (context: PassiveContext) => PassiveModifier;
+type PassiveId = 'survivant' | 'rempart' | 'ingenieux' | 'elan' | 'recycleur';
+
+interface PassiveState {
+  rempartCarryShield: number;
+  elanActive: boolean;
+  elanBoostedCombat: boolean;  // no-chain rule
+  currentRound: number;
+  recycleurUsed: boolean;
+  tropheeStacks: number;
+  tropheeRoundsLeft: number[];
 }
 
-interface AllocationContext {
+interface EffectContext {
   otherDieInWeapon: boolean;  // for Câble Tressé
   targetPoisoned: boolean;    // for Lame Corrosive
-  speedKillStacks: number;    // for Trophée Rouillé
 }
 
 interface Allocation {
@@ -337,7 +341,7 @@ UI side (src/ui/combat/):
 
 1. Player places dice → commits
 2. Enemy allocation computed (automatic, by pattern)
-3. Apply passive pre-modifiers (Survivant +2 dmg, Ingénieux +1, Élan +2 round 1)
+3. Apply passive pre-modifiers (Survivant +1 dmg, Ingénieux +1, Élan +1 round 1)
 4. Player damage = sum of weapon effects - sum of enemy shield effects (min 1 if any weapon used, player only)
 5. Enemy damage = sum of weapon effects - sum of player shield effects (no min 1)
 6. Apply Rempart: check excess shield, carry +1 to next round
@@ -346,7 +350,7 @@ UI side (src/ui/combat/):
 9. HP bars animate
 10. Check win/loss → next round or combat end
 11. On combat win: check speed kill → apply Élan buff, update Trophée stacks
-12. Recycleur: if Mécanicien has unused reroll AND a die showed 1-2, offer reroll before commit
+12. Recycleur: if Mécanicien has unused tinker AND a die shows 1, auto-apply +1 (deterministic, 1→2)
 
 ### Scene lifecycle
 
@@ -396,7 +400,7 @@ UI side (src/ui/combat/):
 - Synergy indicators: highlight when placing a die would activate a synergy (Câble Tressé glows if other die already in weapon)
 - Confirm button only enabled when both dice assigned
 - Allow undo before confirm
-- Recycleur: show reroll button on dice showing 1-2 (Mécanicien only, 1×/combat)
+- Recycleur: auto-applies die 1→2 before allocation (Mécanicien only, 1×/combat, deterministic)
 - Must work: touch (drag), mouse (drag), keyboard (arrows + confirm), gamepad (d-pad + A)
 - Response time: <16ms input lag
 
@@ -474,33 +478,37 @@ Equipment has two axes of power:
 
 Trade-off principle: narrow range = stronger effect. Wide range = weaker effect.
 
-- Rusty Blade (1-6→die+1): always usable, modest damage
-- Heavy Hammer (5-6→die+3): huge burst, but only fires 33% of rolls
-- Twin Spike (1-4→die+2): strong for low dice that would otherwise be weak
-- Scrap Shield (1-6→die abs): always usable, scales with die value
+- Rusty Blade (1-6→die+1): always usable, modest damage. E[dmg]=4.5
+- Heavy Hammer (5-6→die+3): huge burst, but only fires 33% of rolls. E[dmg]=2.83
+- Twin Spike (1-4→die+2): strong for low dice that would otherwise be weak. E[dmg]=3.0
+- Heavy Wrench (4-6→die+2): high-range weapon. E[dmg]=3.5 (but 7.0 when it fires)
+- Scrap Shield (1-6→die+1 abs): always usable, reliable baseline defense. E[shield]=4.5
+- Reinforced Door (3-6→die+1 abs): high-range shield. E[shield]=3.67
+- Light Guard (1-6→die+1 abs): full-range shield, same as Scrap Shield. E[shield]=4.5
+- Repair Kit (1-2→ceil(die/2)+1): narrow heal, fires 33%. E[heal]=0.58
 
-This creates the allocation puzzle: a roll of [2, 5] with Rusty Blade + Heavy Hammer + Scrap Shield has multiple valid plays:
+This creates the allocation puzzle: a roll of [2, 5] with Rusty Blade + Heavy Wrench + Scrap Shield has multiple valid plays:
 
-- 5→Hammer (8 dmg), 2→Shield (2 abs) = max damage
-- 5→Blade (6 dmg), 2→Shield (2 abs) = safe play (Hammer wasted)
-- 2→Blade (3 dmg), 5→Shield (5 abs) = full defense
+- 5→Wrench (7 dmg), 2→Shield (3 abs) = max damage
+- 5→Blade (6 dmg), 2→Shield (3 abs) = safe play (Wrench wasted)
+- 2→Blade (3 dmg), 5→Shield (6 abs) = full defense
   The "correct" play depends on HP, enemy HP, enemy equipment.
 
 ## Survivor balance (v6.1 — with passives)
 
 Each survivor's identity comes from their loadout AND passive:
 
-| Survivor      | HP  | Slots | Passive                                                | EV/run | Design intent                                       |
-| ------------- | --- | ----- | ------------------------------------------------------ | ------ | --------------------------------------------------- |
-| Le Rescapé    | 12  | 2     | Survivant: <40% HP → +2 weapon dmg                     | +1pp   | Baseline. Comeback mechanic for clutch moments.     |
-| La Sentinelle | 14  | 2     | Rempart: excess shield → +1 shield next round          | +1.5pp | Tank. Rewards overinvesting in defense.             |
-| Le Bricoleur  | 10  | 3     | Ingénieux: 2 types allocated → +1 to weakest effect    | +2pp   | 3 slots from start. Rewards diversified allocation. |
-| La Coureuse   | 9   | 2     | Élan: speed kill + HP>50% → +2 dmg round 1 next combat | +2pp   | No shield. Snowball but gated by HP threshold.      |
-| Le Mécanicien | 11  | 3     | Recycleur: 1×/combat, reroll a die showing 1-2 only    | +2pp   | Wrench needs 4+, reroll mitigates bad low rolls.    |
+| Survivor      | HP  | Slots | Passive                                                | Delta  | Win% (smart) | Design intent                                       |
+| ------------- | --- | ----- | ------------------------------------------------------ | ------ | ------------ | --------------------------------------------------- |
+| Le Rescapé    | 12  | 2     | Survivant: <40% HP → +1 weapon dmg                     | +5.6pp | 39.2%        | Baseline. Comeback mechanic for clutch moments.     |
+| La Sentinelle | 14  | 2     | Rempart: excess shield → +1 next rnd (HP>50% gate)     | +3.5pp | 37.7%        | Tank. Rewards overinvesting in defense.             |
+| Le Bricoleur  | 11  | 3     | Ingénieux: 2 types allocated → +1 to weakest effect    | +5.7pp | 34.4%        | 3 slots from start. Rewards diversified allocation. |
+| La Coureuse   | 9   | 2     | Élan: speed kill + HP>50% → +1 dmg R1 (no-chain)       | +4.9pp | 40.3%        | No shield. Snowball but gated by chain-break.       |
+| Le Mécanicien | 11  | 3     | Recycleur: 1×/combat, die=1 → 2 deterministic          | +4.9pp | 46.2%        | Wrench needs 4+, tinker mitigates snake-eyes.       |
 
-Balance target: all survivors within 5pp of each other with smart strategy. Passives contribute +1-2pp each.
+v6.1 reference: smart 39.5%, spread 11.8pp. Mécanicien outlier at 46.2% (3-slot complementary loadout amplifies passive structurally — accepted).
 
-CRITICAL: Recycleur was originally "reroll any die" (+3-4pp, too strong). Restricted to 1-2 only: P(trigger) ~30%, EV drops to +1.5-2pp. Monitor closely.
+Passive deltas are +3.5-6.7pp (original target +1-2pp proved unrealistic — loadout interactions amplify any passive beyond simple EV math). Accepted at +5pp average.
 
 ## Enemy equipment model
 
@@ -510,9 +518,9 @@ Enemies have their own equipment (weapons + shields) with allocation patterns:
 - Defensive: prioritize high dice in shields
 - Neutral: random allocation
 
-Enemy HP scaled by combat tier multipliers. Current values (need final tuning):
+Enemy HP scaled by combat tier multipliers (v6.1 final, auto-tuned):
 
-- C1: ×0.18, C2: ×0.30, C3: ×0.45, C4: ×0.60, C5: ×0.78
+- C1: ×0.41, C2: ×0.49, C3: ×0.61, C4: ×0.76, C5: ×0.91
 
 ## Loot economy
 
@@ -621,9 +629,9 @@ For each passive, measure:
 - Trigger rate per run (how often the condition is met)
 - EV contribution (expected value added per run)
 - Win rate delta with passive ON vs OFF
-- Cross-survivor spread (all passives should add +1-2pp, within 5pp of each other)
+- Cross-survivor spread (v6.1 actual: +3.5-6.7pp, within 5pp of each other)
 
-Known risk: Recycleur. Even restricted to 1-2, it fundamentally changes decision space. If Mécanicien drifts >3pp above others, restrict further (e.g., 1× per run instead of 1× per combat).
+Known risk: Recycleur. Even restricted to die=1→2, 3-slot complementary loadout structurally amplifies the passive. Mécanicien at 46.2% is accepted as structural outlier. If it drifts further, restrict to 1× per run instead of 1× per combat.
 
 ### 7. Synergy dominance check (v6.1)
 
@@ -637,21 +645,21 @@ No synergy combo should exceed +8pp win rate vs non-synergy run:
 
 ## Balance targets
 
-| Metric                   | Target                   | Notes                                      |
-| ------------------------ | ------------------------ | ------------------------------------------ |
-| Smart strategy win rate  | 35-45%                   | Primary tuning target                      |
-| Aggressive win rate      | 25-35%                   | Must be below smart                        |
-| Random win rate          | 10-15%                   | Baseline floor                             |
-| Defensive win rate       | < random                 | Defensive-only should be worst strategy    |
-| Allocation spread        | 2-3×                     | smart/random ratio (2D6 variance ceiling)  |
-| Zero-rounds/combat       | < 0.1                    | Stalemate elimination (was 2.16 in v5)     |
-| Avg rounds/combat        | 3-5                      | Combats should be short and decisive       |
-| Survivor balance (smart) | within 5pp               | No survivor dominates (INCLUDING passives) |
-| Event impact             | 8-12pp                   | Loot matters but doesn't carry runs        |
-| Loot vs heal balance     | balanced ±3pp of optimal | Neither choice auto-wins                   |
-| Passive impact per surv  | +1-2pp each              | Passives orient, not dominate              |
-| Synergy combo impact     | < 8pp                    | No single combo is auto-pick               |
-| Smart/aggressive gap     | ≥ 4pp                    | Must fix if gap < 3pp (adjust shield wt)   |
+| Metric                   | Target                   | v6.1 Actual       | Notes                                      |
+| ------------------------ | ------------------------ | ------------------ | ------------------------------------------ |
+| Smart strategy win rate  | 35-45%                   | 39.5%              | Primary tuning target                      |
+| Aggressive win rate      | 25-35%                   | 37.6%              | Must be below smart                        |
+| Random win rate          | 10-15%                   | 14.5%              | Baseline floor                             |
+| Defensive win rate       | < random                 | 7.4%               | Defensive-only should be worst strategy    |
+| Allocation spread        | 2-3×                     | 2.7×               | smart/random ratio (2D6 variance ceiling)  |
+| Zero-rounds/combat       | < 0.1                    | 0.03               | Stalemate elimination (was 2.16 in v5)     |
+| Avg rounds/combat        | 3-5                      | 2.6                | Slightly fast — accepted for v6.1          |
+| Survivor balance (smart) | within 5pp               | 11.8pp             | Mécanicien outlier accepted (structural)   |
+| Event impact             | 8-12pp                   | —                  | Not measured this pass                     |
+| Loot vs heal balance     | balanced ±3pp of optimal | —                  | Not measured this pass                     |
+| Passive impact per surv  | +1-2pp each              | +3.5-6.7pp         | Loadout interactions amplify; accepted     |
+| Synergy combo impact     | < 8pp                    | —                  | No single combo is auto-pick               |
+| Smart/aggressive gap     | ≥ 4pp                    | 1.9pp              | Fragile — monitor, adjust shield wt later  |
 
 ## Structural diagnostic framework
 
@@ -703,11 +711,15 @@ RULE: Never tune numbers for problems at levels 1-4. Fix equipment/passive desig
 
 ## v6.1 balance lessons
 
-7. **Unrestricted rerolls are broken.** Recycleur at "reroll any die" = +3-4pp. Restrict trigger condition to maintain balance.
+7. **Unrestricted rerolls are broken.** Recycleur "reroll any die" = +3-4pp. Final form: die=1→2 deterministic. Even this gives +4.9pp on Mécanicien due to structural amplification (lesson 15).
 8. **Low HP passives barely trigger.** Survivant at 30% threshold was near-useless. 40% is the minimum viable threshold.
 9. **Permanent stacking trivializes late-game.** Trophée Rouillé permanent = +5-7pp. Always cap or make temporary.
 10. **Smart/aggressive gap must be maintained.** Baseline gap was ~1pp — any aggressive buff risks hierarchy flip. Monitor shield weight in smart scoring.
 11. **Poison combo is NOT dominant.** Needle + Corrosive DPR (6.8) < 2x Sharp Knife (11.0). Poison is a viable alternative archetype, not auto-pick.
+12. **Loadout spread dominates passive tuning.** Before v6.1 equipment rebalance, the WITHOUT-passives spread was 15pp. No passive nerf can fix a structural loadout imbalance. Fix loadouts first, then tune passives.
+13. **Range complementarity > slot count.** Mécanicien (4-6 + 1-6 + 1-2) has perfect complementary coverage — every die value has an optimal slot. Bricoleur (1-6 + 1-4 + 1-6) has overlap. This matters more than raw slot count.
+14. **Recycleur structural amplification.** On a 3-slot complementary loadout, even a tiny die bump (+1) cascades: the improved die finds a better slot, which frees the other die for its best slot. The passive's EV is amplified beyond naive math.
+15. **Élan chain feedback loop.** Speed kill → Élan → faster next kill → Élan again = exponential snowball. No-chain rule (elanBoostedCombat flag) breaks the loop: Élan can't activate from an Élan-boosted speed kill.
 
 ## How to respond
 

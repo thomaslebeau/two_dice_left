@@ -351,8 +351,10 @@ async function main() {
           playerHp: t.playerHp,
           playerMaxHp: t.playerMaxHp,
           playerEquipment: t.equipment,
-          onCombatEnd: (won, hpAfter) => {
-            orchestrator.handleCombatEnd(won, hpAfter);
+          passiveId: t.passiveId,
+          passiveState: t.passiveState,
+          onCombatEnd: (won, hpAfter, speedKill) => {
+            orchestrator.handleCombatEnd(won, hpAfter, speedKill);
           },
         };
         scenes.switchTo('combat', combatData);

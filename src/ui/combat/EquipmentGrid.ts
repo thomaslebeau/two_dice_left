@@ -71,7 +71,10 @@ export class EquipmentGrid extends Container {
       const slots: EquipmentSlotIcon[] = [];
       for (const { eq, idx } of items) {
         const slot = new EquipmentSlotIcon(eq, idx);
-        if (locked) {
+        if (eq.isPassive) {
+          // Passive equipment: no die allocation, locked with distinct style
+          slot.lock();
+        } else if (locked) {
           slot.lock();
         } else {
           slot.on('pointerdown', () => this.onSlotTap?.(idx));

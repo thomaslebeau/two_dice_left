@@ -11,9 +11,10 @@
  * The wiring layer (main.ts) maps transitions to SceneManager.switchTo().
  */
 
-import type { Equipment, Enemy, Survivor } from '../engine/types';
+import type { Equipment, Enemy, Survivor, PassiveId, PassiveState } from '../engine/types';
 import { ENEMY_TEMPLATES, COMBAT_TIERS } from '../data/enemies';
 import { ALL_SURVIVORS } from '../data/survivors';
+import { createPassiveState, resetPassiveForCombat } from '../engine/passives';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -47,7 +48,8 @@ export type RunTransition =
   | { scene: 'survivor_select' }
   | { scene: 'combat'; survivor: Survivor; enemy: Enemy;
       playerHp: number; playerMaxHp: number;
-      equipment: readonly Equipment[] }
+      equipment: readonly Equipment[];
+      passiveId?: PassiveId; passiveState: PassiveState }
   | { scene: 'event'; survivor: Survivor;
       playerHp: number; playerMaxHp: number;
       equipment: readonly Equipment[];
@@ -89,6 +91,8 @@ export class V6RunOrchestrator {
   private _combatNumber = 0;
   private _currentEnemy: Enemy | null = null;
   private _listeners = new Set<TransitionListener>();
+  private _passiveState: PassiveState = createPassiveState();
+  private _lastSpeedKill = false;
 
   // --- Public API ---
 
@@ -135,6 +139,8 @@ export class V6RunOrchestrator {
     this._playerHp = survivor.hp;
     this._playerMaxHp = survivor.maxHp;
     this._equipment = [...survivor.equipment];
+    this._passiveState = createPassiveState();
+    this._lastSpeedKill = false;
     this._startNextCombat();
   }
 
@@ -144,10 +150,11 @@ export class V6RunOrchestrator {
    * If player won combat 5 → victory.
    * If player lost → defeat.
    */
-  handleCombatEnd(won: boolean, playerHpAfter: number): void {
+  handleCombatEnd(won: boolean, playerHpAfter: number, speedKill = false): void {
     if (!this._survivor) return;
 
     this._playerHp = playerHpAfter;
+    this._lastSpeedKill = speedKill;
 
     if (!won) {
       this._phase = 'defeat';
@@ -201,6 +208,8 @@ export class V6RunOrchestrator {
     this._combatNumber = 0;
     this._equipment = [];
     this._currentEnemy = null;
+    this._passiveState = createPassiveState();
+    this._lastSpeedKill = false;
   }
 
   // --- Private ---
@@ -212,6 +221,17 @@ export class V6RunOrchestrator {
     this._phase = 'combat';
     this._currentEnemy = pickEnemy(this._combatNumber - 1);
 
+    // Reset passive state between combats (not before the first)
+    if (this._combatNumber > 1) {
+      const hasTrophy = this._equipment.some(e => e.id === 'rusty_trophy');
+      this._passiveState = resetPassiveForCombat(
+        this._passiveState,
+        this._lastSpeedKill,
+        this._playerHp / this._playerMaxHp,
+        hasTrophy,
+      );
+    }
+
     this._emit({
       scene: 'combat',
       survivor: this._survivor,
@@ -219,6 +239,8 @@ export class V6RunOrchestrator {
       playerHp: this._playerHp,
       playerMaxHp: this._playerMaxHp,
       equipment: [...this._equipment],
+      passiveId: this._survivor.passive,
+      passiveState: { ...this._passiveState, tropheeRoundsLeft: [...this._passiveState.tropheeRoundsLeft] },
     });
   }
 

@@ -23,6 +23,7 @@ export const RESCAPE: Survivor = {
   hp: 12,
   maxHp: 12,
   equipment: [RUSTY_BLADE, SCRAP_SHIELD],
+  passive: 'survivant',
 };
 
 /** La Sentinelle — tank (weapon + heavy shield) */
@@ -32,15 +33,17 @@ export const SENTINELLE: Survivor = {
   hp: 14,
   maxHp: 14,
   equipment: [RUSTY_BLADE, REINFORCED_DOOR],
+  passive: 'rempart',
 };
 
 /** Le Bricoleur — 3 slots (weapon + weapon + shield) */
 export const BRICOLEUR: Survivor = {
   id: 3,
   name: 'Le Bricoleur',
-  hp: 10,
-  maxHp: 10,
+  hp: 11,
+  maxHp: 11,
   equipment: [RUSTY_BLADE, TWIN_SPIKE, LIGHT_GUARD],
+  passive: 'ingenieux',
 };
 
 /** La Coureuse — glass cannon (two weapons, no shield) */
@@ -50,6 +53,7 @@ export const COUREUSE: Survivor = {
   hp: 9,
   maxHp: 9,
   equipment: [SHARP_KNIFE, SHARP_KNIFE],
+  passive: 'elan',
 };
 
 /** Le Mécanicien — balanced 3 slots (weapon + shield + utility) */
@@ -59,6 +63,7 @@ export const MECANICIEN: Survivor = {
   hp: 11,
   maxHp: 11,
   equipment: [HEAVY_WRENCH, SCRAP_SHIELD, REPAIR_KIT],
+  passive: 'recycleur',
 };
 
 /** All survivor definitions, ordered by unlock progression */

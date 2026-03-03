@@ -5,8 +5,9 @@
 
 import { Container, Text } from 'pixi.js';
 import type { Scene } from '../../engine/SceneManager';
-import type { AllocationPattern, Equipment, Survivor, Enemy } from '../../engine/types';
+import type { AllocationPattern, Equipment, Survivor, Enemy, PassiveId, PassiveState } from '../../engine/types';
 import { rollDice } from '../../engine/dice';
+import { applyRecycleur } from '../../engine/passives';
 import { allocateEnemy } from '../../engine/allocation';
 import { DIE_SIZE } from './DiceSprite';
 import { CommitButton } from './CommitButton';
@@ -26,7 +27,9 @@ type CombatPhase = 'rolling' | 'allocating' | 'resolving' | 'results' | 'finishe
 export interface CombatSceneData {
   survivor: Survivor; enemy: Enemy; playerHp: number; playerMaxHp: number;
   playerEquipment: readonly Equipment[];
-  onCombatEnd: (won: boolean, playerHpAfter: number) => void;
+  onCombatEnd: (won: boolean, playerHpAfter: number, speedKill: boolean) => void;
+  passiveId?: PassiveId;
+  passiveState?: PassiveState;
 }
 
 const PAT_LABEL: Record<AllocationPattern, string> = { aggressive: 'ATK Agressif', defensive: 'DEF Defensif', neutral: 'Neutre' };
@@ -81,7 +84,10 @@ export class CombatScene extends Container implements Scene {
   onEnter(data?: unknown): void {
     const d = data as CombatSceneData;
     this._data = d;
-    this._state = new CombatState(d.playerHp, d.playerMaxHp, d.enemy.hp, d.enemy.maxHp);
+    this._state = new CombatState(
+      d.playerHp, d.playerMaxHp, d.enemy.hp, d.enemy.maxHp,
+      d.passiveId, d.passiveState,
+    );
     this._enemyZone.setName(d.enemy.name);
     this._creature.setEnemy(d.enemy.name, PAT_LABEL[d.enemy.pattern], PAT_COLOR[d.enemy.pattern]);
     this._buildGrids(d);
@@ -147,7 +153,12 @@ export class CombatScene extends Container implements Scene {
     this._state.nextRound(); this._phase = 'rolling';
     this._resolution.reset(); this._playerZone.grid.resetAll();
     this._enemyZone.resetSlots(); this._allocator.reset(); this._enemyZone.clearDice();
-    const pv = rollDice(2), ev = rollDice(2);
+    let pv = rollDice(2);
+    // Recycleur passive: reroll lowest die showing 1-2
+    if (this._data.passiveState) {
+      pv = applyRecycleur(pv, this._data.passiveId, this._data.passiveState);
+    }
+    const ev = rollDice(2);
     for (const die of this._allocator.setup(pv, [...this._playerZone.grid.slots], this._sw, this._playerDiceZone.y))
       this.addChild(die);
     this._enemyZone.buildDice(ev);
@@ -170,7 +181,9 @@ export class CombatScene extends Container implements Scene {
     await this._resolution.play(r.resolutionData); this._updateHpDisplays();
     this._phase = 'results'; await this._waitForTap();
     if (r.resolutionData.combatEnded) {
-      this._phase = 'finished'; this._data.onCombatEnd(r.resolutionData.playerWon, this._state.playerHp);
+      this._phase = 'finished';
+      const speedKill = r.resolutionData.playerWon && this._state.round <= 3;
+      this._data.onCombatEnd(r.resolutionData.playerWon, this._state.playerHp, speedKill);
     } else { this._startRound(); }
   }
 

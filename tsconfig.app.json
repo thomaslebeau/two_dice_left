@@ -27,8 +27,6 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],
-      "@enums/*": ["./src/enums/*"],
-      "@shared/*": ["./src/shared/*"],
       "@engine/*": ["./src/engine/*"]
     }
   },

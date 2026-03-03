@@ -1,8 +1,8 @@
-# Dice & Cards — Project Context
+# Two Dice Left — Project Context
 
 ## What is this
 
-Minimalist roguelike deckbuilder. A lone survivor fights 5 combats against possessed everyday objects using 2D6 dice with player-controlled ATK/DEF allocation. Post-apocalyptic dark fantasy universe "Rouille & Légendes" — nature has awakened and possesses objects to eradicate humanity.
+Minimalist roguelike deckbuilder. A lone survivor fights 5 combats against possessed everyday objects using 2D6 dice allocated into equipment slots. Post-apocalyptic dark fantasy universe — nature has awakened and possesses objects to eradicate humanity. Each survivor has a unique starting loadout AND passive ability that defines their play pattern. Events between combats offer loot (new equipment) or healing. Synergy equipment enables emergent build archetypes (Poison, Reflect, Combo, Momentum).
 
 ## Tech stack
 
@@ -11,15 +11,14 @@ Minimalist roguelike deckbuilder. A lone survivor fights 5 combats against posse
 - Vite
 - No React, no DOM rendering, no SCSS — pure Pixi.js
 - gaming-ui-a11y-toolkit (custom gamepad navigation)
-- SQLite (via sql.js WASM) for simulation data
-- GitHub Pages deployment
+- GitHub Pages deployment (v5 at root, v6 at /v6/ subdirectory)
 
 ## Code conventions
 
 - ALL code, comments, variables, types, strings: English
-- Card names/descriptions: French (data only)
+- Survivor/enemy/equipment names: French (data only)
 - Classes: PascalCase. Functions: camelCase. Constants: UPPER_SNAKE_CASE. Private: \_underscore prefix.
-- Pure game logic (enums/, types/, shared/) has ZERO pixi.js imports
+- Pure game logic (engine/, data/) has ZERO pixi.js imports
 - Max 40 lines per function, max 200 lines per file
 - No `any` types, no non-null assertions without comment
 
@@ -27,55 +26,66 @@ Minimalist roguelike deckbuilder. A lone survivor fights 5 combats against posse
 
 ```
 src/
-├── enums/          # GameState, Rarity, EventType (pure TS)
-├── types/          # Card, Combat, Event, DiceModifier types (pure TS)
-├── shared/
-│   ├── constants/  # cards.ts, enemies.ts, events.ts, diceModifiers.ts
-│   └── utils/      # combatCalculations.ts, enemyGenerator.ts, eventGenerator.ts
+├── engine/           # PURE TS — zero Pixi imports
+│   ├── types.ts      # Equipment, Survivor, Enemy, Allocation, CombatResult, Passive
+│   ├── dice.ts       # rollDie, rollDice, canUseDie
+│   ├── allocation.ts # allocateOptimal, allocateEnemy, scoring
+│   ├── combat.ts     # simulateCombat (resolution, min 1 rule, poison, heal, passives)
+│   ├── passives.ts   # Passive definitions and resolution (pure functions)
+│   ├── run.ts        # simulateRun (5 combats + loot events)
+│   └── index.ts
+├── data/             # PURE TS — zero Pixi imports
+│   ├── equipment.ts  # Starter + loot + synergy equipment definitions
+│   ├── survivors.ts  # Survivor definitions with loadouts + passive references
+│   └── enemies.ts    # Enemy definitions, combat tier config
+├── ui/               # PIXI ONLY — reads engine state, never mutates it
+│   ├── combat/       # CombatScene, DiceSprite, EquipmentSlot, CommitButton, PoisonIndicator, ResolutionAnimation
+│   ├── event/        # EventScene, LootCard, EventManager
+│   ├── menu/         # MainMenuScene, SurvivorSelectionScene
+│   ├── shared/       # HPBar, ButtonSprite, CardSprite
+│   ├── SceneManager.ts
+│   └── theme.ts      # Design tokens (colors, fonts, spacing, timings)
 ├── core/
-│   ├── GameStateManager.ts
-│   ├── CombatEngine.ts
-│   ├── DiceAllocator.ts
-│   ├── EventSystem.ts
-│   ├── MetaProgression.ts
-│   └── SceneManager.ts
-├── engine/         # Game loop, Pixi app setup
-├── scenes/         # Pixi Container subclasses (MainMenu, Combat, Event, etc.)
-├── components/     # Reusable Pixi visuals (CardSprite, DiceSprite, etc.)
-├── sprites/        # Visual assets
-├── input/          # Keyboard, gamepad, spatial navigation
-├── simulation/     # Headless autoplay for balance testing
-├── db/             # SQLite integration
-├── layout.ts
-├── theme.ts        # Design tokens
+│   ├── GameStateManager.ts  # State machine, run flow
+│   └── MetaProgression.ts   # Persistent unlocks (localStorage)
+├── sim/              # Headless balance simulation (imports engine/ + data/)
+│   └── balance.ts
+├── input/            # Keyboard, gamepad, spatial navigation
 └── main.ts
 ```
 
-Separation rule: GameStateManager, CombatEngine, DiceAllocator, EventSystem = plain TypeScript, no Pixi imports. Only scenes/ and components/ import pixi.js.
+Critical separation: engine/ and data/ = pure TypeScript, zero rendering dependencies. This enables headless simulation and future Unity migration (replace ui/, keep engine/). Passives live in engine/passives.ts as pure functions.
 
-## Current game state (v5)
+## Current game state (v6.1)
 
 ### Run structure
 
 ```
-MENU → SURVIVOR_SELECTION → COMBAT_1 → EVENT_1 → COMBAT_2 → EVENT_2 → COMBAT_3 → EVENT_3 → COMBAT_4 → EVENT_4 → COMBAT_5 → REWARD / GAMEOVER
+MENU → SURVIVOR_SELECTION → COMBAT_1 → EVENT_1(loot) → COMBAT_2 → EVENT_2(loot) → COMBAT_3 → EVENT_3(loot) → COMBAT_4 → EVENT_4(loot) → COMBAT_5 → REWARD / GAMEOVER
 ```
 
-Player picks 1 survivor. That card fights all 5 combats. HP persists. 4 events between combats.
+Player picks 1 survivor. That survivor's loadout (2-4 equipment pieces) + passive is their toolkit for the run. HP persists. 4 loot events between combats.
 
-### Damage formula (direct subtraction)
+### Combat system (equipment-based)
+
+Each round:
+
+1. Player and enemy each roll 2D6
+2. Player places each die into an equipment slot (core mechanic)
+3. Enemy auto-allocates by pattern
+4. Simultaneous resolution (with passive modifiers applied)
+
+Equipment has: type (weapon/shield/utility), die range (minDie-maxDie), effect function (dieValue → {damage, shield, heal, poison}).
 
 ```typescript
-damage = Math.max(0, atkTotal - defTotal);
-// atkTotal = dieRoll + card.atkMod + eventBonuses
-// defTotal = dieRoll + card.defMod + eventBonuses
+// Resolution
+playerDamageToEnemy = sum(weaponEffects) - sum(enemyShieldEffects);
+enemyDamageToPlayer = sum(enemyWeaponEffects) - sum(playerShieldEffects);
+
+// Anti-stalemate (asymmetric, player only)
+if (playerUsedAnyWeapon) playerDamageToEnemy = max(1, playerDamageToEnemy);
+// Enemies have NO min damage — player can fully block
 ```
-
-No minimum damage. DEF ≥ ATK = 0 damage (full block). This formula is load-bearing — changing it invalidates all balance work.
-
-### Dice allocation (core mechanic)
-
-Each round: player rolls 2D6, enemy rolls 2D6. Player CHOOSES which die → ATK, which → DEF. Enemy auto-allocates by pattern (aggressive/defensive/neutral).
 
 ### Speed kill recovery
 
@@ -84,119 +94,180 @@ const SPEED_KILL_THRESHOLD = 3; // rounds or fewer
 const SPEED_KILL_RECOVERY = 3; // HP recovered (capped at max)
 ```
 
-Player-only. Asymmetric by design — incentivizes aggressive play without nerfing defensive.
+Player-only. Asymmetric by design — incentivizes aggressive play.
 
-### Survivor cards (current stats)
+### Survivors (identity = loadout + passive)
 
 ```
-ID  Name             HP   ATK  DEF  Archetype       Pool
-1   Le Récupérateur  12   +0   +1   Baseline tank   Starter
-2   La Sentinelle    13   +0   +1   HP tank         Starter
-3   Le Bricoleur     10   +1   +1   Scrapper        Starter
-4   La Coureuse      8    +2   +1   Glass cannon    Starter
-5   Le Mécanicien    11   +1   +1   Balanced        Starter
-6   Le Forgeron      10   +3   +1   Bruiser         Meta-unlock
-7   Le Blindé        16   +0   +3   Heavy tank      Meta-unlock
-8   Le Vétéran       13   +2   +2   Elite           Meta-unlock
+ID  Name             HP  Equipment                                              Passive                                              Identity
+1   Le Rescapé       12  Rusty Blade (1-6→d+1 dmg) + Scrap Shield (1-6→d abs)  Survivant: <40% HP → +2 weapon dmg                   Baseline
+2   La Sentinelle    14  Rusty Blade + Reinforced Door (3-6→d+2 abs)            Rempart: excess shield → +1 shield next round         Tank
+3   Le Bricoleur     10  Rusty Blade + Twin Spike (1-4→d+2 dmg) + Light Guard   Ingénieux: 2 types → +1 to weakest effect             3 slots
+4   La Coureuse      9   Sharp Knife (1-6→d+2 dmg) × 2                          Élan: speed kill + HP>50% → +2 dmg R1 next combat     Glass cannon
+5   Le Mécanicien    11  Heavy Wrench (4-6→d+3 dmg) + Scrap Shield + Repair Kit Recycleur: 1×/combat, reroll die showing 1-2 only      Balanced
 ```
 
-All starters have +1 DEF minimum (required by subtraction formula).
+Starting pool: Le Rescapé only. Others unlocked by successive victories (1→Sentinelle, 2→Bricoleur, 3→Coureuse, 4→Mécanicien).
+
+Passive balance: all passives contribute +1-2pp win rate. Validated by simulation.
+
+### Equipment database
+
+Starter equipment:
+
+```
+Rusty Blade       weapon   1-6  die+1 damage
+Scrap Shield      shield   1-6  die absorption
+Sharp Knife       weapon   1-6  die+2 damage
+Twin Spike        weapon   1-4  die+2 damage
+Heavy Wrench      weapon   4-6  die+3 damage
+Sharpened Fork    weapon   1-3  die+1 damage
+Reinforced Door   shield   3-6  die+2 absorption
+Light Guard       shield   1-4  die+1 absorption
+Repair Kit        utility  1-3  ceil(die/2)+1 heal
+```
+
+Core loot pool (found via events, 8 items):
+
+```
+Heavy Hammer      weapon   5-6  die+3 damage
+Poison Needle     weapon   1-6  1 dmg + poison (2 turns if die≥3)
+Serrated Edge     weapon   2-5  die+1 damage
+Glass Shard       weapon   1-6  die damage, DOUBLE on 5-6
+Thick Bark        shield   2-6  die+1 absorption
+Mirror Plate      shield   4-6  die+2 abs + 1 reflect damage
+Bandage Wrap      utility  1-4  heal = die value
+Adrenaline Root   utility  1-6  ceil(die/2) dmg + ceil(die/2) shield
+```
+
+Synergy loot pool (v6.1, 5 items):
+
+```
+Lame Corrosive    weapon   1-6  die+1 dmg (doubled if target poisoned)           Archetype: Poison
+Spore Sac         utility  1-4  +1 poison turn (no weapon slot cost)             Archetype: Poison
+Bouclier à Épines shield   1-6  die/2 abs + die/2 reflect dmg (floor)            Archetype: Reflect
+Câble Tressé      weapon   1-6  die dmg +2 if other die also in weapon           Archetype: Combo
+Trophée Rouillé   utility  —    passive: +1 dmg 3 rounds after speed kill (cap 2) Archetype: Momentum
+```
+
+Build archetypes:
+
+- Poison: Needle + Corrosive (+ optional Spore Sac). DPR ~6.8, not dominant vs raw DPS.
+- Reflect/Counter: Mirror Plate + Bouclier à Épines. Tank that deals damage by defending.
+- Combo: Câble Tressé + dual weapons. Sacrifice all defense for explosive round.
+- Momentum: Trophée Rouillé + speed kill focus. Temporary buff, capped at 2 stacks.
 
 ### Enemy cards
 
 ```
-ID  Name                 HP  ATK  DEF  Allocation
-E1  Sécateur Rampant     8   +0   +0   Neutral
-E2  Lampe Épineuse       6   +1   −1   Aggressive
-E3  Fourchette Vrille    5   +0   +0   Neutral
-E4  Ventilateur Griffe   10  +2   +0   Aggressive
-E5  Radiateur Mousse     14  +0   +2   Defensive
-E6  Tronçonneuse Lierre  10  +2   +0   Aggressive
-E7  Frigo Mâchoire       12  +0   +1   Defensive
-E8  Voiture-Racine       14  +1   +1   Neutral
-E9  Grue Tentacule       13  +2   +0   Aggressive
+ID  Name                 HP  Equipment                           Pattern
+E1  Sécateur Rampant     8   Claw(1-6,+0) + Shell(1-6,+0 abs)   Neutral
+E2  Lampe Épineuse       6   Spike(1-6,+1) + Spark(1-3,+0)      Aggressive
+E3  Fourchette Vrille    5   Prong(1-6,+0) + Guard(1-4,+0 abs)  Neutral
+E4  Ventilateur Griffe   10  Blade(1-6,+2) + Slash(3-6,+0)      Aggressive
+E5  Radiateur Mousse     14  Bump(1-4,+0) + Armor(1-6,+2 abs)   Defensive
+E6  Tronçonneuse Lierre  10  Chain(1-6,+2) + Bark(3-6,+0 abs)   Aggressive
+E7  Frigo Mâchoire       12  Bite(1-6,+0) + Hull(2-6,+2 abs)    Defensive
+E8  Voiture-Racine       14  Ram(3-6,+2) + Chassis(2-6,+2 abs)  Neutral
+E9  Grue Tentacule       13  Whip(1-6,+2) + Crush(4-6,+1)       Aggressive
 ```
 
-### Enemy scaling (final balanced values)
+### Enemy scaling per combat (HP multipliers)
 
 ```
-Combat  Pool                   HP Mult  ATK Boost  DEF Boost
-1       Commons (E1,E2,E3)     ×0.25    +0         +0
-2       Commons (E1,E2,E3)     ×0.45    +0         +0
-3       Commons + Uncommons    ×0.6     +0         +0
-4       All except bosses      ×0.75    +1         +0
-5       Boss pool (E8,E9)      ×0.9     +1         +1
+Combat  Pool                    HP Mult
+1       Commons (E1,E2,E3)      ×0.18
+2       Commons (E1,E2,E3)      ×0.30
+3       Commons + Uncommons     ×0.45
+4       All except bosses       ×0.60
+5       Boss pool (E8,E9)       ×0.78
 ```
 
-### Dice modifiers (found via Forge events, max 2 per run)
+Note: These multipliers need final tuning. Known issue: smart/aggressive gap is only ~1pp — recommend adjusting smart shield weight from 1.5 → 2.0 in allocation.ts.
+
+### Event system (loot-based)
+
+4 events per run. Each offers: pick 1 equipment from 2-3 options OR heal +2 HP.
+Loot drawn from combined pool (core + synergy, 13 items total) without repetition within a run. Loot adds to loadout (no cap, no replacement).
+
+### Poison system
+
+- Poison Needle: 1 dmg + 2 poison turns if die ≥ 3
+- Poison deals 1 HP/turn, counter decrements each round
+- Stacks cumulatively: existing turns + new poison = total
+- Resolution order: weapon damage → shield absorption → poison tick → new poison queued → heal
+- Persists within combat, resets between combats
+- UI: skull icon + remaining turns on affected cards
+
+### Visual identity
 
 ```
-Rusty Die    [1,2,3,4,5,5]  Min 2 damage on ATK
-Heavy Die    [3,3,4,4,5,5]  Consistent but capped
-Broken Die   [1,1,1,6,6,6]  All or nothing
-Ivy Die      [1,2,3,4,5,6]  On 6: poison (1 dmg/turn ×2)
-Needle Die   [1,2,3,4,5,6]  Pierces 2 enemy DEF
-Root Die     [1,2,3,3,4,5]  If used as DEF: +1 HP
+Color           Hex       Usage
+Rust orange     #8B3A1A   Dominant — corroded metal
+Dark moss       #2D4A2E   Secondary — vegetation
+Bone white      #D9CFBA   UI text — bleached bone
+Charcoal        #1A1A1A   Background — ash
+Blood red       #6B1C1C   Danger accent — dried blood
 ```
 
-### Balance targets
+Typography: eroded stencil (system monospace fallback). Mobile-first (390×844 reference).
+
+## Balance targets
 
 ```
-Metric                          Target     Actual (75k sims)
-Optimal (hpThreshold+balanced)  35–45%     36.1% ✓
-Pure aggressive                 25–35%     25.1% ✓
-Pure defensive                  20–30%     28%   ✓
-Random baseline                 10–15%     23.4% (2D6 variance ceiling)
-Allocation spread               2–3×       1.1×  (2D6 variance ceiling)
-Event impact                    10–15pp    27.5pp (structural)
-Per survivor (optimal play)     15–55%     all ✓
+Metric                          Target
+Smart strategy win rate         35-45%
+Aggressive win rate             25-35%
+Random baseline                 10-15%
+Defensive win rate              < random
+Allocation spread (smart/rand)  2-3×
+Zero-rounds/combat              < 0.1 (was 2.16 in v5) ✓ actual: 0.03
+Avg rounds/combat               3-5
+Survivor balance (smart)        within 5pp (including passives)
+Loot vs heal balance            balanced ±3pp of optimal
+Passive impact per survivor     +1-2pp each
+Synergy combo impact            < 8pp
+Smart/aggressive gap            ≥ 4pp
 ```
 
-Required hierarchy: hpThreshold > aggressive ≈ defensive > random.
-Actual: defensive (28%) ≈ hpThreshold (26.9%) > aggressive (25.1%) ≈ random (23.4%).
-The 1.1pp gap between defensive and hpThreshold is noise at 75k runs. Accepted as baseline.
+Required hierarchy: smart > aggressive > random > defensive.
 
-Three unmet targets (random, spread, event impact) are structurally bound by 2D6 variance — not fixable with number tuning. Would require changing the dice system entirely.
+## Balance history (hard-won lessons from v1-v6)
 
-### Event heal values (nerfed for balance)
+1. **Min damage kills single-card runs.** `max(1, ...)` guarantees ~25 unavoidable damage across 5 combats. The v6 fix: min 1 on PLAYER WEAPONS ONLY (asymmetric). Player can still be fully blocked.
 
-```
-Event                    Effect
-Workshop basic repair    +2 HP
-Workshop advanced patch  +2 HP
-Encounter trader trade   -1 ATK, +3 HP
-Salvage vehicle coolant  +2 HP
-Forge "leave it"         +1 HP
-```
+2. **Symmetric mechanics don't shift strategy.** Tested in v5 with overkill damage — helped enemies as much as player. Any balance mechanic must be asymmetric to change strategy hierarchy.
 
-All ATK/DEF event values unchanged from initial design.
+3. **Flat stats don't create identity.** v5 survivors were +0/+1/+2 ATK/DEF. Barely distinguishable in play. v6 equipment loadouts create real identity — La Coureuse with 2 weapons and no shield plays fundamentally differently from La Sentinelle with a door that needs 3+.
 
-## Balance history (lessons learned)
+4. **2D6 variance ceiling.** Average difference between two D6 = ~1.67. Allocation spread maxes at 2-3×. Don't target higher.
 
-These are hard-won lessons from 6+ simulation iterations. Do NOT re-learn them:
+5. **Number tuning can't fix structural problems.** If a mechanic doesn't work at ANY multiplier setting, the mechanic is wrong. Equipment system fixes the structural stalemate that no amount of ATK/DEF tuning could solve.
 
-1. **Minimum damage kills single-card runs.** `max(1, ...)` guarantees ~25 unavoidable damage across 5 combats. With 10 HP survivors, that's mathematically unwinnable. Always use `max(0, ...)`.
+6. **HP heals are disproportionately powerful** in a no-heal game. Capped at +2 HP per event in v6.
 
-2. **Symmetric mechanics don't shift strategy balance.** Overkill bonus damage (tested and reverted) helped enemies as much as the player. If defensive dominates, the fix must be ASYMMETRIC (player-only reward for speed).
+7. **Equipment count is the real power curve.** More slots = more valid allocations per turn = better adaptation to any dice roll. This is the core progression within a run.
 
-3. **+0 DEF is unviable with subtraction formula.** `max(0, atk - def)` makes DEF binary — blocks or doesn't. +0 DEF means the survivor can never fully block. All starters need +1 DEF minimum.
+8. **Unrestricted rerolls are broken.** (v6.1) Recycleur "reroll any die" = +3-4pp. Restrict trigger to dice showing 1-2 only.
 
-4. **2D6 variance ceiling.** Average difference between two D6 is ~1.67. This physically limits allocation spread to 2-3×. Don't target 3-4× — it's unrealistic. Design supporting systems (speed kill) instead.
+9. **Low HP passives barely trigger.** (v6.1) Survivant at 30% threshold was near-useless. 40% is the minimum viable threshold.
 
-5. **Number tuning can't fix structural problems.** If defensive > hpThreshold at ALL multiplier settings, the problem is the formula/mechanics, not the numbers. Diagnose the level before tuning.
+10. **Permanent stacking trivializes late-game.** (v6.1) Trophée Rouillé permanent = +5-7pp. Always cap or make temporary.
 
-6. **HP heals are disproportionately powerful** in a no-heal game. Even +3 HP ≈ surviving one extra combat. Keep heal events modest.
+11. **Smart/aggressive gap must be maintained.** (v6.1) Baseline gap ~1pp — any aggressive buff risks hierarchy flip. Adjust smart shield weight if needed.
 
-## Agent prompts
-
-Specialized agent prompts are in `AGENT_PROMPTS.md`:
-
-- **Creative Director**: Universe, vision, coherence, feature evaluation
-- **Tech Lead**: Code quality, architecture, Pixi.js performance
-- **Balance Designer**: Simulation, probability, diagnostic framework
-
-When doing balance work, copy the Balance Designer prompt into your CLI session along with the specific rebalance task. The CLAUDE.md context here gives the shared state; the agent prompt gives the analytical framework.
+12. **Poison combo is NOT dominant.** (v6.1) Needle + Corrosive DPR (6.8) < 2x Sharp Knife (11.0). Viable alternative, not auto-pick.
 
 ## Simulation
 
-Headless autoplay in `src/simulation/`. Runs 75,000 simulations (5 survivors × 5 allocation strategies × 6 event strategies × 500 iterations). Outputs to SQLite in `data/autoplay_v5.db`. Run with `npx tsx src/simulation/autoplay.ts`.
+Headless simulation in src/sim/balance.ts. Imports engine/ + data/ directly. Runs Monte Carlo across survivors × allocation strategies × event strategies. Supports passives toggle for A/B comparison. Run with `npx tsx src/sim/balance.ts`.
+
+## Agent prompts
+
+Specialized agent prompts in `AGENT_PROMPTS.md`:
+
+- **Creative Director**: Vision, universe, coherence, feature evaluation, loot naming, synergy assessment
+- **Tech Lead**: Code quality, architecture (engine/UI separation), Pixi.js performance, passive implementation
+- **Balance Designer**: Equipment power budgets, passive impact, synergy analysis, simulation, diagnostic framework, HP tuning
+
+When doing balance work, copy the Balance Designer prompt into CLI session. CLAUDE.md gives shared state; agent prompt gives analytical framework.

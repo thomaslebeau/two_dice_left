@@ -17,11 +17,10 @@ export interface RunData {
   survivorName: string;
   victory: boolean;
   combatReached: number;
-  durationSeconds: number;
-  speedKills: number;
-  hpRecovered: number;
   finalHP: number;
   maxHP: number;
+  /** Comma-separated list of equipment names at run end. */
+  equipment: string;
 }
 
 export function sendRunData(data: RunData): void {

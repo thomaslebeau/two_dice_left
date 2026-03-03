@@ -1,0 +1,344 @@
+{
+  "$description": "Two Dice Left — V6 Design Tokens (W3C DTCG format)",
+
+  "color": {
+    "$description": "All colors used in the V6 UI",
+
+    "brand": {
+      "bone": { "$value": "#D9CFBA", "$type": "color", "$description": "Primary text, UI labels — bleached bone white" },
+      "rust": { "$value": "#8B3A1A", "$type": "color", "$description": "Dominant accent — corroded metal orange" },
+      "moss": { "$value": "#2D4A2E", "$type": "color", "$description": "Secondary accent — dark vegetation green" },
+      "charcoal": { "$value": "#1A1A1A", "$type": "color", "$description": "Background — ash/soot" },
+      "blood": { "$value": "#6B1C1C", "$type": "color", "$description": "Danger accent — dried blood red" },
+      "venom": { "$value": "#7B2D8B", "$type": "color", "$description": "Poison effect — toxic purple" },
+      "orange": { "$value": "#CC8833", "$type": "color", "$description": "Warning HP state — amber" }
+    },
+
+    "gray": {
+      "$description": "Neutral grays used for borders, backgrounds, disabled states",
+      "900": { "$value": "#222222", "$type": "color", "$description": "Filled slot fill, deepest gray" },
+      "800": { "$value": "#333333", "$type": "color", "$description": "HP bar bg, disabled button fill" },
+      "700": { "$value": "#444444", "$type": "color", "$description": "Dimmed/locked slot border" },
+      "600": { "$value": "#555555", "$type": "color", "$description": "Disabled button stroke, empty slot border" },
+      "500": { "$value": "#666666", "$type": "color", "$description": "Out-of-range die face number" },
+      "300": { "$value": "#999999", "$type": "color", "$description": "Die background stroke" },
+      "charcoal-light": { "$value": "#2A2A2A", "$type": "color", "$description": "Die face fill variant" }
+    },
+
+    "equipment-type": {
+      "$description": "Color coding for equipment categories",
+      "weapon": { "$value": "{color.brand.rust}", "$type": "color", "$description": "Weapon/ATK slots — rust orange" },
+      "shield": { "$value": "{color.brand.moss}", "$type": "color", "$description": "Shield/DEF slots — moss green" },
+      "utility": { "$value": "{color.brand.bone}", "$type": "color", "$description": "Utility/UTL slots — bone white" }
+    },
+
+    "hp": {
+      "$description": "HP bar/badge fill colors by health percentage",
+      "healthy": { "$value": "{color.brand.moss}", "$type": "color", "$description": "HP > 60% — green" },
+      "warning": { "$value": "{color.brand.orange}", "$type": "color", "$description": "HP 30-60% — amber (player only)" },
+      "critical": { "$value": "{color.brand.blood}", "$type": "color", "$description": "HP <= 30% — red" },
+      "bar-bg": { "$value": "{color.gray.800}", "$type": "color", "$description": "HP bar background track" }
+    },
+
+    "text": {
+      "primary": { "$value": "{color.brand.bone}", "$type": "color", "$description": "Main text color" },
+      "damage": { "$value": "{color.brand.blood}", "$type": "color", "$description": "Damage numbers in resolution" },
+      "heal": { "$value": "{color.brand.moss}", "$type": "color", "$description": "Heal/positive numbers in resolution" },
+      "dimmed": { "$value": "{color.gray.500}", "$type": "color", "$description": "Out-of-range, secondary info" }
+    },
+
+    "slot-state": {
+      "$description": "Equipment slot visual states",
+      "empty-border": { "$value": "{color.gray.600}", "$type": "color", "$description": "Default empty slot border" },
+      "empty-fill-alpha": { "$value": "0.7", "$type": "number", "$description": "Empty slot background opacity" },
+      "valid-fill-alpha": { "$value": "0.25", "$type": "number", "$description": "Valid-target slot fill opacity" },
+      "dimmed-border": { "$value": "{color.gray.700}", "$type": "color", "$description": "Dimmed slot border" },
+      "dimmed-alpha": { "$value": "0.35", "$type": "number", "$description": "Dimmed slot overall opacity" },
+      "filled-fill": { "$value": "{color.gray.900}", "$type": "color", "$description": "Filled slot background" },
+      "filled-fill-alpha": { "$value": "0.9", "$type": "number", "$description": "Filled slot background opacity" },
+      "locked-border": { "$value": "{color.gray.700}", "$type": "color", "$description": "Locked slot border" },
+      "locked-fill": { "$value": "{color.brand.charcoal}", "$type": "color", "$description": "Locked slot background" },
+      "locked-fill-alpha": { "$value": "0.6", "$type": "number", "$description": "Locked slot background opacity" }
+    },
+
+    "button": {
+      "commit-enabled-fill": { "$value": "{color.brand.moss}", "$type": "color", "$description": "Valider button enabled fill" },
+      "commit-enabled-stroke": { "$value": "{color.brand.rust}", "$type": "color", "$description": "Valider button enabled stroke" },
+      "commit-disabled-fill": { "$value": "{color.gray.800}", "$type": "color", "$description": "Valider button disabled fill" },
+      "commit-disabled-stroke": { "$value": "{color.gray.600}", "$type": "color", "$description": "Valider button disabled stroke" },
+      "reset-fill": { "$value": "{color.gray.800}", "$type": "color", "$description": "Annuler button fill" },
+      "reset-stroke": { "$value": "{color.gray.600}", "$type": "color", "$description": "Annuler button stroke" }
+    },
+
+    "pattern": {
+      "$description": "Enemy allocation pattern colors",
+      "aggressive": { "$value": "{color.brand.rust}", "$type": "color", "$description": "Aggressive pattern" },
+      "defensive": { "$value": "{color.brand.moss}", "$type": "color", "$description": "Defensive pattern" },
+      "neutral": { "$value": "{color.brand.bone}", "$type": "color", "$description": "Neutral pattern" }
+    },
+
+    "overlay": {
+      "resolution-bg": { "$value": "{color.brand.charcoal}", "$type": "color", "$description": "Resolution overlay fill" },
+      "resolution-bg-alpha": { "$value": "0.85", "$type": "number", "$description": "Resolution overlay opacity" },
+      "creature-bg": { "$value": "{color.brand.charcoal}", "$type": "color", "$description": "Creature placeholder fill" },
+      "creature-bg-alpha": { "$value": "0.3", "$type": "number", "$description": "Creature placeholder opacity" }
+    },
+
+    "focus": {
+      "indicator": { "$value": "#7ED957", "$type": "color", "$description": "Gamepad focus ring color" }
+    },
+
+    "background": {
+      "canvas": { "$value": "{color.brand.charcoal}", "$type": "color", "$description": "Pixi app background" },
+      "html": { "$value": "#0D1410", "$type": "color", "$description": "HTML body background" }
+    }
+  },
+
+  "typography": {
+    "$description": "All font specifications",
+
+    "font-family": {
+      "mono": { "$value": "'Courier New', monospace", "$type": "fontFamily", "$description": "Used everywhere in V6 UI" },
+      "heading-unused": { "$value": "Crimson Text, Georgia, serif", "$type": "fontFamily", "$description": "Declared in theme.ts but NOT used" },
+      "body-unused": { "$value": "Inter, system-ui, sans-serif", "$type": "fontFamily", "$description": "Declared in theme.ts but NOT used" }
+    },
+
+    "font-size": {
+      "display": { "$value": "28px", "$type": "dimension", "$description": "Game title, victory/defeat text" },
+      "hp-badge": { "$value": "18px", "$type": "dimension", "$description": "HP number inside circular badge" },
+      "button-primary": { "$value": "16px", "$type": "dimension", "$description": "Valider button, subtitles, Rejouer" },
+      "button-confirm": { "$value": "15px", "$type": "dimension", "$description": "Confirmer button (event scene)" },
+      "body": { "$value": "14px", "$type": "dimension", "$description": "Tap prompt, enemy name, resolution calc text, heal button" },
+      "card-name": { "$value": "13px", "$type": "dimension", "$description": "Loot card name, narrative text, survivor button label" },
+      "button-secondary": { "$value": "12px", "$type": "dimension", "$description": "Annuler button, loot card effect, loadout title" },
+      "label-small": { "$value": "11px", "$type": "dimension", "$description": "Pattern label, synergy text, die face numbers" },
+      "icon-label": { "$value": "10px", "$type": "dimension", "$description": "Equipment slot type icon text" },
+      "badge-text": { "$value": "9px", "$type": "dimension", "$description": "Poison badge label, enemy HP text" },
+      "slot-detail": { "$value": "8px", "$type": "dimension", "$description": "Die range text, slot effect text" }
+    },
+
+    "font-weight": {
+      "bold": { "$value": "bold", "$type": "fontWeight", "$description": "Titles, buttons, HP numbers, names, effect text" },
+      "normal": { "$value": "normal", "$type": "fontWeight", "$description": "Body text, secondary labels" }
+    },
+
+    "letter-spacing": {
+      "display": { "$value": "4px", "$type": "dimension", "$description": "Game title" },
+      "large": { "$value": "3px", "$type": "dimension", "$description": "Victory/defeat, end screen heading" },
+      "medium": { "$value": "2px", "$type": "dimension", "$description": "Tap prompt, Valider button, subtitle, Rejouer" },
+      "small": { "$value": "1px", "$type": "dimension", "$description": "Annuler button" }
+    },
+
+    "line-height": {
+      "narrative": { "$value": "20px", "$type": "dimension", "$description": "Event scene narrative text" },
+      "button-label": { "$value": "18px", "$type": "dimension", "$description": "Survivor selection button label" }
+    },
+
+    "font-style": {
+      "italic": { "$value": "italic", "$type": "string", "$description": "Narrative/flavor text in event scene" }
+    },
+
+    "word-wrap": {
+      "narrative": { "$value": "358px", "$type": "dimension", "$description": "Initial narrative text wrap (updated dynamically)" },
+      "card-text": { "$value": "140px", "$type": "dimension", "$description": "Loot card name/effect wrap (CARD_W - 20)" }
+    }
+  },
+
+  "spacing": {
+    "$description": "All padding, margin, and gap values",
+
+    "scene-padding": {
+      "combat": { "$value": "8px", "$type": "dimension", "$description": "CombatScene edge padding" },
+      "event": { "$value": "16px", "$type": "dimension", "$description": "EventScene edge padding" }
+    },
+
+    "gap": {
+      "combat-zone": { "$value": "4px", "$type": "dimension", "$description": "Gap between combat zones" },
+      "section": { "$value": "14px", "$type": "dimension", "$description": "Gap between event scene sections" },
+      "button-pair": { "$value": "8px", "$type": "dimension", "$description": "Gap between Annuler and Valider" },
+      "badge-grid": { "$value": "8px", "$type": "dimension", "$description": "Gap between HP badge and equipment grid" },
+      "slot-h": { "$value": "4px", "$type": "dimension", "$description": "Horizontal gap between player equipment slots" },
+      "slot-row": { "$value": "4px", "$type": "dimension", "$description": "Vertical gap between equipment slot rows" },
+      "slot-enemy": { "$value": "3px", "$type": "dimension", "$description": "Gap between enemy equipment slots" },
+      "dice-player": { "$value": "12px", "$type": "dimension", "$description": "Gap between player dice" },
+      "dice-enemy": { "$value": "4px", "$type": "dimension", "$description": "Gap between enemy dice" },
+      "die-face": { "$value": "3px", "$type": "dimension", "$description": "Gap between die faces in loot card" },
+      "cards-side": { "$value": "10px", "$type": "dimension", "$description": "Gap between loot cards side-by-side" },
+      "cards-stacked": { "$value": "6px", "$type": "dimension", "$description": "Gap between stacked loot cards" },
+      "survivor-buttons": { "$value": "10px", "$type": "dimension", "$description": "Gap between survivor selection buttons" }
+    }
+  },
+
+  "sizing": {
+    "$description": "All fixed component dimensions",
+
+    "dice": {
+      "size": { "$value": "36px", "$type": "dimension", "$description": "DIE_SIZE — dice sprite width/height" },
+      "pip-radius": { "$value": "3px", "$type": "dimension", "$description": "Radius of each pip dot" },
+      "die-face-loot": { "$value": "20px", "$type": "dimension", "$description": "Die face square in loot card" }
+    },
+
+    "slot": {
+      "icon-size": { "$value": "44px", "$type": "dimension", "$description": "ICON_SIZE — equipment slot icon width/height" },
+      "min-touch": { "$value": "44px", "$type": "dimension", "$description": "Minimum touch target (loot card)" }
+    },
+
+    "hp": {
+      "badge-diameter": { "$value": "60px", "$type": "dimension", "$description": "Player HP circular badge diameter" },
+      "badge-radius": { "$value": "30px", "$type": "dimension", "$description": "Player HP badge radius" },
+      "arc-width": { "$value": "4px", "$type": "dimension", "$description": "HP arc stroke thickness" },
+      "bar-height-enemy": { "$value": "6px", "$type": "dimension", "$description": "Enemy HP bar height" }
+    },
+
+    "button": {
+      "commit-width": { "$value": "160px", "$type": "dimension", "$description": "Valider button width" },
+      "commit-height": { "$value": "36px", "$type": "dimension", "$description": "Valider button height" },
+      "reset-width": { "$value": "100px", "$type": "dimension", "$description": "Annuler button width" },
+      "reset-height": { "$value": "36px", "$type": "dimension", "$description": "Annuler button height" },
+      "heal-width": { "$value": "200px", "$type": "dimension", "$description": "Heal button width (event)" },
+      "heal-height": { "$value": "48px", "$type": "dimension", "$description": "Heal button height (event)" },
+      "confirm-width": { "$value": "180px", "$type": "dimension", "$description": "Confirm button width (event)" },
+      "confirm-height": { "$value": "48px", "$type": "dimension", "$description": "Confirm button height (event)" },
+      "survivor-height": { "$value": "52px", "$type": "dimension", "$description": "Survivor selection button height" },
+      "survivor-max-width": { "$value": "340px", "$type": "dimension", "$description": "Survivor selection button max width" },
+      "restart-width": { "$value": "180px", "$type": "dimension", "$description": "Restart button width" },
+      "restart-height": { "$value": "48px", "$type": "dimension", "$description": "Restart button height" }
+    },
+
+    "card": {
+      "loot-width": { "$value": "160px", "$type": "dimension", "$description": "Loot card width" }
+    },
+
+    "layout": {
+      "max-creature-height": { "$value": "200px", "$type": "dimension", "$description": "Max creature placeholder height" },
+      "narrow-breakpoint": { "$value": "400px", "$type": "dimension", "$description": "Width below which cards stack vertically" },
+      "reference-width": { "$value": "390px", "$type": "dimension", "$description": "Mobile-first reference width" },
+      "reference-height": { "$value": "844px", "$type": "dimension", "$description": "Mobile-first reference height" },
+      "combat-viewport-width": { "$value": "360px", "$type": "dimension", "$description": "Combat scene default width" },
+      "combat-viewport-height": { "$value": "640px", "$type": "dimension", "$description": "Combat scene default height" }
+    }
+  },
+
+  "border": {
+    "$description": "All border/stroke specifications",
+
+    "radius": {
+      "dice": { "$value": "5px", "$type": "dimension", "$description": "Die face corner radius" },
+      "slot": { "$value": "5px", "$type": "dimension", "$description": "Equipment slot corner radius" },
+      "button": { "$value": "6px", "$type": "dimension", "$description": "Commit/reset/heal/survivor button corner radius" },
+      "card": { "$value": "8px", "$type": "dimension", "$description": "Loot card corner radius" },
+      "die-face-loot": { "$value": "3px", "$type": "dimension", "$description": "Loot card die face corner radius" },
+      "hp-bar": { "$value": "2px", "$type": "dimension", "$description": "Enemy HP bar corner radius" },
+      "hp-bar-large": { "$value": "3px", "$type": "dimension", "$description": "HP bar corner radius (CombatantHud-style)" },
+      "poison-badge-player": { "$value": "4px", "$type": "dimension", "$description": "Player poison badge corner radius" },
+      "poison-badge-enemy": { "$value": "3px", "$type": "dimension", "$description": "Enemy poison badge corner radius" }
+    },
+
+    "width": {
+      "thin": { "$value": "1px", "$type": "dimension", "$description": "Default border, die face, empty slot, creature, unselected card" },
+      "medium": { "$value": "2px", "$type": "dimension", "$description": "Commit button, valid-target/filled slot, confirm button, survivor card" },
+      "thick": { "$value": "3px", "$type": "dimension", "$description": "Dragging die glow, selected card, focus indicator" }
+    },
+
+    "dash-pattern": {
+      "creature": {
+        "dash": { "$value": "6px", "$type": "dimension", "$description": "Creature placeholder dash length" },
+        "gap": { "$value": "4px", "$type": "dimension", "$description": "Creature placeholder gap length" }
+      },
+      "slot-empty": {
+        "dash": { "$value": "4px", "$type": "dimension", "$description": "Empty slot dash length" },
+        "gap": { "$value": "3px", "$type": "dimension", "$description": "Empty slot gap length" }
+      }
+    }
+  },
+
+  "animation": {
+    "$description": "All timing and animation values",
+
+    "duration": {
+      "dice-roll": { "$value": "1800ms", "$type": "duration", "$description": "Total die roll animation" },
+      "resolution-reveal": { "$value": "500ms", "$type": "duration", "$description": "Initial reveal pause in resolution" },
+      "resolution-calc": { "$value": "500ms", "$type": "duration", "$description": "Calculation display time" },
+      "hp-animate": { "$value": "300ms", "$type": "duration", "$description": "HP bar/badge tween duration" },
+      "combat-end": { "$value": "800ms", "$type": "duration", "$description": "Victory/defeat text display" },
+      "poison-stack-display": { "$value": "800ms", "$type": "duration", "$description": "Poison stack transition display time" },
+      "resize-debounce": { "$value": "150ms", "$type": "duration", "$description": "Orientation change resize debounce" }
+    },
+
+    "delay": {
+      "roll-to-allocate": { "$value": "2000ms", "$type": "duration", "$description": "Wait after dice roll before allocation enabled" },
+      "commit-to-resolve": { "$value": "500ms", "$type": "duration", "$description": "Wait after enemy placement before resolution" },
+      "tap-blink-interval": { "$value": "500ms", "$type": "duration", "$description": "Tap prompt blink toggle interval" }
+    },
+
+    "dice-roll": {
+      "start-speed": { "$value": "40ms", "$type": "duration", "$description": "Initial interval between face changes" },
+      "slow-speed": { "$value": "120ms", "$type": "duration", "$description": "Slow-phase interval between face changes" },
+      "slow-point": { "$value": "0.6", "$type": "number", "$description": "Progress ratio when roll starts slowing" },
+      "stop-point": { "$value": "0.92", "$type": "number", "$description": "Progress ratio when roll stops" }
+    },
+
+    "shake": {
+      "steps": { "$value": "6", "$type": "number", "$description": "Number of shake oscillations" },
+      "interval": { "$value": "40ms", "$type": "duration", "$description": "Interval between shake steps" },
+      "displacement": { "$value": "3px", "$type": "dimension", "$description": "Shake X offset" }
+    },
+
+    "poison-pulse": {
+      "steps": { "$value": "6", "$type": "number", "$description": "Number of pulse blinks" },
+      "interval": { "$value": "80ms", "$type": "duration", "$description": "Interval between pulse blinks" },
+      "alpha-on": { "$value": "1", "$type": "number", "$description": "Visible alpha" },
+      "alpha-off": { "$value": "0.3", "$type": "number", "$description": "Dimmed alpha" }
+    }
+  },
+
+  "opacity": {
+    "$description": "All alpha/opacity values",
+
+    "interactive": {
+      "enabled": { "$value": "1", "$type": "number", "$description": "Fully visible enabled state" },
+      "disabled": { "$value": "0.35", "$type": "number", "$description": "Disabled button alpha" },
+      "hover": { "$value": "0.85", "$type": "number", "$description": "Button hover state (commit)" },
+      "hover-card": { "$value": "0.85", "$type": "number", "$description": "Loot card hover alpha" },
+      "hover-survivor": { "$value": "0.8", "$type": "number", "$description": "Survivor/restart button hover alpha" }
+    },
+
+    "dice": {
+      "rolling": { "$value": "0.7", "$type": "number", "$description": "Die alpha during roll animation" },
+      "incompatible": { "$value": "0.4", "$type": "number", "$description": "Incompatible die state alpha" },
+      "enemy": { "$value": "0.6", "$type": "number", "$description": "Enemy dice display alpha" }
+    },
+
+    "surface": {
+      "hp-badge-bg": { "$value": "0.85", "$type": "number", "$description": "HP badge circle background" },
+      "card-fill": { "$value": "0.9", "$type": "number", "$description": "Loot card / heal button / survivor button fill" },
+      "overlay": { "$value": "0.85", "$type": "number", "$description": "Resolution overlay, poison badge bg" },
+      "creature-bg": { "$value": "0.3", "$type": "number", "$description": "Creature placeholder background" },
+      "creature-border": { "$value": "0.2", "$type": "number", "$description": "Creature dashed border" },
+      "slot-dashed-border": { "$value": "0.5", "$type": "number", "$description": "Empty slot dashed border" },
+      "focus-indicator": { "$value": "0.9", "$type": "number", "$description": "Gamepad focus ring" }
+    },
+
+    "text": {
+      "locked-icon": { "$value": "0.5", "$type": "number", "$description": "Locked slot icon text alpha" },
+      "range-normal": { "$value": "0.7", "$type": "number", "$description": "Non-locked range text alpha" },
+      "range-locked": { "$value": "0.4", "$type": "number", "$description": "Locked range text alpha" }
+    }
+  },
+
+  "scale": {
+    "$description": "Scale transform values",
+    "enemy-dice": { "$value": "0.6", "$type": "number", "$description": "Enemy dice scale factor (36 * 0.6 = 21.6px)" },
+    "card-selected": { "$value": "1.04", "$type": "number", "$description": "Selected loot card scale" },
+    "card-default": { "$value": "1", "$type": "number", "$description": "Default loot card scale" },
+    "focus-scale": { "$value": "1.05", "$type": "number", "$description": "Focus state scale (declared in theme.ts)" }
+  },
+
+  "threshold": {
+    "$description": "Gameplay-relevant display thresholds",
+    "hp-healthy": { "$value": "0.6", "$type": "number", "$description": "HP > 60% shows green" },
+    "hp-warning": { "$value": "0.3", "$type": "number", "$description": "HP 30-60% shows orange (player) or red (enemy)" },
+    "speed-kill-rounds": { "$value": "3", "$type": "number", "$description": "Rounds threshold for speed kill" },
+    "speed-kill-recovery": { "$value": "3", "$type": "number", "$description": "HP recovered on speed kill" }
+  }
+}

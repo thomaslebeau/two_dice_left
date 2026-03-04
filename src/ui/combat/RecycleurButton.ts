@@ -9,7 +9,7 @@ import { tickerTween, tickerLoop, type TickerHandle } from './tickerUtils';
 import { timings } from '../../theme';
 import type { DiceSprite } from './DiceSprite';
 
-const BONE = 0xD9CFBA, RUST = 0x8B3A1A, MOSS = 0x2D4A2E;
+const BONE = 0xD9CFBA, RUST = 0x8B3A1A;
 const BTN_W = 52, BTN_H = 24;
 
 export class RecycleurButton extends Container {

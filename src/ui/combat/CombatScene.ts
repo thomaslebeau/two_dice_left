@@ -8,7 +8,6 @@ import type { Scene } from '../../engine/SceneManager';
 import type { AllocationPattern, Equipment, Survivor, Enemy, PassiveId, PassiveState } from '../../engine/types';
 import { rollDice } from '../../engine/dice';
 import { allocateEnemy } from '../../engine/allocation';
-import { DIE_SIZE } from './DiceSprite';
 import { CommitButton } from './CommitButton';
 import { ResetButton } from './ResetButton';
 import { ResolutionAnimation } from './ResolutionAnimation';

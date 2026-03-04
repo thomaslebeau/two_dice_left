@@ -417,17 +417,25 @@ async function main() {
   });
 
   // --- Resize handler ---
+  // Read safe-area-inset-bottom from a sentinel div (set in index.html).
+  // Scenes receive the usable height so buttons stay above the home indicator.
+  const safeAreaProbe = document.getElementById('safe-area-probe');
+
   function handleResize() {
     const w = window.innerWidth;
     const h = window.innerHeight;
     app.renderer.resize(w, h);
-    scenes.resize(w, h);
+    const safeBottom = safeAreaProbe?.offsetHeight ?? 0;
+    scenes.resize(w, h - safeBottom);
   }
 
   window.addEventListener('resize', handleResize);
   window.addEventListener('orientationchange', () => {
     setTimeout(handleResize, 150);
   });
+
+  // Initial safe-area measurement before first scene loads
+  handleResize();
 
   // --- Start ---
   orchestrator.startRun();

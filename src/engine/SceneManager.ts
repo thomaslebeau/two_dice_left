@@ -23,9 +23,13 @@ export class SceneManager {
   private currentName: string | null = null;
   private currentScene: Scene | null = null;
   private app: Application;
+  private _lastW = 0;
+  private _lastH = 0;
 
   constructor(app: Application) {
     this.app = app;
+    this._lastW = app.screen.width;
+    this._lastH = app.screen.height;
 
     // Wire the ticker to forward updates to the active scene
     this.app.ticker.add((ticker) => {
@@ -33,8 +37,10 @@ export class SceneManager {
     });
   }
 
-  /** Notify the active scene of a viewport resize. */
+  /** Notify the active scene of a viewport resize (usable area). */
   resize(width: number, height: number): void {
+    this._lastW = width;
+    this._lastH = height;
     this.currentScene?.onResize?.(width, height);
   }
 
@@ -62,9 +68,8 @@ export class SceneManager {
     this.currentScene = next;
     this.app.stage.addChild(next);
 
-    // Notify it of the current screen size then call onEnter
-    const { width, height } = this.app.screen;
-    next.onResize?.(width, height);
+    // Notify it of the last known usable size (accounts for safe area)
+    next.onResize?.(this._lastW, this._lastH);
     next.onEnter?.(data);
   }
 

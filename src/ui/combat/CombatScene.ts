@@ -21,7 +21,7 @@ import { PassiveFeedback } from './PassiveFeedback';
 import { tickerWait, tickerLoop, type TickerHandle } from './tickerUtils';
 
 const BONE = 0xD9CFBA, RUST = 0x8B3A1A, MOSS = 0x2D4A2E;
-const PADDING = 8, GAP = 4, MAX_CREATURE_H = 200;
+const PADDING = 8, GAP = 4;
 type CombatPhase = 'rolling' | 'allocating' | 'resolving' | 'results' | 'finished';
 
 export interface CombatSceneData {
@@ -126,30 +126,43 @@ export class CombatScene extends Container implements Scene {
 
   private _layout(): void {
     const w = this._sw, h = this._sh, cx = w / 2, avail = w - PADDING * 2;
-    // Top: enemy zone
-    this._enemyZone.position.set(PADDING, PADDING);
+
+    // Proportional layout — all zones fit within the viewport
+    const enemyY = 0;
+    const enemyH = h * 0.12;
+    const illusY = enemyH;
+    const illusH = h * 0.30;
+    const diceY = h * 0.44;
+    const playerY = h * 0.52;
+    const btnY = h * 0.82;
+
+    // Enemy zone — top 12%
+    this._enemyZone.position.set(PADDING, enemyY + PADDING);
     this._enemyZone.layout(avail);
     if (this._state) this._enemyZone.updateHp(this._state.enemyHp, this._state.enemyMaxHp, avail * 0.6);
-    const enemyBottom = PADDING + this._enemyZone.zoneHeight + GAP;
-    // Bottom-up: buttons → player zone → dice tray
-    const btnY = h - PADDING - this._commitBtn.buttonHeight;
+
+    // Buttons — at 82%, always visible
     const btnGap = 8;
     const totalBtnW = this._resetBtn.buttonWidth + btnGap + this._commitBtn.buttonWidth;
     this._resetBtn.position.set(cx - totalBtnW / 2, btnY);
     this._commitBtn.position.set(cx - totalBtnW / 2 + this._resetBtn.buttonWidth + btnGap, btnY);
+
+    // Player zone — at 52%
     this._playerZone.layout(avail);
-    const pzY = btnY - GAP - this._playerZone.zoneHeight;
-    this._playerZone.position.set(PADDING, pzY);
-    const diceY = pzY - GAP - DIE_SIZE;
+    this._playerZone.position.set(PADDING, playerY);
+
+    // Player dice — at 44%
     this._playerDiceZone.position.set(0, diceY);
     this._allocator.updateLayout(this._sw, diceY);
     this._allocator.layoutDice();
-    // Middle: creature fills remaining space (capped)
-    const creatureH = Math.min(MAX_CREATURE_H, Math.max(20, diceY - GAP - enemyBottom));
-    this._creature.position.set(PADDING, enemyBottom);
+
+    // Illustration — fills 30% between enemy and dice
+    const creatureH = Math.max(20, illusH - GAP);
+    this._creature.position.set(PADDING, illusY);
     this._creature.layout(avail, creatureH);
-    this._resolution.layoutAt(cx, enemyBottom + 10, avail);
-    this._tapPrompt.position.set(cx, enemyBottom + creatureH / 2);
+
+    this._resolution.layoutAt(cx, illusY + 10, avail);
+    this._tapPrompt.position.set(cx, illusY + creatureH / 2);
   }
 
   private _updateHpDisplays(): void {

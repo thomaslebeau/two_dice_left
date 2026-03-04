@@ -95,4 +95,8 @@ export const timings = {
   hoverTransition: 200,
   cardHoverLift: 5,
   focusedScale: 1.05,
+  passivePopupDuration: 600,
+  passiveGlowDuration: 300,
+  passiveBannerHold: 800,
+  recycleurSpinDuration: 400,
 } as const;

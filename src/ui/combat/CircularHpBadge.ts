@@ -5,7 +5,7 @@
  */
 
 import { Container, Graphics, Text } from 'pixi.js';
-import { tickerWait, tickerSteps } from './tickerUtils';
+import { tickerWait, tickerSteps, tickerLoop, type TickerHandle } from './tickerUtils';
 
 // ---------------------------------------------------------------------------
 // V6 palette
@@ -38,6 +38,8 @@ export class CircularHpBadge extends Container {
   private _poisonBadge = new Container();
   private _poisonBg = new Graphics();
   private _poisonLabel: Text;
+  private _dangerGlow = new Graphics();
+  private _dangerPulseHandle: TickerHandle | null = null;
 
   private _currentHp = 0;
   private _maxHp = 1;
@@ -45,6 +47,8 @@ export class CircularHpBadge extends Container {
   constructor() {
     super();
 
+    this._dangerGlow.visible = false;
+    this.addChild(this._dangerGlow);
     this.addChild(this._bgCircle);
     this.addChild(this._arcGraphics);
 
@@ -131,6 +135,28 @@ export class CircularHpBadge extends Container {
     void tickerSteps(6, 80, (step) => {
       this._poisonBadge.alpha = step % 2 === 0 ? 1 : 0.3;
     }).then(() => { this._poisonBadge.alpha = 1; });
+  }
+
+  // -----------------------------------------------------------------------
+  // Danger pulse (Survivant passive — HP below 40%)
+  // -----------------------------------------------------------------------
+
+  setDangerPulse(on: boolean): void {
+    if (on && !this._dangerPulseHandle) {
+      this._dangerGlow.clear();
+      this._dangerGlow.circle(RADIUS, RADIUS, RADIUS + 3);
+      this._dangerGlow.stroke({ color: BLOOD, width: 2 });
+      this._dangerGlow.visible = true;
+      this._dangerPulseHandle = tickerLoop((elapsed) => {
+        const s = 1 + 0.1 * Math.sin(elapsed / 150);
+        this._dangerGlow.scale.set(s);
+        this._dangerGlow.alpha = 0.5 + 0.5 * Math.sin(elapsed / 150);
+      });
+    } else if (!on && this._dangerPulseHandle) {
+      this._dangerPulseHandle.stop();
+      this._dangerPulseHandle = null;
+      this._dangerGlow.visible = false;
+    }
   }
 
   // -----------------------------------------------------------------------

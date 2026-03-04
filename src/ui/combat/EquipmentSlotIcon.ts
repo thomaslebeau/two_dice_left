@@ -60,6 +60,8 @@ export class EquipmentSlotIcon extends Container {
   private _rangeText: Text;
   private _valueText: Text;
   private _effectText: Text;
+  private _passiveBonusText: Text;
+  private _borderGlow = new Graphics();
   private _equipment: Equipment;
   private _equipmentIndex: number;
   private _state: SlotState = 'empty';
@@ -83,7 +85,12 @@ export class EquipmentSlotIcon extends Container {
     this._effectText = mkText('', 8, c);
     this._effectText.position.set(half, 22);
     this._effectText.visible = false;
-    this.addChild(this._iconText, this._rangeText, this._valueText, this._effectText);
+    this._passiveBonusText = mkText('', 8, BONE, true);
+    this._passiveBonusText.position.set(half, 34);
+    this._passiveBonusText.visible = false;
+    this._borderGlow.visible = false;
+    this.addChild(this._borderGlow);
+    this.addChild(this._iconText, this._rangeText, this._valueText, this._effectText, this._passiveBonusText);
 
     this.eventMode = 'static';
     this.cursor = 'pointer';
@@ -131,6 +138,32 @@ export class EquipmentSlotIcon extends Container {
 
   clearPreview(): void {
     if (this._state !== 'filled') this._effectText.visible = false;
+  }
+
+  /** Show passive bonus text (e.g. "+1") below effect. */
+  showPassiveBonus(value: number, color: number): void {
+    this._passiveBonusText.text = `+${value}`;
+    this._passiveBonusText.style.fill = color;
+    this._passiveBonusText.visible = true;
+  }
+
+  /** Hide passive bonus text. */
+  clearPassiveBonus(): void {
+    this._passiveBonusText.visible = false;
+  }
+
+  /** Show outer border glow (e.g. Elan weapon glow). */
+  showBorderGlow(color: number): void {
+    this._borderGlow.clear();
+    this._borderGlow.roundRect(-2, -2, ICON_SIZE + 4, ICON_SIZE + 4, CORNER_R + 2);
+    this._borderGlow.stroke({ color, width: 2, alpha: 0.8 });
+    this._borderGlow.visible = true;
+  }
+
+  /** Remove border glow. */
+  clearBorderGlow(): void {
+    this._borderGlow.clear();
+    this._borderGlow.visible = false;
   }
 
   private _toggleFilled(filled: boolean): void {

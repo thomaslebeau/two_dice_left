@@ -9,7 +9,7 @@
  * Zero Pixi imports — pure TypeScript.
  */
 
-import type { Allocation, Equipment, PassiveId, PassiveState } from '../../engine/types';
+import type { Allocation, Equipment, PassiveId, PassiveState, PassiveEvent } from '../../engine/types';
 import { resolveRound, sumAllocEffects } from '../../engine/combat';
 import {
   createPassiveState,
@@ -43,6 +43,7 @@ export interface RoundResult {
   resolutionData: ResolutionData;
   playerPoison: PoisonSnapshot;
   enemyPoison: PoisonSnapshot;
+  passiveEvents: readonly PassiveEvent[];
 }
 
 // ---------------------------------------------------------------------------
@@ -108,30 +109,59 @@ export class CombatState {
       contextBuilder,
     );
 
-    // Apply passive damage modifiers
+    // Apply passive damage modifiers + build PassiveEvent list
+    const passiveEvents: PassiveEvent[] = [];
     let dmgToEnemy = outcome.damageToEnemy;
+
+    // Survivant
+    const dmgBeforeSurvivant = dmgToEnemy;
     dmgToEnemy = applySurvivant(
       this._passiveId, this._playerHp, this._playerMaxHp,
       dmgToEnemy, outcome.playerUsedWeapon,
     );
+    if (dmgToEnemy > dmgBeforeSurvivant) {
+      const wSlotIdx = playerAllocs.find(
+        a => playerEquipment[a.equipmentIndex].type === 'weapon',
+      )?.equipmentIndex;
+      passiveEvents.push({
+        passiveId: 'survivant', triggered: true, value: 1,
+        targetSlotIndex: wSlotIdx,
+      });
+    }
+
+    // Ingenieux
     const ingBonus = applyIngenieux(this._passiveId, playerAllocs, playerEquipment);
     dmgToEnemy += ingBonus.bonusDmg;
     let dmgToPlayer = outcome.damageToPlayer;
     dmgToPlayer = Math.max(0, dmgToPlayer - ingBonus.bonusShield);
+    if (ingBonus.bonusDmg > 0 || ingBonus.bonusShield > 0) {
+      passiveEvents.push({
+        passiveId: 'ingenieux', triggered: true,
+        value: ingBonus.bonusDmg > 0 ? ingBonus.bonusDmg : ingBonus.bonusShield,
+      });
+    }
 
     // Elan: +1 dmg round 1 if active (mark combat as boosted for no-chain)
     if (this._passiveId === 'elan' && state.elanActive && this._round === 1) {
       dmgToEnemy += 1;
       state.elanBoostedCombat = true;
+      passiveEvents.push({ passiveId: 'elan', triggered: true, value: 1 });
     }
     // Trophee stacks
     if (state.tropheeStacks > 0 && outcome.playerUsedWeapon) {
       dmgToEnemy += state.tropheeStacks;
+      passiveEvents.push({
+        passiveId: 'recycleur', triggered: true, value: state.tropheeStacks,
+      });
     }
-    // Rempart carry
+    // Rempart carry consumed
+    const rempartConsumed = state.rempartCarryShield;
     if (state.rempartCarryShield > 0) {
       dmgToPlayer = Math.max(0, dmgToPlayer - state.rempartCarryShield);
       state.rempartCarryShield = 0;
+      passiveEvents.push({
+        passiveId: 'rempart', triggered: true, value: rempartConsumed,
+      });
     }
     // Re-apply min-1
     if (outcome.playerUsedWeapon) {
@@ -182,6 +212,11 @@ export class CombatState {
       this._passiveId, outcome.playerShieldTotal, outcome.enemyRawDmg,
       this._playerHp, this._playerMaxHp,
     );
+    if (state.rempartCarryShield > 0) {
+      passiveEvents.push({
+        passiveId: 'rempart', triggered: true, value: state.rempartCarryShield,
+      });
+    }
     // Tick trophee stacks
     tickTropheeStacks(state);
 
@@ -211,7 +246,7 @@ export class CombatState {
       speedKillRecovery,
     };
 
-    return { resolutionData, playerPoison: pPoison, enemyPoison: ePoison };
+    return { resolutionData, playerPoison: pPoison, enemyPoison: ePoison, passiveEvents };
   }
 
   // -----------------------------------------------------------------------

@@ -87,6 +87,17 @@ export interface Allocation {
 export type Strategy = 'aggressive' | 'defensive' | 'smart' | 'random';
 
 // ---------------------------------------------------------------------------
+// Passive events (UI feedback — produced by CombatState, consumed by UI)
+// ---------------------------------------------------------------------------
+
+export interface PassiveEvent {
+  readonly passiveId: PassiveId;
+  readonly triggered: boolean;
+  readonly value: number;
+  readonly targetSlotIndex?: number;
+}
+
+// ---------------------------------------------------------------------------
 // Results
 // ---------------------------------------------------------------------------
 

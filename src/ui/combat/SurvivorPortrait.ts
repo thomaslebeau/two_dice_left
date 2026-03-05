@@ -1,11 +1,10 @@
 /**
- * Diegetic survivor portrait — metal circle frame with rivets,
- * survivor name, and CircularHpBadge overlay.
+ * Diegetic survivor portrait — metal circle frame with rivets
+ * and survivor name. Badge HP is managed by PlayerZone directly.
  * Matches LootPlank iron aesthetic.
  */
 
 import { Container, Graphics, Text } from 'pixi.js';
-import { CircularHpBadge, BADGE_DIAMETER } from './CircularHpBadge';
 import { FONTS } from '../../theme';
 
 const IRON_FILL = 0x3A3A3A;
@@ -21,7 +20,6 @@ const RIVET_R = 3;
 const RIVET_INNER = 2.5;
 
 export class SurvivorPortrait extends Container {
-  private _badge = new CircularHpBadge();
   private _nameText: Text;
   private _frame = new Graphics();
 
@@ -41,12 +39,7 @@ export class SurvivorPortrait extends Container {
     });
     this._nameText.anchor.set(0.5, 0);
     this.addChild(this._nameText);
-
-    // HP badge at top-right of frame
-    this.addChild(this._badge);
   }
-
-  get badge(): CircularHpBadge { return this._badge; }
 
   setName(name: string): void {
     this._nameText.text = name;
@@ -60,14 +53,6 @@ export class SurvivorPortrait extends Container {
 
     // Name below frame
     this._nameText.position.set(cx, FRAME_RADIUS * 2 + 10);
-
-    // Badge overlapping top-right
-    const badgeScale = 0.7;
-    this._badge.scale.set(badgeScale);
-    this._badge.position.set(
-      cx + FRAME_RADIUS - BADGE_DIAMETER * badgeScale * 0.3,
-      0,
-    );
   }
 
   private _drawFrame(): void {

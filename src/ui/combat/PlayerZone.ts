@@ -6,7 +6,7 @@
 import { Container } from 'pixi.js';
 import { SurvivorPortrait } from './SurvivorPortrait';
 import { ToolBox } from './ToolBox';
-import type { CircularHpBadge } from './CircularHpBadge';
+import { CircularHpBadge } from './CircularHpBadge';
 import type { Equipment } from '../../engine/types';
 import type { PoisonSnapshot } from './CombatState';
 
@@ -15,14 +15,18 @@ const PORTRAIT_RATIO = 0.25;
 export class PlayerZone extends Container {
   private _portrait = new SurvivorPortrait();
   private _toolBox = new ToolBox();
+  private _badge = new CircularHpBadge();
 
   constructor() {
     super();
-    this.addChild(this._portrait);
+    this.sortableChildren = true;
     this.addChild(this._toolBox);
+    this.addChild(this._portrait);
+    this._badge.zIndex = 10;
+    this.addChild(this._badge);
   }
 
-  get badge(): CircularHpBadge { return this._portrait.badge; }
+  get badge(): CircularHpBadge { return this._badge; }
   get toolBox(): ToolBox { return this._toolBox; }
 
   /** Build equipment compartments + set survivor name. */
@@ -42,21 +46,26 @@ export class PlayerZone extends Container {
 
     this._toolBox.position.set(portraitW, 0);
     this._toolBox.layout(boxW, h);
+
+    // Badge at top-right of portrait, above everything
+    const badgeScale = 0.7;
+    this._badge.scale.set(badgeScale);
+    this._badge.position.set(portraitW - 10, 0);
   }
 
   updateHp(current: number, max: number): void {
-    this._portrait.badge.updateHp(current, max);
+    this._badge.updateHp(current, max);
   }
 
   applyPoison(snap: PoisonSnapshot): void {
     if (snap.newPoison > 0 && snap.poisonAfterTick > 0) {
-      this._portrait.badge.showPoisonStack(
+      this._badge.showPoisonStack(
         snap.poisonAfterTick, snap.totalAfter,
       );
     } else {
-      this._portrait.badge.setPoisonTurns(snap.totalAfter);
+      this._badge.setPoisonTurns(snap.totalAfter);
     }
-    if (snap.ticked) this._portrait.badge.pulsePoisonBadge();
+    if (snap.ticked) this._badge.pulsePoisonBadge();
   }
 
   clear(): void {

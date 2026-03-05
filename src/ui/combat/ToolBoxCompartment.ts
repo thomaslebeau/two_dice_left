@@ -189,13 +189,12 @@ export class ToolBoxCompartment extends Container implements SlotLike {
     this._rangeText.visible = false;
   }
 
-  /** Release the reparented DiceSprite back. */
+  /** Release the reparented DiceSprite back. Does NOT call setState — caller owns die lifecycle. */
   releaseDie(): DiceSprite | null {
     const die = this._placedDie;
     if (!die) return null;
     this._placedDie = null;
-    this.removeChild(die);
-    die.setState('idle');
+    if (!die.destroyed) this.removeChild(die);
     this._glyphText.visible = true;
     this._rangeText.visible = true;
     return die;

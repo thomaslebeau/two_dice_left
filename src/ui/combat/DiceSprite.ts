@@ -14,8 +14,8 @@ import { FONTS } from '../../theme';
 
 const BONE = 0xD9CFBA;
 const RUST = 0x8B3A1A;
+const MOSS = 0x2D4A2E;
 const CHARCOAL = 0x1A1A1A;
-const CHARCOAL_LIGHT = 0x2A2A2A;
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -161,11 +161,15 @@ export class DiceSprite extends Container {
 
   private _drawBg(): void {
     this._bg.clear();
-    const fill = this._state === 'placed' ? CHARCOAL_LIGHT : BONE;
+    // Always bone white — state communicated by stroke only
     this._bg.roundRect(0, 0, DIE_SIZE, DIE_SIZE, CORNER_RADIUS);
-    this._bg.fill({ color: fill });
+    this._bg.fill({ color: BONE });
+    const strokeColor = this._state === 'dragging' ? RUST
+      : this._state === 'placed' ? MOSS
+      : 0x999999;
+    const strokeWidth = (this._state === 'dragging' || this._state === 'placed') ? 2 : 1;
     this._bg.roundRect(0, 0, DIE_SIZE, DIE_SIZE, CORNER_RADIUS);
-    this._bg.stroke({ color: 0x999999, width: 1 });
+    this._bg.stroke({ color: strokeColor, width: strokeWidth });
   }
 
   private _drawGlow(): void {
@@ -181,10 +185,9 @@ export class DiceSprite extends Container {
     const pattern = PIP_PATTERNS[value];
     if (!pattern) return;
 
-    const pipColor = this._state === 'placed' ? BONE : PIP_COLOR;
     for (const [px, py] of pattern) {
       this._pips.circle(px * DIE_SIZE, py * DIE_SIZE, PIP_RADIUS);
-      this._pips.fill({ color: pipColor });
+      this._pips.fill({ color: PIP_COLOR });
     }
   }
 

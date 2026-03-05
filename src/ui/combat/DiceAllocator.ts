@@ -195,6 +195,7 @@ export class DiceAllocator {
       const released = slot.releaseDie();
       if (released && this._diceParent) {
         this._diceParent.addChild(released);
+        released.setState('idle');
       }
     }
 

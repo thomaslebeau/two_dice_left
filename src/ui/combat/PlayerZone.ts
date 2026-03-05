@@ -47,10 +47,10 @@ export class PlayerZone extends Container {
     this._toolBox.position.set(portraitW, 0);
     this._toolBox.layout(boxW, h);
 
-    // Badge at top-right of portrait, above everything
+    // Badge overlapping top-right of portrait frame
     const badgeScale = 0.7;
     this._badge.scale.set(badgeScale);
-    this._badge.position.set(portraitW - 10, 0);
+    this._badge.position.set(50, 0);
   }
 
   updateHp(current: number, max: number): void {

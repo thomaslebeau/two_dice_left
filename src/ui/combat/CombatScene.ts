@@ -71,14 +71,14 @@ export class CombatScene extends Container implements Scene {
     this.addChild(this._tapPrompt);
     this._commitBtn.onCommit = () => this._handleCommit();
     this._resetBtn.onReset = () => { this._allocator.resetAllAllocations(); };
-    this._playerZone.grid.onSlotTap = (i) => this._allocator.handleSlotTap(i);
+    this._playerZone.toolBox.onSlotTap = (i) => this._allocator.handleSlotTap(i);
     this._allocator.onChange = () => {
       this._commitBtn.setEnabled(this._allocator.isComplete());
       this._resetBtn.setVisible(this._allocator.hasAllocations());
       if (this._passiveId === 'ingenieux') {
         this._passiveFeedback.checkIngenieuxPreview(
           this._allocator.getAllocations(), this._data!.playerEquipment, // safe: onChange only fires during allocation
-          this._passiveId, this._playerZone.grid.slots,
+          this._passiveId, this._playerZone.toolBox.slots,
         );
       }
       this._handleRecycleurOnChange();
@@ -147,8 +147,9 @@ export class CombatScene extends Container implements Scene {
     this._resetBtn.position.set(cx - totalBtnW / 2, btnY);
     this._commitBtn.position.set(cx - totalBtnW / 2 + this._resetBtn.buttonWidth + btnGap, btnY);
 
-    // Player zone — at 52%
-    this._playerZone.layout(avail);
+    // Player zone — at 52%, fills to button area
+    const playerH = btnY - playerY - GAP;
+    this._playerZone.layout(avail, playerH);
     this._playerZone.position.set(PADDING, playerY);
 
     // Player dice — at 44%
@@ -175,19 +176,19 @@ export class CombatScene extends Container implements Scene {
 
   private _buildGrids(d: CombatSceneData): void {
     this._playerZone.clear(); this._enemyZone.clear();
-    this._playerZone.build(d.playerEquipment);
+    this._playerZone.build(d.playerEquipment, d.survivor.name);
     this._enemyZone.buildSlots(d.enemy.equipment);
   }
 
   private _startRound(): void {
     if (!this._data || !this._state) return;
     this._state.nextRound(); this._phase = 'rolling';
-    this._resolution.reset(); this._playerZone.grid.resetAll();
+    this._resolution.reset(); this._playerZone.toolBox.resetAll();
     this._enemyZone.resetSlots(); this._allocator.reset(); this._enemyZone.clearDice();
     this._recycleurCancel = null;
     const pv = rollDice(2); // Raw dice — Recycleur is now interactive
     const ev = rollDice(2);
-    for (const die of this._allocator.setup(pv, [...this._playerZone.grid.slots], this._sw, this._playerDiceZone.y))
+    for (const die of this._allocator.setup(pv, [...this._playerZone.toolBox.slots], this._sw, this._playerDiceZone.y, this))
       this.addChild(die);
     this._enemyZone.buildDice(ev);
     this._commitBtn.setEnabled(false); this._resetBtn.setVisible(false);
@@ -203,7 +204,7 @@ export class CombatScene extends Container implements Scene {
       }
       // Elan: glow weapon slots on round 1
       if (this._passiveId === 'elan' && this._data?.passiveState?.elanActive && this._state?.round === 1) {
-        this._passiveFeedback.setElanGlow([...this._playerZone.grid.slots], true);
+        this._passiveFeedback.setElanGlow([...this._playerZone.toolBox.slots], true);
       }
       // Recycleur: interactive die=1 adjust
       this._trySetupRecycleur();
@@ -215,7 +216,7 @@ export class CombatScene extends Container implements Scene {
     this._phase = 'resolving';
     this._recycleurCancel?.cancel(); this._recycleurCancel = null;
     this._commitBtn.setEnabled(false); this._resetBtn.setVisible(false);
-    this._allocator.setEnabled(false); this._playerZone.grid.lockAll();
+    this._allocator.setEnabled(false); this._playerZone.toolBox.lockAll();
     const pa = this._allocator.getAllocations();
     const ea = allocateEnemy([...this._enemyZone.diceValues], this._data.enemy.equipment, this._data.enemy.pattern);
     for (const a of ea) this._enemyZone.placeDie(a.equipmentIndex, a.dieValue);
@@ -224,10 +225,10 @@ export class CombatScene extends Container implements Scene {
     this._playerZone.applyPoison(r.playerPoison); this._applyEnemyPoison(r.enemyPoison);
     await this._resolution.play(r.resolutionData);
     // Post-resolution passive feedback
-    await this._passiveFeedback.handleRoundResult(r.passiveEvents, [...this._playerZone.grid.slots]);
+    await this._passiveFeedback.handleRoundResult(r.passiveEvents, [...this._playerZone.toolBox.slots]);
     // Elan: clear weapon glow after round 1
     if (this._passiveId === 'elan' && this._state.round === 1) {
-      this._passiveFeedback.setElanGlow([...this._playerZone.grid.slots], false);
+      this._passiveFeedback.setElanGlow([...this._playerZone.toolBox.slots], false);
     }
     // Survivant: update danger state after damage
     if (this._passiveId === 'survivant') {

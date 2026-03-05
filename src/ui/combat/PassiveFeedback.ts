@@ -11,10 +11,9 @@ import { PassiveIndicator } from './PassiveIndicator';
 import { RecycleurButton } from './RecycleurButton';
 import { tickerTween, tickerWait } from './tickerUtils';
 import { timings, FONTS } from '../../theme';
-import type { EquipmentSlotIcon } from './EquipmentSlotIcon';
+import type { SlotLike } from './SlotLike';
 import type { CircularHpBadge } from './CircularHpBadge';
 import type { DiceSprite } from './DiceSprite';
-import { ICON_SIZE } from './EquipmentSlotIcon';
 import { DIE_SIZE } from './DiceSprite';
 
 const BONE = 0xD9CFBA, RUST = 0x8B3A1A, MOSS = 0x2D4A2E;
@@ -25,7 +24,7 @@ export class PassiveFeedback extends Container {
   private _rempartIndicator = new PassiveIndicator();
   private _recycleurBtn = new RecycleurButton();
   private _banner: Text | null = null;
-  private _prevIngenieuxSlot: EquipmentSlotIcon | null = null;
+  private _prevIngenieuxSlot: SlotLike | null = null;
 
   constructor() {
     super();
@@ -71,8 +70,8 @@ export class PassiveFeedback extends Container {
     this._banner = null;
   }
 
-  /** Toggle rust orange border glow on weapon EquipmentSlotIcons. */
-  setElanGlow(slots: readonly EquipmentSlotIcon[], on: boolean): void {
+  /** Toggle rust orange border glow on weapon slots. */
+  setElanGlow(slots: readonly SlotLike[], on: boolean): void {
     for (const s of slots) {
       if (s.equipment.type === 'weapon') {
         if (on) s.showBorderGlow(RUST);
@@ -100,7 +99,7 @@ export class PassiveFeedback extends Container {
     allocations: Allocation[],
     equipment: readonly Equipment[],
     passiveId: PassiveId | undefined,
-    slots: readonly EquipmentSlotIcon[],
+    slots: readonly SlotLike[],
   ): void {
     if (passiveId !== 'ingenieux') return;
 
@@ -115,7 +114,7 @@ export class PassiveFeedback extends Container {
 
     // Find the weakest-axis slot to annotate
     const targetType = bonus.bonusDmg > 0 ? 'weapon' : 'shield';
-    let weakest: EquipmentSlotIcon | null = null;
+    let weakest: SlotLike | null = null;
     let weakestVal = Infinity;
     for (const a of allocations) {
       const eq = equipment[a.equipmentIndex];
@@ -198,7 +197,7 @@ export class PassiveFeedback extends Container {
   /** Play visual feedback for passive events after round resolution. */
   async handleRoundResult(
     passiveEvents: readonly PassiveEvent[],
-    slots: readonly EquipmentSlotIcon[],
+    slots: readonly SlotLike[],
   ): Promise<void> {
     for (const evt of passiveEvents) {
       if (!evt.triggered) continue;
@@ -207,10 +206,10 @@ export class PassiveFeedback extends Container {
           if (evt.targetSlotIndex !== undefined) {
             const slot = slots.find(s => s.equipmentIndex === evt.targetSlotIndex);
             if (slot) {
-              const gp = slot.getGlobalPosition();
+              const bounds = slot.getBounds();
               await this._indicator.popup(
                 `+${evt.value}`, RUST,
-                gp.x + ICON_SIZE / 2, gp.y - 14,
+                bounds.x + bounds.width / 2, bounds.y - 14,
               );
             }
           }
@@ -220,8 +219,11 @@ export class PassiveFeedback extends Container {
           // Rempart carry earned — find shield slot
           const shieldSlot = slots.find(s => s.equipment.type === 'shield');
           if (shieldSlot) {
-            const gp = shieldSlot.getGlobalPosition();
-            this.showRempartCarry(gp.x + ICON_SIZE + 4, gp.y + ICON_SIZE / 2);
+            const bounds = shieldSlot.getBounds();
+            this.showRempartCarry(
+              bounds.x + bounds.width + 4,
+              bounds.y + bounds.height / 2,
+            );
           }
           break;
         }

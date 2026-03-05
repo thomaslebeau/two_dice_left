@@ -16,7 +16,8 @@ const CHARCOAL = 0x1A1A1A;
 export const ICON_SIZE = 44;
 const CORNER_R = 5;
 
-export type SlotState = 'empty' | 'valid-target' | 'dimmed' | 'filled' | 'locked';
+export type { SlotState } from './SlotLike';
+type SlotState = import('./SlotLike').SlotState;
 
 function fmtEffect(e: EquipmentEffect): string {
   if (e.damage > 0) return `${e.damage}dmg`;

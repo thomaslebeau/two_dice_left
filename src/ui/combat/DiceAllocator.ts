@@ -1,37 +1,55 @@
 /**
  * Dice-to-equipment allocation interaction.
  * Handles drag-drop, tap-to-place, undo, slot highlighting.
- * Placed dice are hidden (absorbed into the slot icon).
+ * Supports both EquipmentSlotIcon (die hidden) and ToolBoxCompartment
+ * (die reparented into compartment) via SlotLike + duck typing.
  *
  * _allocs maps dieIndex → equipmentIndex. Slots are always looked
  * up by equipmentIndex (via _slotByEq), never by array position.
  */
 
+import type { Container } from 'pixi.js';
 import type { Allocation } from '../../engine/types';
 import { DiceSprite, DIE_SIZE } from './DiceSprite';
-import type { EquipmentSlotIcon } from './EquipmentSlotIcon';
+import type { SlotLike } from './SlotLike';
 
 const DICE_GAP = 12;
 
+/** Duck-type check for ToolBoxCompartment die reparenting. */
+interface DieReceiver {
+  receiveDie(die: DiceSprite): void;
+  releaseDie(): DiceSprite | null;
+}
+
+function isDieReceiver(s: SlotLike): s is SlotLike & DieReceiver {
+  return 'receiveDie' in s && 'releaseDie' in s;
+}
+
 export class DiceAllocator {
   private _dice: DiceSprite[] = [];
-  private _slots: EquipmentSlotIcon[] = [];
+  private _slots: SlotLike[] = [];
   private _allocs = new Map<number, number>(); // dieIndex → equipmentIndex
   private _dragDie: DiceSprite | null = null;
   private _dragOff = { x: 0, y: 0 };
   private _enabled = false;
   private _sw = 390;
   private _homeY = 0;
+  private _diceParent: Container | null = null;
 
   onChange: (() => void) | null = null;
   onBringToFront: ((die: DiceSprite) => void) | null = null;
   get dice(): readonly DiceSprite[] { return this._dice; }
 
-  setup(values: number[], slots: EquipmentSlotIcon[], sw: number, homeY: number): DiceSprite[] {
+  setup(
+    values: number[], slots: SlotLike[],
+    sw: number, homeY: number,
+    diceParent?: Container,
+  ): DiceSprite[] {
     this.reset();
     this._slots = slots;
     this._sw = sw;
     this._homeY = homeY;
+    this._diceParent = diceParent ?? null;
     for (let i = 0; i < values.length; i++) {
       const die = new DiceSprite(i);
       die.on('pointerdown', (e: { global: { x: number; y: number } }) => this.handleDieDown(i, e.global));
@@ -156,22 +174,38 @@ export class DiceAllocator {
     if (!die || !slot) return;
     this._allocs.set(di, eqIdx);
     slot.placeDie(die.value);
-    die.setState('placed');
-    die.visible = false;
+
+    // Die reparenting (ToolBoxCompartment) vs hiding (EquipmentSlotIcon)
+    if (isDieReceiver(slot)) {
+      slot.receiveDie(die);
+    } else {
+      die.setState('placed');
+      die.visible = false;
+    }
   }
 
   private _undo(di: number): void {
     const eqIdx = this._allocs.get(di);
     if (eqIdx === undefined) return;
     this._allocs.delete(di);
-    this._slotByEq(eqIdx)?.removeDie();
+    const slot = this._slotByEq(eqIdx);
+
+    // Release reparented die or just show it again
+    if (slot && isDieReceiver(slot)) {
+      const released = slot.releaseDie();
+      if (released && this._diceParent) {
+        this._diceParent.addChild(released);
+      }
+    }
+
+    slot?.removeDie();
     const die = this._dice[di];
     die.visible = true;
     this._snapHome(die);
   }
 
   /** Find slot by its equipmentIndex (stable across category reordering). */
-  private _slotByEq(eqIdx: number): EquipmentSlotIcon | undefined {
+  private _slotByEq(eqIdx: number): SlotLike | undefined {
     return this._slots.find(s => s.equipmentIndex === eqIdx);
   }
 
@@ -182,7 +216,7 @@ export class DiceAllocator {
     die.y = this._homeY;
   }
 
-  private _over(die: DiceSprite, slot: EquipmentSlotIcon): boolean {
+  private _over(die: DiceSprite, slot: SlotLike): boolean {
     const b = slot.getBounds();
     const cx = die.x + DIE_SIZE / 2, cy = die.y + DIE_SIZE / 2;
     return cx >= b.x && cx <= b.x + b.width && cy >= b.y && cy <= b.y + b.height;

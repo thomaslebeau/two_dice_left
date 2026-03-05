@@ -1,59 +1,65 @@
 /**
- * Player zone — horizontal layout: CircularHpBadge (left) + EquipmentGrid (right).
- * Encapsulates player-side display in the combat screen.
+ * Player zone — diegetic layout: SurvivorPortrait (left) + ToolBox (right).
+ * Replaces flat CircularHpBadge + EquipmentGrid layout.
  */
 
 import { Container } from 'pixi.js';
-import { CircularHpBadge, BADGE_DIAMETER } from './CircularHpBadge';
-import { EquipmentGrid } from './EquipmentGrid';
+import { SurvivorPortrait } from './SurvivorPortrait';
+import { ToolBox } from './ToolBox';
+import type { CircularHpBadge } from './CircularHpBadge';
 import type { Equipment } from '../../engine/types';
 import type { PoisonSnapshot } from './CombatState';
 
-const BADGE_GRID_GAP = 8;
+const PORTRAIT_RATIO = 0.25;
 
 export class PlayerZone extends Container {
-  private _badge = new CircularHpBadge();
-  private _grid = new EquipmentGrid();
-  private _zoneHeight = BADGE_DIAMETER;
+  private _portrait = new SurvivorPortrait();
+  private _toolBox = new ToolBox();
 
   constructor() {
     super();
-    this.addChild(this._badge);
-    this.addChild(this._grid);
+    this.addChild(this._portrait);
+    this.addChild(this._toolBox);
   }
 
-  get badge(): CircularHpBadge { return this._badge; }
-  get grid(): EquipmentGrid { return this._grid; }
-  get zoneHeight(): number { return this._zoneHeight; }
+  get badge(): CircularHpBadge { return this._portrait.badge; }
+  get toolBox(): ToolBox { return this._toolBox; }
 
-  /** Build equipment slots. */
-  build(equipment: readonly Equipment[]): void {
-    this._grid.build(equipment);
+  /** Build equipment compartments + set survivor name. */
+  build(equipment: readonly Equipment[], survivorName?: string): void {
+    this._toolBox.build(equipment);
+    if (survivorName) this._portrait.setName(survivorName);
   }
 
-  /** Position badge and grid side by side. */
-  layout(availWidth: number): void {
-    this._badge.position.set(0, 0);
-    const gridX = BADGE_DIAMETER + BADGE_GRID_GAP;
-    this._grid.position.set(gridX, 0);
-    this._grid.layout(availWidth - gridX);
-    this._zoneHeight = Math.max(BADGE_DIAMETER, this._grid.gridHeight);
+  /** Position portrait and toolbox side by side. */
+  layout(availWidth: number, availHeight?: number): void {
+    const h = availHeight ?? 220;
+    const portraitW = Math.floor(availWidth * PORTRAIT_RATIO);
+    const boxW = availWidth - portraitW;
+
+    this._portrait.position.set(0, 0);
+    this._portrait.layout(h);
+
+    this._toolBox.position.set(portraitW, 0);
+    this._toolBox.layout(boxW, h);
   }
 
   updateHp(current: number, max: number): void {
-    this._badge.updateHp(current, max);
+    this._portrait.badge.updateHp(current, max);
   }
 
   applyPoison(snap: PoisonSnapshot): void {
     if (snap.newPoison > 0 && snap.poisonAfterTick > 0) {
-      this._badge.showPoisonStack(snap.poisonAfterTick, snap.totalAfter);
+      this._portrait.badge.showPoisonStack(
+        snap.poisonAfterTick, snap.totalAfter,
+      );
     } else {
-      this._badge.setPoisonTurns(snap.totalAfter);
+      this._portrait.badge.setPoisonTurns(snap.totalAfter);
     }
-    if (snap.ticked) this._badge.pulsePoisonBadge();
+    if (snap.ticked) this._portrait.badge.pulsePoisonBadge();
   }
 
   clear(): void {
-    this._grid.clear();
+    this._toolBox.clear();
   }
 }

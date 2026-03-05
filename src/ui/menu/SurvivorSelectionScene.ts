@@ -24,7 +24,7 @@ const MARGIN_X = 20;
 const CARD_GAP = 12;
 const BTN_WIDTH = 200;
 const BTN_HEIGHT = 44;
-const BTN_BOTTOM_PAD = 24;
+const BTN_BOTTOM_PAD = 32;
 const TITLE_TOP_PAD = 32;
 
 // ---------------------------------------------------------------------------

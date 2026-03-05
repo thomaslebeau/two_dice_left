@@ -332,8 +332,9 @@ async function main() {
   const safeAreaProbe = document.getElementById('safe-area-probe');
 
   function handleResize() {
-    const w = window.innerWidth;
-    const h = window.innerHeight;
+    const vp = window.visualViewport;
+    const w = vp ? vp.width : window.innerWidth;
+    const h = vp ? vp.height : window.innerHeight;
     app.renderer.resize(w, h);
     const safeBottom = safeAreaProbe?.offsetHeight ?? 0;
     scenes.resize(w, h - safeBottom);
@@ -343,6 +344,7 @@ async function main() {
   window.addEventListener('orientationchange', () => {
     setTimeout(handleResize, 150);
   });
+  window.visualViewport?.addEventListener('resize', handleResize);
 
   // Initial safe-area measurement before first scene loads
   handleResize();

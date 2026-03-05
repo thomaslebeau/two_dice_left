@@ -6,6 +6,7 @@
 
 import { Container, Graphics, Text } from 'pixi.js';
 import { tickerWait, tickerSteps, tickerLoop, type TickerHandle } from './tickerUtils';
+import { FONTS } from '../../theme';
 
 // ---------------------------------------------------------------------------
 // V6 palette
@@ -55,8 +56,8 @@ export class CircularHpBadge extends Container {
     this._hpText = new Text({
       text: '',
       style: {
-        fontFamily: '"Courier New", monospace',
-        fontSize: 18,
+        fontFamily: FONTS.HEADING,
+        fontSize: 20,
         fontWeight: 'bold',
         fill: BONE,
       },
@@ -71,7 +72,7 @@ export class CircularHpBadge extends Container {
     this._poisonLabel = new Text({
       text: '',
       style: {
-        fontFamily: '"Courier New", monospace',
+        fontFamily: FONTS.HEADING,
         fontSize: 9,
         fontWeight: 'bold',
         fill: BONE,

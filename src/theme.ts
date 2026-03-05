@@ -74,16 +74,11 @@ export const borders = {
 
 // --- Typography ---
 
-export const fonts = {
-  heading: 'Crimson Text, Georgia, serif',
-  body: 'Inter, system-ui, sans-serif',
-  sizes: {
-    h1: 48,
-    h2: 32,
-    h3: 24,
-    body: 16,
-    small: 12,
-  },
+/** Bebas Neue — titles, buttons, names, labels, HP numbers */
+/** Crimson Text — descriptions, flavor, passives, equipment effects */
+export const FONTS = {
+  HEADING: '"Bebas Neue", sans-serif',
+  BODY: '"Crimson Text", Georgia, serif',
 } as const;
 
 // --- Animation timings (ms) ---

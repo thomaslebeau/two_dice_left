@@ -8,6 +8,7 @@ import type { Equipment } from '../../engine/types';
 import { EquipmentSlotIcon, ICON_SIZE } from './EquipmentSlotIcon';
 import { DiceSprite, DIE_SIZE } from './DiceSprite';
 import { tickerWait, tickerSteps } from './tickerUtils';
+import { FONTS } from '../../theme';
 
 const BONE = 0xD9CFBA;
 const MOSS = 0x2D4A2E;
@@ -168,7 +169,7 @@ export class EnemyZone extends Container {
   private _mkText(size: number, color: number, bold = false): Text {
     return new Text({
       text: '', style: {
-        fontFamily: '"Courier New", monospace', fontSize: size,
+        fontFamily: FONTS.HEADING, fontSize: size,
         fontWeight: bold ? 'bold' : 'normal', fill: color,
       },
     });

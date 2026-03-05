@@ -5,6 +5,7 @@
  */
 
 import { Container, Graphics, Text } from 'pixi.js';
+import { FONTS } from '../../theme';
 
 const BONE = 0xD9CFBA;
 const BTN_WIDTH = 100;
@@ -24,9 +25,9 @@ export class ResetButton extends Container {
     this._label = new Text({
       text: 'ANNULER',
       style: {
-        fontFamily: '"Courier New", monospace',
-        fontSize: 12, fontWeight: 'bold',
-        fill: BONE, letterSpacing: 1,
+        fontFamily: FONTS.HEADING,
+        fontSize: 14, fontWeight: 'bold',
+        fill: BONE, letterSpacing: 3,
       },
     });
     this._label.anchor.set(0.5);

@@ -4,6 +4,7 @@
  */
 
 import { Container, Text } from 'pixi.js';
+import { FONTS } from '../../theme';
 import type { Scene } from '../../engine/SceneManager';
 import type { AllocationPattern, Equipment, Survivor, Enemy, PassiveId, PassiveState } from '../../engine/types';
 import { rollDice } from '../../engine/dice';
@@ -61,8 +62,8 @@ export class CombatScene extends Container implements Scene {
     this.addChild(this._playerZone, this._resetBtn, this._commitBtn, this._passiveFeedback);
     this._tapPrompt = new Text({
       text: 'TAP TO CONTINUE', style: {
-        fontFamily: '"Courier New", monospace', fontSize: 14,
-        fontWeight: 'bold', fill: BONE, letterSpacing: 2,
+        fontFamily: FONTS.HEADING, fontSize: 16,
+        fontWeight: 'bold', fill: BONE, letterSpacing: 3,
       },
     });
     this._tapPrompt.anchor.set(0.5);

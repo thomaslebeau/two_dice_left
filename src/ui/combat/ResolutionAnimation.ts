@@ -8,6 +8,7 @@ import type { Allocation, Equipment } from '../../engine/types';
 import { sumAllocEffects } from '../../engine/combat';
 import type { CircularHpBadge } from './CircularHpBadge';
 import { tickerWait, tickerTween } from './tickerUtils';
+import { FONTS } from '../../theme';
 
 const BONE = 0xD9CFBA;
 const MOSS = 0x2D4A2E;
@@ -43,7 +44,7 @@ function mkText(size: number, color: number, bold = false): Text {
   const t = new Text({
     text: '',
     style: {
-      fontFamily: '"Courier New", monospace', fontSize: size,
+      fontFamily: FONTS.BODY, fontSize: size,
       fontWeight: bold ? 'bold' : 'normal', fill: color,
     },
   });
@@ -68,8 +69,8 @@ export class ResolutionAnimation extends Container {
     this.addChild(this._overlay);
     this._end = new Text({
       text: '', style: {
-        fontFamily: '"Courier New", monospace', fontSize: 28,
-        fontWeight: 'bold', fill: BONE, letterSpacing: 3,
+        fontFamily: FONTS.HEADING, fontSize: 32,
+        fontWeight: 'bold', fill: BONE, letterSpacing: 6,
       },
     });
     this._end.anchor.set(0.5);

@@ -6,9 +6,7 @@
 
 import { Container, Text } from 'pixi.js';
 import { tickerTween } from './tickerUtils';
-import { timings } from '../../theme';
-
-const FONT = '"Courier New", monospace';
+import { timings, FONTS } from '../../theme';
 
 export class PassiveIndicator extends Container {
   private _label: Text;
@@ -17,7 +15,7 @@ export class PassiveIndicator extends Container {
     super();
     this._label = new Text({
       text: '',
-      style: { fontFamily: FONT, fontSize: 12, fontWeight: 'bold', fill: 0xD9CFBA },
+      style: { fontFamily: FONTS.HEADING, fontSize: 12, fontWeight: 'bold', fill: 0xD9CFBA },
     });
     this._label.anchor.set(0.5);
     this.addChild(this._label);

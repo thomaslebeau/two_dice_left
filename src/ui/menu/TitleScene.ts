@@ -1,0 +1,194 @@
+/**
+ * Title screen — "TWO DICE LEFT" with tap-to-continue prompt.
+ * Fades out on any input, then invokes onContinue callback.
+ */
+
+import { Container, Text } from 'pixi.js';
+import type { Scene } from '../../engine/SceneManager';
+import { tickerLoop, tickerTween, type TickerHandle } from '../combat/tickerUtils';
+import { FONTS } from '../../theme';
+
+// ---------------------------------------------------------------------------
+// V6 palette
+// ---------------------------------------------------------------------------
+
+const BONE = 0xD9CFBA;
+// ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
+
+const PULSE_DURATION_MS = 1500;
+const FADE_OUT_MS = 400;
+
+// ---------------------------------------------------------------------------
+// TitleScene
+// ---------------------------------------------------------------------------
+
+export interface TitleSceneData {
+  onContinue: () => void;
+}
+
+export class TitleScene extends Container implements Scene {
+  private _title: Text;
+  private _prompt: Text;
+  private _pulseHandle: TickerHandle | null = null;
+  private _onContinue: (() => void) | null = null;
+  private _transitioning = false;
+  private _keyHandler: ((e: KeyboardEvent) => void) | null = null;
+  private _gamepadHandle: TickerHandle | null = null;
+
+  private _sw = 390;
+  private _sh = 844;
+
+  constructor() {
+    super();
+
+    this._title = new Text({
+      text: 'TWO DICE LEFT',
+      style: {
+        fontFamily: FONTS.HEADING,
+        fontSize: 32,
+        fontWeight: 'bold',
+        fill: BONE,
+        letterSpacing: 6,
+      },
+    });
+    this._title.anchor.set(0.5);
+    this.addChild(this._title);
+
+    this._prompt = new Text({
+      text: 'TOUCHER POUR CONTINUER',
+      style: {
+        fontFamily: FONTS.HEADING,
+        fontSize: 14,
+        fill: BONE,
+        letterSpacing: 3,
+      },
+    });
+    this._prompt.anchor.set(0.5);
+    this.addChild(this._prompt);
+
+    // Tap/click anywhere
+    this.eventMode = 'static';
+    this.cursor = 'pointer';
+    this.on('pointerdown', this._handleInput, this);
+  }
+
+  // -----------------------------------------------------------------------
+  // Scene lifecycle
+  // -----------------------------------------------------------------------
+
+  onEnter(data?: unknown): void {
+    const d = data as TitleSceneData;
+    this._onContinue = d.onContinue;
+    this._transitioning = false;
+    this.alpha = 1;
+
+    this._startPulse();
+    this._bindKeyboard();
+    this._bindGamepad();
+  }
+
+  onExit(): void {
+    this._stopPulse();
+    this._unbindKeyboard();
+    this._unbindGamepad();
+    this._onContinue = null;
+  }
+
+  onResize(w: number, h: number): void {
+    this._sw = w;
+    this._sh = h;
+    this._layout();
+  }
+
+  // -----------------------------------------------------------------------
+  // Layout
+  // -----------------------------------------------------------------------
+
+  private _layout(): void {
+    const cx = this._sw / 2;
+    const cy = this._sh * 0.42;
+
+    // Scale title font to screen width
+    const titleSize = Math.min(36, Math.max(24, this._sw * 0.08));
+    this._title.style.fontSize = titleSize;
+    this._title.position.set(cx, cy);
+
+    this._prompt.position.set(cx, this._sh * 0.75);
+
+    // Hit area covers full screen
+    this.hitArea = {
+      contains: () => true,
+    };
+  }
+
+  // -----------------------------------------------------------------------
+  // Pulse animation
+  // -----------------------------------------------------------------------
+
+  private _startPulse(): void {
+    this._stopPulse();
+    this._pulseHandle = tickerLoop((elapsed) => {
+      // sineInOut oscillation between 0.3 and 1.0
+      const t = (elapsed % PULSE_DURATION_MS) / PULSE_DURATION_MS;
+      const sine = Math.sin(t * Math.PI * 2);
+      this._prompt.alpha = 0.65 + 0.35 * sine;
+    });
+  }
+
+  private _stopPulse(): void {
+    this._pulseHandle?.stop();
+    this._pulseHandle = null;
+  }
+
+  // -----------------------------------------------------------------------
+  // Input handling
+  // -----------------------------------------------------------------------
+
+  private _handleInput(): void {
+    if (this._transitioning) return;
+    this._transitioning = true;
+    this._stopPulse();
+    this._unbindKeyboard();
+    this._unbindGamepad();
+
+    // Fade out then continue
+    void tickerTween(FADE_OUT_MS, (t) => {
+      this.alpha = 1 - t;
+    }).then(() => {
+      this._onContinue?.();
+    });
+  }
+
+  private _bindKeyboard(): void {
+    this._keyHandler = () => this._handleInput();
+    window.addEventListener('keydown', this._keyHandler);
+  }
+
+  private _unbindKeyboard(): void {
+    if (this._keyHandler) {
+      window.removeEventListener('keydown', this._keyHandler);
+      this._keyHandler = null;
+    }
+  }
+
+  private _bindGamepad(): void {
+    this._unbindGamepad();
+    this._gamepadHandle = tickerLoop(() => {
+      const gamepads = navigator.getGamepads?.() ?? [];
+      for (const gp of gamepads) {
+        if (!gp) continue;
+        if (gp.buttons.some(b => b.pressed)) {
+          this._handleInput();
+          return;
+        }
+      }
+    });
+  }
+
+  private _unbindGamepad(): void {
+    this._gamepadHandle?.stop();
+    this._gamepadHandle = null;
+  }
+}

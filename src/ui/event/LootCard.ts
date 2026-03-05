@@ -9,6 +9,7 @@
 
 import { Container, Graphics, Text } from 'pixi.js';
 import type { Equipment } from '../../engine/types';
+import { FONTS } from '../../theme';
 
 // ---------------------------------------------------------------------------
 // V6 palette
@@ -75,10 +76,11 @@ export class LootCard extends Container {
     const nameText = new Text({
       text: `${typeLabel(equipment.type)} ${equipment.name}`,
       style: {
-        fontFamily: '"Courier New", monospace',
-        fontSize: 13,
+        fontFamily: FONTS.HEADING,
+        fontSize: 16,
         fontWeight: 'bold',
         fill: tColor,
+        letterSpacing: 1,
         wordWrap: true,
         wordWrapWidth: CARD_W - 20,
       },
@@ -97,9 +99,8 @@ export class LootCard extends Container {
     const effectText = new Text({
       text: `-> ${equipment.description}`,
       style: {
-        fontFamily: '"Courier New", monospace',
+        fontFamily: FONTS.BODY,
         fontSize: 12,
-        fontWeight: 'bold',
         fill: tColor,
         wordWrap: true,
         wordWrapWidth: CARD_W - 20,
@@ -116,9 +117,9 @@ export class LootCard extends Container {
     const synergyText = new Text({
       text: `\u2192 ${slotLabel}`,
       style: {
-        fontFamily: '"Courier New", monospace',
-        fontSize: 11,
-        fontWeight: 'bold',
+        fontFamily: FONTS.BODY,
+        fontSize: 12,
+        fontStyle: 'italic',
         fill: tColor,
       },
     });
@@ -190,7 +191,7 @@ export class LootCard extends Container {
       const num = new Text({
         text: `${face}`,
         style: {
-          fontFamily: '"Courier New", monospace',
+          fontFamily: FONTS.HEADING,
           fontSize: 11,
           fontWeight: 'bold',
           fill: inRange ? CHARCOAL : 0x666666,

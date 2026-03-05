@@ -4,6 +4,7 @@
  */
 
 import { Container, Graphics, Text } from 'pixi.js';
+import { FONTS } from '../../theme';
 
 // ---------------------------------------------------------------------------
 // V6 palette
@@ -37,11 +38,11 @@ export class CommitButton extends Container {
     this._labelText = new Text({
       text: 'VALIDER',
       style: {
-        fontFamily: '"Courier New", monospace',
-        fontSize: 16,
+        fontFamily: FONTS.HEADING,
+        fontSize: 18,
         fontWeight: 'bold',
         fill: BONE,
-        letterSpacing: 2,
+        letterSpacing: 3,
       },
     });
     this._labelText.anchor.set(0.5);

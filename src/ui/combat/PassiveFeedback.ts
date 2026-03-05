@@ -10,7 +10,7 @@ import { applyIngenieux } from '../../engine/passives';
 import { PassiveIndicator } from './PassiveIndicator';
 import { RecycleurButton } from './RecycleurButton';
 import { tickerTween, tickerWait } from './tickerUtils';
-import { timings } from '../../theme';
+import { timings, FONTS } from '../../theme';
 import type { EquipmentSlotIcon } from './EquipmentSlotIcon';
 import type { CircularHpBadge } from './CircularHpBadge';
 import type { DiceSprite } from './DiceSprite';
@@ -48,7 +48,7 @@ export class PassiveFeedback extends Container {
     const banner = new Text({
       text: '\u26A1 \u00C9LAN',
       style: {
-        fontFamily: '"Courier New", monospace', fontSize: 20,
+        fontFamily: FONTS.HEADING, fontSize: 22,
         fontWeight: 'bold', fill: RUST, letterSpacing: 3,
       },
     });

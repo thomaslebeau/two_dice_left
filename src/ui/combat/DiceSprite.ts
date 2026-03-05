@@ -6,6 +6,7 @@
 
 import { Container, Graphics, Text, Ticker } from 'pixi.js';
 import { tickerSteps } from './tickerUtils';
+import { FONTS } from '../../theme';
 
 // ---------------------------------------------------------------------------
 // V6 palette
@@ -72,7 +73,7 @@ export class DiceSprite extends Container {
     this._valueText = new Text({
       text: '',
       style: {
-        fontFamily: '"Courier New", monospace',
+        fontFamily: FONTS.HEADING,
         fontSize: 16,
         fontWeight: 'bold',
         fill: CHARCOAL,

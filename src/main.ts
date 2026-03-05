@@ -6,6 +6,7 @@
  */
 
 import { Application, Container, Graphics, Text } from 'pixi.js';
+import { FONTS } from './theme.ts';
 import { SceneManager } from './engine/SceneManager.ts';
 import type { Scene } from './engine/SceneManager.ts';
 import { V6RunOrchestrator } from './core/V6RunOrchestrator.ts';
@@ -13,6 +14,10 @@ import { CombatScene } from './ui/combat/CombatScene.ts';
 import type { CombatSceneData } from './ui/combat/CombatScene.ts';
 import { EventScene } from './ui/event/EventScene.ts';
 import type { EventSceneData } from './ui/event/EventScene.ts';
+import { SurvivorSelectionScene } from './ui/menu/SurvivorSelectionScene.ts';
+import type { SurvivorSelectionData } from './ui/menu/SurvivorSelectionScene.ts';
+import { TitleScene } from './ui/menu/TitleScene.ts';
+import type { TitleSceneData } from './ui/menu/TitleScene.ts';
 import { ALL_SURVIVORS } from './data/survivors.ts';
 import type { Survivor } from './engine/types.ts';
 import { sendRunData } from './core/Telemetry.ts';
@@ -58,138 +63,40 @@ function setUnlockedSlugs(slugs: string[]): void {
   localStorage.setItem(LS_KEY, JSON.stringify(slugs));
 }
 
-function getUnlockedSurvivors(): Survivor[] {
-  const slugs = getUnlockedSlugs();
-  const ids = new Set(slugs.map(s => SLUG_TO_ID[s]).filter(Boolean));
-  return ALL_SURVIVORS.filter(s => ids.has(s.id));
-}
-
 // ---------------------------------------------------------------------------
-// Minimal survivor selection scene
+// Survivor selection scene (SurvivorCard-based)
 // ---------------------------------------------------------------------------
 
-function createSurvivorSelectScene(
+function buildSurvivorSelectData(
   orchestrator: V6RunOrchestrator,
-): Scene {
-  const scene = new Container() as Scene;
-
-  // Game title
-  const gameTitle = new Text({
-    text: 'TWO DICE LEFT',
-    style: {
-      fontFamily: '"Courier New", monospace',
-      fontSize: 28,
-      fontWeight: 'bold',
-      fill: BONE,
-      letterSpacing: 4,
+): SurvivorSelectionData {
+  const unlockedIds = getUnlockedSlugs()
+    .map(s => SLUG_TO_ID[s])
+    .filter(Boolean);
+  return {
+    survivors: ALL_SURVIVORS,
+    unlockedIds,
+    onSelect: (survivor: Survivor) => {
+      orchestrator.selectSurvivor(survivor.id);
     },
-  });
-  gameTitle.anchor.set(0.5);
-  scene.addChild(gameTitle);
-
-  // Subtitle
-  const subtitle = new Text({
-    text: 'CHOISIS TON SURVIVANT',
-    style: {
-      fontFamily: '"Courier New", monospace',
-      fontSize: 16,
-      fontWeight: 'bold',
-      fill: RUST,
-      letterSpacing: 2,
-    },
-  });
-  subtitle.anchor.set(0.5);
-  scene.addChild(subtitle);
-
-  const buttons: Container[] = [];
-  let sw = 390;
-  let sh = 844;
-
-  function layoutAll(): void {
-    const cx = sw / 2;
-
-    gameTitle.position.set(cx, sh * 0.15);
-    subtitle.position.set(cx, gameTitle.y + 50);
-
-    const btnW = Math.min(340, sw - 40);
-    const btnH = 52;
-    const gap = 10;
-    let cardY = subtitle.y + 40;
-
-    for (const btn of buttons) {
-      btn.position.set(cx - btnW / 2, cardY);
-      const bg = btn.getChildAt(0) as Graphics;
-      bg.clear();
-      bg.roundRect(0, 0, btnW, btnH, 6);
-      bg.fill({ color: CHARCOAL, alpha: 0.9 });
-      bg.roundRect(0, 0, btnW, btnH, 6);
-      bg.stroke({ color: RUST, width: 2 });
-      cardY += btnH + gap;
-    }
-  }
-
-  function rebuildButtons(): void {
-    for (const btn of buttons) {
-      scene.removeChild(btn);
-      btn.destroy({ children: true });
-    }
-    buttons.length = 0;
-
-    const survivors = getUnlockedSurvivors();
-    for (const s of survivors) {
-      const btn = new Container();
-      const bg = new Graphics();
-      const eqNames = s.equipment.map(e => e.name).join(', ');
-      const label = new Text({
-        text: `${s.name}\n${s.hp} PV | ${eqNames}`,
-        style: {
-          fontFamily: '"Courier New", monospace',
-          fontSize: 13,
-          fill: BONE,
-          lineHeight: 18,
-        },
-      });
-      label.position.set(12, 8);
-      btn.addChild(bg, label);
-      btn.eventMode = 'static';
-      btn.cursor = 'pointer';
-      btn.on('pointerdown', () => orchestrator.selectSurvivor(s.id));
-      btn.on('pointerover', () => { btn.alpha = 0.8; });
-      btn.on('pointerout', () => { btn.alpha = 1; });
-      scene.addChild(btn);
-      buttons.push(btn);
-    }
-    layoutAll();
-  }
-
-  scene.onEnter = () => {
-    rebuildButtons();
   };
-
-  scene.onResize = (w: number, h: number) => {
-    sw = w;
-    sh = h;
-    layoutAll();
-  };
-
-  return scene;
 }
 
 // ---------------------------------------------------------------------------
 // End screen (victory/defeat) with restart
 // ---------------------------------------------------------------------------
 
-function createEndScene(orchestrator: V6RunOrchestrator): Scene {
+function createEndScene(onRestart: () => void): Scene {
   const scene = new Container() as Scene;
 
   const heading = new Text({
     text: '',
     style: {
-      fontFamily: '"Courier New", monospace',
-      fontSize: 28,
+      fontFamily: FONTS.HEADING,
+      fontSize: 32,
       fontWeight: 'bold',
       fill: BONE,
-      letterSpacing: 3,
+      letterSpacing: 6,
     },
   });
   heading.anchor.set(0.5);
@@ -198,7 +105,7 @@ function createEndScene(orchestrator: V6RunOrchestrator): Scene {
   const detail = new Text({
     text: '',
     style: {
-      fontFamily: '"Courier New", monospace',
+      fontFamily: FONTS.BODY,
       fontSize: 14,
       fill: BONE,
     },
@@ -210,11 +117,11 @@ function createEndScene(orchestrator: V6RunOrchestrator): Scene {
   const restartLabel = new Text({
     text: 'REJOUER',
     style: {
-      fontFamily: '"Courier New", monospace',
-      fontSize: 16,
+      fontFamily: FONTS.HEADING,
+      fontSize: 18,
       fontWeight: 'bold',
       fill: BONE,
-      letterSpacing: 2,
+      letterSpacing: 3,
     },
   });
   restartLabel.anchor.set(0.5);
@@ -222,7 +129,7 @@ function createEndScene(orchestrator: V6RunOrchestrator): Scene {
   restartBtn.addChild(restartBg, restartLabel);
   restartBtn.eventMode = 'static';
   restartBtn.cursor = 'pointer';
-  restartBtn.on('pointerdown', () => orchestrator.startRun());
+  restartBtn.on('pointerdown', () => onRestart());
   restartBtn.on('pointerover', () => { restartBtn.alpha = 0.8; });
   restartBtn.on('pointerout', () => { restartBtn.alpha = 1; });
   scene.addChild(restartBtn);
@@ -329,19 +236,22 @@ async function main() {
   const scenes = new SceneManager(app);
 
   // --- Register scenes ---
+  const titleScene = new TitleScene();
+  const survivorSelectScene = new SurvivorSelectionScene();
   const combatScene = new CombatScene();
   const eventScene = new EventScene();
 
-  scenes.register('survivor_select', createSurvivorSelectScene(orchestrator));
+  scenes.register('title', titleScene);
+  scenes.register('survivor_select', survivorSelectScene);
   scenes.register('combat', combatScene);
   scenes.register('event', eventScene);
-  scenes.register('end', createEndScene(orchestrator));
+  scenes.register('end', createEndScene(() => showTitle()));
 
   // --- Wire orchestrator → scene transitions ---
   orchestrator.onChange((t) => {
     switch (t.scene) {
       case 'survivor_select':
-        scenes.switchTo('survivor_select');
+        scenes.switchTo('survivor_select', buildSurvivorSelectData(orchestrator));
         break;
 
       case 'combat': {
@@ -437,8 +347,16 @@ async function main() {
   // Initial safe-area measurement before first scene loads
   handleResize();
 
+  // --- Helper: show title screen ---
+  function showTitle(): void {
+    const titleData: TitleSceneData = {
+      onContinue: () => orchestrator.startRun(),
+    };
+    scenes.switchTo('title', titleData);
+  }
+
   // --- Start ---
-  orchestrator.startRun();
+  showTitle();
 }
 
 main();

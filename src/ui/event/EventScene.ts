@@ -13,6 +13,7 @@
 import { Container, Graphics, Text } from 'pixi.js';
 import type { Scene } from '../../engine/SceneManager';
 import type { Equipment, Survivor } from '../../engine/types';
+import { FONTS } from '../../theme';
 import { LootCard, CARD_W } from './LootCard';
 import {
   generateLootOptions,
@@ -90,13 +91,13 @@ export class EventScene extends Container implements Scene {
     this._narrativeText = new Text({
       text: '',
       style: {
-        fontFamily: '"Courier New", monospace',
-        fontSize: 13,
+        fontFamily: FONTS.BODY,
+        fontSize: 15,
         fill: BONE,
         fontStyle: 'italic',
         wordWrap: true,
         wordWrapWidth: 358,
-        lineHeight: 20,
+        lineHeight: 22,
       },
     });
     this.addChild(this._narrativeText);
@@ -281,8 +282,8 @@ export class EventScene extends Container implements Scene {
       const line = new Text({
         text: `${tag} ${eq.name} [${eq.minDie}-${eq.maxDie}] -> ${eq.description}`,
         style: {
-          fontFamily: '"Courier New", monospace',
-          fontSize: 11,
+          fontFamily: FONTS.BODY,
+          fontSize: 12,
           fill: color,
           wordWrap: true,
           wordWrapWidth: availW,
@@ -391,7 +392,7 @@ export class EventScene extends Container implements Scene {
     return new Text({
       text: content,
       style: {
-        fontFamily: '"Courier New", monospace',
+        fontFamily: FONTS.HEADING,
         fontSize: size,
         fontWeight: bold ? 'bold' : 'normal',
         fill: color,

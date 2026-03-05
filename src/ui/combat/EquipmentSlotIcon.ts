@@ -6,6 +6,7 @@
 import { Container, Graphics, Text } from 'pixi.js';
 import type { Equipment, EquipmentEffect } from '../../engine/types';
 import { canUseDie } from '../../engine/dice';
+import { FONTS } from '../../theme';
 
 const BONE = 0xD9CFBA;
 const RUST = 0x8B3A1A;
@@ -46,7 +47,7 @@ function mkText(
   const t = new Text({
     text: txt,
     style: {
-      fontFamily: '"Courier New", monospace', fontSize: size,
+      fontFamily: FONTS.HEADING, fontSize: size,
       fontWeight: bold ? 'bold' : 'normal', fill: color,
     },
   });

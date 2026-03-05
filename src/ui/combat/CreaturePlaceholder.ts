@@ -4,6 +4,7 @@
  */
 
 import { Container, Graphics, Text } from 'pixi.js';
+import { FONTS } from '../../theme';
 
 // ---------------------------------------------------------------------------
 // V6 palette
@@ -31,10 +32,11 @@ export class CreaturePlaceholder extends Container {
     this._nameText = new Text({
       text: '',
       style: {
-        fontFamily: '"Courier New", monospace',
-        fontSize: 14,
+        fontFamily: FONTS.HEADING,
+        fontSize: 16,
         fontWeight: 'bold',
         fill: BONE,
+        letterSpacing: 1,
       },
     });
     this._nameText.anchor.set(0.5);
@@ -43,8 +45,8 @@ export class CreaturePlaceholder extends Container {
     this._patternText = new Text({
       text: '',
       style: {
-        fontFamily: '"Courier New", monospace',
-        fontSize: 11,
+        fontFamily: FONTS.BODY,
+        fontSize: 12,
         fill: BONE,
       },
     });

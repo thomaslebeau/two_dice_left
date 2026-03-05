@@ -6,7 +6,7 @@
 
 import { Container, Graphics, Text } from 'pixi.js';
 import { tickerTween, tickerLoop, type TickerHandle } from './tickerUtils';
-import { timings } from '../../theme';
+import { timings, FONTS } from '../../theme';
 import type { DiceSprite } from './DiceSprite';
 
 const BONE = 0xD9CFBA, RUST = 0x8B3A1A;
@@ -29,7 +29,7 @@ export class RecycleurButton extends Container {
     this._text = new Text({
       text: 'AJUSTER',
       style: {
-        fontFamily: '"Courier New", monospace', fontSize: 9,
+        fontFamily: FONTS.HEADING, fontSize: 10,
         fontWeight: 'bold', fill: BONE, letterSpacing: 1,
       },
     });

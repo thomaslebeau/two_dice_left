@@ -130,19 +130,19 @@ export const HEAVY_HAMMER: Equipment = {
   description: 'de+3 dmg',
 };
 
-/** Poison Needle — 1 damage + poison (2 turns if die>=3) */
+/** Poison Needle — 1 damage + 1 poison turn (always) */
 export const POISON_NEEDLE: Equipment = {
   id: 'poison_needle',
   name: 'Aiguille Empoisonnee',
   type: 'weapon',
   minDie: 1,
   maxDie: 6,
-  effect: (die) => ({
+  effect: () => ({
     ...NO_EFFECT,
     damage: 1,
-    poison: die >= 3 ? 2 : 0,
+    poison: 1,
   }),
-  description: '1 dmg + poison',
+  description: '1 dmg + 1 tour de poison',
 };
 
 /** Serrated Edge — mid-range weapon, die+1 damage */

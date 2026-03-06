@@ -530,7 +530,7 @@ Enemy HP scaled by combat tier multipliers (v6.1 final, auto-tuned):
 
 - High burst: Heavy Hammer (5-6→die+3), Glass Shard (1-6→die, DOUBLE on 5-6)
 - Reliable DPS: Serrated Edge (2-5→die+1), Sharpened Fork (1-3→die+1)
-- Utility: Poison Needle (1-6→1 dmg + poison), Bandage Wrap (1-4→heal die)
+- Utility: Poison Needle (1-6→1 dmg + 1 poison turn always), Bandage Wrap (1-4→heal die)
 - Defensive: Thick Bark (2-6→die+1 abs), Mirror Plate (4-6→die+2 abs + 1 reflect)
 
 ### Synergy loot (v6.1) — power budgets
@@ -547,7 +547,7 @@ Loot adds to loadout (no cap). More slots = more options per turn. But loot vs h
 
 ### Synergy combo analysis (validated)
 
-- **Poison (Needle + Corrosive)**: DPR ~6.8 ramping. vs 2x Sharp Knife (11.0 DPR): NOT dominant. Safe.
+- **Poison (Needle + Corrosive)**: DPR to re-simulate (simplified poison: 1 turn always, no die condition). vs 2x Sharp Knife (11.0 DPR): expected NOT dominant.
 - **Câble Tressé all-weapon**: 5.5 budget when active. Above Glass Shard but requires sacrificing all defense. Risk/reward balanced.
 - **Trophée Rouillé**: Permanent version gave +5-7pp (Coureuse +8-10pp). Temporary version (3 rounds, cap 2) is controlled. Monitor Coureuse + Élan + Trophée triple stack.
 
@@ -715,7 +715,7 @@ RULE: Never tune numbers for problems at levels 1-4. Fix equipment/passive desig
 8. **Low HP passives barely trigger.** Survivant at 30% threshold was near-useless. 40% is the minimum viable threshold.
 9. **Permanent stacking trivializes late-game.** Trophée Rouillé permanent = +5-7pp. Always cap or make temporary.
 10. **Smart/aggressive gap must be maintained.** Baseline gap was ~1pp — any aggressive buff risks hierarchy flip. Monitor shield weight in smart scoring.
-11. **Poison combo is NOT dominant.** Needle + Corrosive DPR (6.8) < 2x Sharp Knife (11.0). Poison is a viable alternative archetype, not auto-pick.
+11. **Poison combo is NOT dominant.** Simplified poison (1 turn always, no die condition). Needle + Corrosive DPR to re-validate vs 2x Sharp Knife (11.0). Expected still not auto-pick.
 12. **Loadout spread dominates passive tuning.** Before v6.1 equipment rebalance, the WITHOUT-passives spread was 15pp. No passive nerf can fix a structural loadout imbalance. Fix loadouts first, then tune passives.
 13. **Range complementarity > slot count.** Mécanicien (4-6 + 1-6 + 1-2) has perfect complementary coverage — every die value has an optimal slot. Bricoleur (1-6 + 1-4 + 1-6) has overlap. This matters more than raw slot count.
 14. **Recycleur structural amplification.** On a 3-slot complementary loadout, even a tiny die bump (+1) cascades: the improved die finds a better slot, which frees the other die for its best slot. The passive's EV is amplified beyond naive math.

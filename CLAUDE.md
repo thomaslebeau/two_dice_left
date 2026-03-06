@@ -131,7 +131,7 @@ Core loot pool (found via events, 8 items):
 
 ```
 Heavy Hammer      weapon   5-6  die+3 damage
-Poison Needle     weapon   1-6  1 dmg + poison (2 turns if die≥3)
+Poison Needle     weapon   1-6  1 dmg + 1 tour de poison (toujours)
 Serrated Edge     weapon   2-5  die+1 damage
 Glass Shard       weapon   1-6  die damage, DOUBLE on 5-6
 Thick Bark        shield   2-6  die+1 absorption
@@ -152,7 +152,7 @@ Trophée Rouillé   utility  —    passive: +1 dmg 3 rounds after speed kill (c
 
 Build archetypes:
 
-- Poison: Needle + Corrosive (+ optional Spore Sac). DPR ~6.8, not dominant vs raw DPS.
+- Poison: Needle + Corrosive (+ optional Spore Sac). Simplified poison (1 turn always). DPR to re-simulate, expected not dominant vs raw DPS.
 - Reflect/Counter: Mirror Plate + Bouclier à Épines. Tank that deals damage by defending.
 - Combo: Câble Tressé + dual weapons. Sacrifice all defense for explosive round.
 - Momentum: Trophée Rouillé + speed kill focus. Temporary buff, capped at 2 stacks.
@@ -192,12 +192,15 @@ Loot drawn from combined pool (core + synergy, 13 items total) without repetitio
 
 ### Poison system
 
-- Poison Needle: 1 dmg + 2 poison turns if die ≥ 3
+- Each poison weapon/utility used in a round adds +1 to the target's poison counter (no die condition)
+- Poison Needle: 1 dmg + 1 poison turn (always, regardless of die value)
+- Spore Sac: +1 poison turn (utility, no weapon slot cost)
+- Multiple poison sources in the same round stack (e.g. Needle + Spore Sac = +2 poison)
 - Poison deals 1 HP/turn, counter decrements each round
 - Stacks cumulatively: existing turns + new poison = total
 - Resolution order: weapon damage → shield absorption → poison tick → new poison queued → heal
 - Persists within combat, resets between combats
-- UI: skull icon + remaining turns on affected cards
+- UI: skull icon + remaining turns on affected cards, poison damage shown in purple (#7B2D8B)
 
 ### Visual identity
 
@@ -258,7 +261,7 @@ v6.1 reference win rates (smart, with passives): Rescapé 39.2%, Sentinelle 37.7
 
 11. **Smart/aggressive gap must be maintained.** (v6.1) Baseline gap ~1pp — any aggressive buff risks hierarchy flip. Adjust smart shield weight if needed.
 
-12. **Poison combo is NOT dominant.** (v6.1) Needle + Corrosive DPR (6.8) < 2x Sharp Knife (11.0). Viable alternative, not auto-pick.
+12. **Poison combo is NOT dominant.** (v6.1) Simplified poison (1 turn always, no die condition). DPR to re-validate. Expected still not auto-pick vs 2x Sharp Knife (11.0).
 
 13. **Loadout spread > passive tuning.** (v6.1) Without passives, survivor spread was 15pp (Scrap Shield die+0 vs Reinforced Door die+2). Equipment rebalance (5 items) closed the gap to 5pp for top 4. Lesson: fix loadout power budgets before touching passives.
 

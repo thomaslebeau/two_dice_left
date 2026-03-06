@@ -14,6 +14,7 @@ const BONE = 0xD9CFBA;
 const MOSS = 0x2D4A2E;
 const BLOOD = 0x6B1C1C;
 const CHARCOAL = 0x1A1A1A;
+const POISON = 0x7B2D8B;
 const REVEAL_MS = 500;
 const CALC_MS = 500;
 const HP_MS = 300;
@@ -35,6 +36,9 @@ export interface ResolutionData {
   enemyHpBefore: number;
   enemyHpAfter: number;
   enemyMaxHp: number;
+  enemyPoisonTick: number;
+  enemyNewPoison: number;
+  playerPoisonTick: number;
   combatEnded: boolean;
   playerWon: boolean;
   speedKillRecovery: number;
@@ -118,8 +122,14 @@ export class ResolutionAnimation extends Container {
     const parts: string[] = [];
     if (d.playerDamageToEnemy > 0) parts.push(`Enemy -${d.playerDamageToEnemy} HP`);
     if (d.enemyDamageToPlayer > 0) parts.push(`You -${d.enemyDamageToPlayer} HP`);
+    if (d.enemyPoisonTick > 0) parts.push(`\u2620 -1 poison`);
+    if (d.playerPoisonTick > 0) parts.push(`\u2620 You -1 poison`);
+    if (d.enemyNewPoison > 0) parts.push(`\u2620 +${d.enemyNewPoison} poison`);
     if (d.playerHealTotal > 0) parts.push(`You +${d.playerHealTotal} heal`);
     this._result.text = parts.join('  |  ') || 'No damage';
+    if (d.enemyPoisonTick > 0 || d.enemyNewPoison > 0 || d.playerPoisonTick > 0) {
+      this._result.style.fill = POISON;
+    }
     await tickerWait(HP_MS);
 
     if (d.speedKillRecovery > 0) this._speed.text = `Victoire rapide! +${d.speedKillRecovery} PV`;

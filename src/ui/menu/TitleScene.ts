@@ -3,7 +3,7 @@
  * Fades out on any input, then invokes onContinue callback.
  */
 
-import { Container, Text } from 'pixi.js';
+import { Assets, Container, Sprite, Text } from 'pixi.js';
 import type { Scene } from '../../engine/SceneManager';
 import { tickerLoop, tickerTween, type TickerHandle } from '../combat/tickerUtils';
 import { FONTS } from '../../theme';
@@ -29,7 +29,7 @@ export interface TitleSceneData {
 }
 
 export class TitleScene extends Container implements Scene {
-  private _title: Text;
+  private _logo: Sprite | null = null;
   private _prompt: Text;
   private _pulseHandle: TickerHandle | null = null;
   private _onContinue: (() => void) | null = null;
@@ -42,19 +42,6 @@ export class TitleScene extends Container implements Scene {
 
   constructor() {
     super();
-
-    this._title = new Text({
-      text: 'TWO DICE LEFT',
-      style: {
-        fontFamily: FONTS.HEADING,
-        fontSize: 32,
-        fontWeight: 'bold',
-        fill: BONE,
-        letterSpacing: 6,
-      },
-    });
-    this._title.anchor.set(0.5);
-    this.addChild(this._title);
 
     this._prompt = new Text({
       text: 'TOUCHER POUR CONTINUER',
@@ -84,6 +71,14 @@ export class TitleScene extends Container implements Scene {
     this._transitioning = false;
     this.alpha = 1;
 
+    const base = import.meta.env.BASE_URL ?? '/';
+    void Assets.load(`${base}logo-two-dice-left.png`).then((texture) => {
+      this._logo = Sprite.from(texture);
+      this._logo.anchor.set(0.5);
+      this.addChildAt(this._logo, 0);
+      this._layout();
+    });
+
     this._startPulse();
     this._bindKeyboard();
     this._bindGamepad();
@@ -108,12 +103,18 @@ export class TitleScene extends Container implements Scene {
 
   private _layout(): void {
     const cx = this._sw / 2;
-    const cy = this._sh * 0.42;
 
-    // Scale title font to screen width
-    const titleSize = Math.min(36, Math.max(24, this._sw * 0.08));
-    this._title.style.fontSize = titleSize;
-    this._title.position.set(cx, cy);
+    // Logo: fit within 70% screen width and 25% screen height
+    if (this._logo) {
+      this._logo.scale.set(1);
+      const natW = this._logo.width;
+      const natH = this._logo.height;
+      const maxW = this._sw * 0.7;
+      const maxH = this._sh * 0.25;
+      const scale = Math.min(maxW / natW, maxH / natH);
+      this._logo.scale.set(scale);
+      this._logo.position.set(cx, this._sh * 0.35);
+    }
 
     this._prompt.position.set(cx, this._sh * 0.75);
 

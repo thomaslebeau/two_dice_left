@@ -7,13 +7,13 @@
 import type { Survivor } from '../engine/types';
 import {
   RUSTY_BLADE,
-  SCRAP_SHIELD,
-  SHARP_KNIFE,
-  TWIN_SPIKE,
-  HEAVY_WRENCH,
+  STOP_SIGN,
+  SWITCHBLADE,
+  DOUBLE_FORK,
+  HEAVY_KEY,
   REINFORCED_DOOR,
-  LIGHT_GUARD,
-  REPAIR_KIT,
+  SEWER_PLATE,
+  SURVIVAL_KIT,
 } from './equipment';
 
 /** Le Rescapé — baseline (weapon + shield) */
@@ -22,7 +22,7 @@ export const RESCAPE: Survivor = {
   name: 'Le Rescapé',
   hp: 12,
   maxHp: 12,
-  equipment: [RUSTY_BLADE, SCRAP_SHIELD],
+  equipment: [RUSTY_BLADE, STOP_SIGN],
   passive: 'survivant',
 };
 
@@ -42,7 +42,7 @@ export const BRICOLEUR: Survivor = {
   name: 'Le Bricoleur',
   hp: 11,
   maxHp: 11,
-  equipment: [RUSTY_BLADE, TWIN_SPIKE, LIGHT_GUARD],
+  equipment: [RUSTY_BLADE, DOUBLE_FORK, SEWER_PLATE],
   passive: 'ingenieux',
 };
 
@@ -52,7 +52,7 @@ export const COUREUSE: Survivor = {
   name: 'La Coureuse',
   hp: 9,
   maxHp: 9,
-  equipment: [SHARP_KNIFE, SHARP_KNIFE],
+  equipment: [SWITCHBLADE, SWITCHBLADE],
   passive: 'elan',
 };
 
@@ -62,7 +62,7 @@ export const MECANICIEN: Survivor = {
   name: 'Le Mécanicien',
   hp: 11,
   maxHp: 11,
-  equipment: [HEAVY_WRENCH, SCRAP_SHIELD, REPAIR_KIT],
+  equipment: [HEAVY_KEY, STOP_SIGN, SURVIVAL_KIT],
   passive: 'recycleur',
 };
 

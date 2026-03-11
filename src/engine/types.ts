@@ -35,6 +35,10 @@ export interface Equipment {
   readonly description: string;
   /** If true, equipment has no die slot — effect applied via PassiveState */
   readonly isPassive?: boolean;
+  /** If true, removed from loadout after one use in combat */
+  readonly consumable?: boolean;
+  /** If true, damage from this equipment bypasses enemy shields */
+  readonly bypassShield?: boolean;
 }
 
 // ---------------------------------------------------------------------------

@@ -116,16 +116,16 @@ function resolveSmartWeights(
   maxHp: number,
   enemyHp: number,
 ): StrategyWeights {
-  // Low enemy HP: go for the kill
-  if (enemyHp <= 4) {
+  // Low enemy HP: go for the kill (wider threshold than aggressive)
+  if (enemyHp <= 6) {
     return { damage: 4, shield: 0.5, heal: 0.5, poison: 1 };
   }
 
   const hpRatio = currentHp / maxHp;
 
   if (hpRatio > 0.6) {
-    // Healthy: prioritize damage but keep some shield value
-    return { damage: 3, shield: 1.5, heal: 0.5, poison: 2 };
+    // Healthy: lean aggressive but value shields to survive longer
+    return { damage: 3, shield: 2, heal: 0.5, poison: 2 };
   }
   if (hpRatio < 0.3) {
     // Critical: prioritize survival but still deal damage

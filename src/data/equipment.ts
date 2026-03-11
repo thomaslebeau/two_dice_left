@@ -16,124 +16,113 @@ const NO_EFFECT: EquipmentEffect = { damage: 0, shield: 0, heal: 0, poison: 0 };
 // Starter equipment
 // ---------------------------------------------------------------------------
 
-/** Rusty Blade — baseline weapon, die+1 damage */
+/** Lame Cassée — baseline weapon, die+1 damage */
 export const RUSTY_BLADE: Equipment = {
   id: 'rusty_blade',
-  name: 'Lame Rouillée',
+  name: 'Lame Cassée',
   type: 'weapon',
   minDie: 1,
   maxDie: 6,
   effect: (die) => ({ ...NO_EFFECT, damage: die + 1 }),
-  description: 'de+1 dmg',
+  description: 'dé+1 dégâts',
 };
 
-/** Scrap Shield — baseline shield, die+1 absorption */
-export const SCRAP_SHIELD: Equipment = {
-  id: 'scrap_shield',
-  name: 'Bouclier de Ferraille',
+/** Panneau Stop — baseline shield, die absorption (nerfed from die+1) */
+export const STOP_SIGN: Equipment = {
+  id: 'stop_sign',
+  name: 'Panneau Stop',
   type: 'shield',
   minDie: 1,
   maxDie: 6,
-  effect: (die) => ({ ...NO_EFFECT, shield: die + 1 }),
-  description: 'de+1 abs',
+  effect: (die) => ({ ...NO_EFFECT, shield: die }),
+  description: 'dé abs',
 };
 
-/** Sharp Knife — glass cannon weapon, die+2 damage */
-export const SHARP_KNIFE: Equipment = {
-  id: 'sharp_knife',
-  name: 'Couteau Aiguise',
+/** Cran d'Arrêt — glass cannon weapon, die+2 damage (2-6 range, 1 is wasted) */
+export const SWITCHBLADE: Equipment = {
+  id: 'switchblade',
+  name: "Cran d'Arrêt",
   type: 'weapon',
-  minDie: 1,
+  minDie: 2,
   maxDie: 6,
   effect: (die) => ({ ...NO_EFFECT, damage: die + 2 }),
-  description: 'de+2 dmg',
+  description: 'dé+2 dégâts',
 };
 
-/** Twin Spike — low-range weapon, die+2 damage */
-export const TWIN_SPIKE: Equipment = {
-  id: 'twin_spike',
-  name: 'Double Pointe',
+/** Double Fourche — low-range weapon, die+2 damage */
+export const DOUBLE_FORK: Equipment = {
+  id: 'double_fork',
+  name: 'Double Fourche',
   type: 'weapon',
   minDie: 1,
   maxDie: 4,
   effect: (die) => ({ ...NO_EFFECT, damage: die + 2 }),
-  description: 'de+2 dmg',
+  description: 'dé+2 dégâts',
 };
 
-/** Heavy Wrench — high-range weapon, die+2 damage */
-export const HEAVY_WRENCH: Equipment = {
-  id: 'heavy_wrench',
-  name: 'Cle Lourde',
+/** Clé Lourde — high-range weapon, die+2 damage */
+export const HEAVY_KEY: Equipment = {
+  id: 'heavy_key',
+  name: 'Clé Lourde',
   type: 'weapon',
   minDie: 4,
   maxDie: 6,
   effect: (die) => ({ ...NO_EFFECT, damage: die + 2 }),
-  description: 'de+2 dmg',
+  description: 'dé+2 dégâts',
 };
 
-/** Sharpened Fork — low-range weapon, die+1 damage */
-export const SHARPENED_FORK: Equipment = {
-  id: 'sharpened_fork',
-  name: 'Fourche Affutee',
-  type: 'weapon',
-  minDie: 1,
-  maxDie: 3,
-  effect: (die) => ({ ...NO_EFFECT, damage: die + 1 }),
-  description: 'de+1 dmg',
-};
-
-/** Reinforced Door — high-range shield, die+1 absorption */
+/** Porte Blindée — high-range shield, die+1 abs (die+2 if 5-6) */
 export const REINFORCED_DOOR: Equipment = {
   id: 'reinforced_door',
-  name: 'Porte Blindee',
+  name: 'Porte Blindée',
   type: 'shield',
   minDie: 3,
   maxDie: 6,
-  effect: (die) => ({ ...NO_EFFECT, shield: die + 1 }),
-  description: 'de+1 abs',
+  effect: (die) => ({ ...NO_EFFECT, shield: die >= 5 ? die + 2 : die + 1 }),
+  description: 'dé+1 abs (dé+2 si 5-6)',
 };
 
-/** Light Guard — full-range shield, die+1 absorption */
-export const LIGHT_GUARD: Equipment = {
-  id: 'light_guard',
-  name: 'Garde Legere',
+/** Plaque d'Égout — full-range shield, die+1 absorption */
+export const SEWER_PLATE: Equipment = {
+  id: 'sewer_plate',
+  name: "Plaque d'Égout",
   type: 'shield',
   minDie: 1,
   maxDie: 6,
   effect: (die) => ({ ...NO_EFFECT, shield: die + 1 }),
-  description: 'de+1 abs',
+  description: 'dé+1 abs',
 };
 
-/** Repair Kit — narrow-range utility, ceil(die/2)+1 heal */
-export const REPAIR_KIT: Equipment = {
-  id: 'repair_kit',
-  name: 'Kit de Reparation',
+/** Kit de Survie — narrow-range utility, ceil(die/2)+1 heal */
+export const SURVIVAL_KIT: Equipment = {
+  id: 'survival_kit',
+  name: 'Kit de Survie',
   type: 'utility',
   minDie: 1,
   maxDie: 2,
   effect: (die) => ({ ...NO_EFFECT, heal: Math.ceil(die / 2) + 1 }),
-  description: 'soin de+1',
+  description: 'soin dé+1',
 };
 
 // ---------------------------------------------------------------------------
 // Loot pool (found via events)
 // ---------------------------------------------------------------------------
 
-/** Heavy Hammer — high-range weapon, die+3 damage */
-export const HEAVY_HAMMER: Equipment = {
-  id: 'heavy_hammer',
-  name: 'Marteau Lourd',
+/** Masse — high-range weapon, die+3 damage */
+export const MACE: Equipment = {
+  id: 'mace',
+  name: 'Masse',
   type: 'weapon',
   minDie: 5,
   maxDie: 6,
   effect: (die) => ({ ...NO_EFFECT, damage: die + 3 }),
-  description: 'de+3 dmg',
+  description: 'dé+3 dégâts',
 };
 
-/** Poison Needle — 1 damage + 1 poison turn (always) */
+/** Aiguille Empoisonnée — 1 damage + 1 poison turn (always) */
 export const POISON_NEEDLE: Equipment = {
   id: 'poison_needle',
-  name: 'Aiguille Empoisonnee',
+  name: 'Aiguille Empoisonnée',
   type: 'weapon',
   minDie: 1,
   maxDie: 6,
@@ -142,71 +131,61 @@ export const POISON_NEEDLE: Equipment = {
     damage: 1,
     poison: 1,
   }),
-  description: '1 dmg + 1 tour de poison',
+  description: '1 dégât + 1 tour de poison',
 };
 
-/** Serrated Edge — mid-range weapon, die+1 damage */
-export const SERRATED_EDGE: Equipment = {
-  id: 'serrated_edge',
-  name: 'Lame Crantee',
+/** Scie Courte — mid-range weapon, die+1 damage */
+export const SHORT_SAW: Equipment = {
+  id: 'short_saw',
+  name: 'Scie Courte',
   type: 'weapon',
   minDie: 2,
   maxDie: 5,
   effect: (die) => ({ ...NO_EFFECT, damage: die + 1 }),
-  description: 'de+1 dmg',
+  description: 'dé+1 dégâts',
 };
 
-/** Glass Shard — die damage, DOUBLE on 5-6 */
+/** Éclat de Verre — die×2 damage, consumable (removed after one use) */
 export const GLASS_SHARD: Equipment = {
   id: 'glass_shard',
-  name: 'Eclat de Verre',
+  name: 'Éclat de Verre',
   type: 'weapon',
   minDie: 1,
   maxDie: 6,
+  consumable: true,
   effect: (die) => ({
     ...NO_EFFECT,
-    damage: die >= 5 ? die * 2 : die,
+    damage: die * 2,
   }),
-  description: 'de dmg (x2 si 5-6)',
+  description: 'dé×2 dégâts (à usage unique)',
 };
 
-/** Thick Bark — mid-range shield, die+1 absorption */
+/** Écorce Épaisse — mid-range shield, die+1 absorption */
 export const THICK_BARK: Equipment = {
   id: 'thick_bark',
-  name: 'Ecorce Epaisse',
+  name: 'Écorce Épaisse',
   type: 'shield',
   minDie: 2,
   maxDie: 6,
   effect: (die) => ({ ...NO_EFFECT, shield: die + 1 }),
-  description: 'de+1 abs',
+  description: 'dé+1 abs',
 };
 
-/** Mirror Plate — high-range shield, die+2 absorption + 1 reflect */
-export const MIRROR_PLATE: Equipment = {
-  id: 'mirror_plate',
-  name: 'Plaque Miroir',
-  type: 'shield',
-  minDie: 4,
-  maxDie: 6,
-  effect: (die) => ({ ...NO_EFFECT, shield: die + 2, damage: 1 }),
-  description: 'de+2 abs + 1 renvoi',
-};
-
-/** Bandage Wrap — low-range utility, heal = die value */
-export const BANDAGE_WRAP: Equipment = {
-  id: 'bandage_wrap',
-  name: 'Bandage Vegetal',
+/** Bandage Végétal — low-range utility, heal = die value */
+export const VEGETAL_BANDAGE: Equipment = {
+  id: 'vegetal_bandage',
+  name: 'Bandage Végétal',
   type: 'utility',
   minDie: 1,
   maxDie: 4,
   effect: (die) => ({ ...NO_EFFECT, heal: die }),
-  description: 'soin de PV',
+  description: 'soin = valeur du dé',
 };
 
-/** Adrenaline Root — full-range utility, split damage + shield */
-export const ADRENALINE_ROOT: Equipment = {
-  id: 'adrenaline_root',
-  name: 'Racine Adrenaline',
+/** Racine Amère — full-range utility, split damage + shield */
+export const BITTER_ROOT: Equipment = {
+  id: 'bitter_root',
+  name: 'Racine Amère',
   type: 'utility',
   minDie: 1,
   maxDie: 6,
@@ -215,7 +194,7 @@ export const ADRENALINE_ROOT: Equipment = {
     damage: Math.ceil(die / 2),
     shield: Math.ceil(die / 2),
   }),
-  description: 'de/2 dmg + de/2 abs',
+  description: 'dé/2 dégâts + dé/2 abs',
 };
 
 // ---------------------------------------------------------------------------
@@ -233,39 +212,39 @@ export const CORROSIVE_BLADE: Equipment = {
     ...NO_EFFECT,
     damage: ctx?.targetPoisoned ? (die + 1) * 2 : die + 1,
   }),
-  description: 'de+1 dmg (x2 si poison)',
+  description: 'dé+1 dégâts (×2 si empoisonné)',
 };
 
-/** Sac a Spores — +1 poison turn (utility, no weapon slot cost) */
+/** Sac à Spores — +1 poison turn (utility, no weapon slot cost) */
 export const SPORE_SAC: Equipment = {
   id: 'spore_sac',
-  name: 'Sac a Spores',
+  name: 'Sac à Spores',
   type: 'utility',
   minDie: 1,
   maxDie: 4,
   effect: () => ({ ...NO_EFFECT, poison: 1 }),
-  description: '+1 poison',
+  description: '+1 tour de poison',
 };
 
-/** Bouclier a Epines — die/2 absorption + die/2 reflect damage */
+/** Bouclier à Épines — die abs + ceil(die/3) reflect damage */
 export const THORN_SHIELD: Equipment = {
   id: 'thorn_shield',
-  name: 'Bouclier a Epines',
+  name: 'Bouclier à Épines',
   type: 'shield',
   minDie: 1,
   maxDie: 6,
   effect: (die: number) => ({
     ...NO_EFFECT,
-    shield: Math.floor(die / 2),
-    damage: Math.floor(die / 2),
+    shield: die,
+    damage: Math.ceil(die / 3),
   }),
-  description: 'de/2 abs + de/2 renvoi',
+  description: 'dé abs + dé/3 renvoi',
 };
 
-/** Cable Tresse — die dmg, +2 if another die is also in a weapon slot */
+/** Câble Tressé — die dmg, +2 if another die is also in a weapon slot */
 export const BRAIDED_CABLE: Equipment = {
   id: 'braided_cable',
-  name: 'Cable Tresse',
+  name: 'Câble Tressé',
   type: 'weapon',
   minDie: 1,
   maxDie: 6,
@@ -273,38 +252,44 @@ export const BRAIDED_CABLE: Equipment = {
     ...NO_EFFECT,
     damage: ctx?.otherDieInWeapon ? die + 2 : die,
   }),
-  description: 'de dmg (+2 si duo arme)',
+  description: 'dé dégâts (+2 si duo arme)',
 };
 
-/** Trophee Rouille — passive: +1 dmg for 3 rounds after speed kill (cap 2) */
-export const RUSTY_TROPHY: Equipment = {
-  id: 'rusty_trophy',
-  name: 'Trophee Rouille',
+/** Cocktail Molotov — die damage that bypasses shields */
+export const MOLOTOV: Equipment = {
+  id: 'molotov',
+  name: 'Cocktail Molotov',
   type: 'utility',
-  minDie: 1,
+  minDie: 3,
   maxDie: 6,
-  isPassive: true,
-  effect: () => NO_EFFECT,
-  description: '+1 dmg/3 tours apres speed kill',
+  bypassShield: true,
+  effect: (die: number) => ({
+    ...NO_EFFECT,
+    damage: die,
+  }),
+  description: 'dé dégâts (ignore les boucliers)',
 };
 
 // ---------------------------------------------------------------------------
 // Aggregates
 // ---------------------------------------------------------------------------
 
-/** All loot equipment available from events (13 items) */
+/** All loot equipment available from events (11 items: 7 core + 4 synergy) */
 export const ALL_LOOT: readonly Equipment[] = [
-  HEAVY_HAMMER,
+  // Core loot (7 items)
+  MACE,
   POISON_NEEDLE,
-  SERRATED_EDGE,
+  SHORT_SAW,
   GLASS_SHARD,
   THICK_BARK,
-  MIRROR_PLATE,
-  BANDAGE_WRAP,
-  ADRENALINE_ROOT,
+  VEGETAL_BANDAGE,
+  BITTER_ROOT,
+  // Moved from synergy to core
+  THORN_SHIELD,
+  // Synergy loot (3 items)
   CORROSIVE_BLADE,
   SPORE_SAC,
-  THORN_SHIELD,
   BRAIDED_CABLE,
-  RUSTY_TROPHY,
+  // Synergy: Bypass
+  MOLOTOV,
 ];

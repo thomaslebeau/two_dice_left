@@ -94,6 +94,36 @@ export interface RoundOutcome {
   enemyRawDmg: number;
 }
 
+/** Sum bypass damage from allocations where equipment has bypassShield */
+function sumBypassDamage(
+  allocations: readonly Allocation[],
+  equipment: readonly Equipment[],
+  contextBuilder?: (alloc: Allocation) => EffectContext,
+): number {
+  let total = 0;
+  for (const alloc of allocations) {
+    const eq = equipment[alloc.equipmentIndex];
+    if (!eq.bypassShield) continue;
+    const ctx = contextBuilder?.(alloc);
+    total += eq.effect(alloc.dieValue, ctx).damage;
+  }
+  return total;
+}
+
+/** Sum normal (non-bypass) damage from utility allocations */
+function sumNormalUtilDmg(
+  allocations: readonly Allocation[],
+  equipment: readonly Equipment[],
+): number {
+  let total = 0;
+  for (const alloc of allocations) {
+    const eq = equipment[alloc.equipmentIndex];
+    if (eq.type !== 'utility' || eq.bypassShield) continue;
+    total += eq.effect(alloc.dieValue).damage;
+  }
+  return total;
+}
+
 export function resolveRound(
   playerAllocations: readonly Allocation[],
   playerEquipment: readonly Equipment[],
@@ -108,9 +138,14 @@ export function resolveRound(
   const playerWeaponPoison = sumField(player.weapons, 'poison');
   const playerShieldTotal = sumField(player.shields, 'shield');
   const playerHeal = sumField(player.utilities, 'heal');
-  // Utility damage/shield also contribute
-  const playerUtilDmg = sumField(player.utilities, 'damage');
+  // Normal utility damage/shield (non-bypass)
+  const playerNormalUtilDmg = sumNormalUtilDmg(playerAllocations, playerEquipment);
   const playerUtilShield = sumField(player.utilities, 'shield');
+
+  // Bypass damage: not reduced by enemy shields
+  const playerBypassDmg = sumBypassDamage(
+    playerAllocations, playerEquipment, playerContextBuilder,
+  );
 
   const enemyWeaponDmg = sumField(enemy.weapons, 'damage');
   const enemyWeaponPoison = sumField(enemy.weapons, 'poison');
@@ -118,20 +153,24 @@ export function resolveRound(
   const enemyUtilDmg = sumField(enemy.utilities, 'damage');
   const enemyUtilShield = sumField(enemy.utilities, 'shield');
 
-  const totalPlayerDmg = playerWeaponDmg + playerUtilDmg;
+  const totalNormalPlayerDmg = playerWeaponDmg + playerNormalUtilDmg;
   const totalPlayerShield = playerShieldTotal + playerUtilShield;
   const totalEnemyDmg = enemyWeaponDmg + enemyUtilDmg;
   const totalEnemyShield = enemyShieldTotal + enemyUtilShield;
 
-  const playerUsedWeapon = player.weapons.length > 0 || playerUtilDmg > 0;
+  const playerUsedWeapon = player.weapons.length > 0
+    || playerNormalUtilDmg > 0 || playerBypassDmg > 0;
 
-  // Asymmetric min-1 rule: player always does at least 1 if they used a weapon
-  let damageToEnemy = totalPlayerDmg - totalEnemyShield;
+  // Normal damage: reduced by enemy shields, min 1 if weapon used
+  let normalDmgToEnemy = totalNormalPlayerDmg - totalEnemyShield;
   if (playerUsedWeapon) {
-    damageToEnemy = Math.max(1, damageToEnemy);
+    normalDmgToEnemy = Math.max(1, normalDmgToEnemy);
   } else {
-    damageToEnemy = Math.max(0, damageToEnemy);
+    normalDmgToEnemy = Math.max(0, normalDmgToEnemy);
   }
+
+  // Total: normal + bypass (bypass not reduced by shields)
+  const damageToEnemy = normalDmgToEnemy + playerBypassDmg;
 
   // Enemy has NO min damage — player can fully block
   const damageToPlayer = Math.max(0, totalEnemyDmg - totalPlayerShield);
@@ -202,6 +241,7 @@ export function simulateCombat(
   let zeroRounds = 0;
   let playerPoisonTurns = 0;
   let enemyPoisonTurns = 0;
+  let equipment = [...playerEquipment];
   const state = passiveState ?? createPassiveState();
 
   while (pHp > 0 && eHp > 0 && rounds < MAX_ROUNDS) {
@@ -215,7 +255,7 @@ export function simulateCombat(
 
     // Allocate
     const playerAlloc = allocateOptimal(
-      playerDice, playerEquipment, strategy, pHp, playerMaxHp, eHp,
+      playerDice, equipment, strategy, pHp, playerMaxHp, eHp,
     );
     const enemyAlloc = allocateEnemy(
       enemyDice, enemyEquipment, enemyPattern,
@@ -224,11 +264,11 @@ export function simulateCombat(
     // Build context for synergy effects (Corrosive, Cable)
     const enemyPoisoned = enemyPoisonTurns > 0;
     const contextBuilder = (alloc: Allocation): EffectContext =>
-      computeEffectContext(alloc, playerAlloc, playerEquipment, enemyPoisoned);
+      computeEffectContext(alloc, playerAlloc, equipment, enemyPoisoned);
 
     // Resolve with context
     const outcome = resolveRound(
-      playerAlloc, playerEquipment,
+      playerAlloc, equipment,
       enemyAlloc, enemyEquipment,
       contextBuilder,
     );
@@ -310,6 +350,17 @@ export function simulateCombat(
 
     // Tick trophee stacks at end of round
     tickTropheeStacks(state);
+
+    // Remove consumable equipment used this round
+    const usedIndices = new Set(playerAlloc.map(a => a.equipmentIndex));
+    const consumed = equipment.filter(
+      (eq, idx) => eq.consumable && usedIndices.has(idx),
+    );
+    if (consumed.length > 0) {
+      equipment = equipment.filter(
+        (eq, idx) => !(eq.consumable && usedIndices.has(idx)),
+      );
+    }
   }
 
   const won = eHp <= 0;

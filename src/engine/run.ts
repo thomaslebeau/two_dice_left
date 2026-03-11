@@ -145,9 +145,8 @@ export function simulateRun(
 
     // Reset passive state between combats (not before the first)
     if (i > 0) {
-      const hasTrophy = equipment.some(e => e.id === 'rusty_trophy');
       passiveState = resetPassiveForCombat(
-        passiveState, lastSpeedKill, hp / maxHp, hasTrophy,
+        passiveState, lastSpeedKill, hp / maxHp, false,
       );
     }
 

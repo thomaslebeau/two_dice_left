@@ -43,9 +43,8 @@ const RUST = 0x8B3A1A;
 const SYNERGY_IDS = new Set([
   'corrosive_blade',
   'spore_sac',
-  'thorn_shield',
   'braided_cable',
-  'rusty_trophy',
+  'molotov',
 ]);
 
 // ---------------------------------------------------------------------------

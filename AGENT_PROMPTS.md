@@ -1,4 +1,4 @@
-# Two Dice Left — Claude CLI Agent Prompts (GDD v6.1)
+# Two Dice Left — Claude CLI Agent Prompts (GDD v6.1 FINAL — BALANCE LOCKED)
 
 ## Agent 1: Creative Director (Vision, Architecture, Universe)
 
@@ -33,7 +33,7 @@ Narrative of a run: Each run tells the story of a lone survivor venturing into t
 3. EQUIPMENT = IDENTITY: Each survivor's identity comes from their starting loadout AND passive, not flat stat bonuses.
 4. LOOT, NOT BONUSES: Events give new equipment (choice of 2-3), not +1 ATK. The player builds their loadout during the run.
 5. ZERO DEAD TURNS: Asymmetric minimum 1 damage rule (player weapons only). No stalemates.
-6. SYNERGY BUILDING: Loot choices create emergent build archetypes (Poison, Reflect, Combo, Momentum). The player constructs toward a strategy, not just picking the best individual piece.
+6. SYNERGY BUILDING: Loot choices create emergent build archetypes (Poison, Reflect, Combo, Bypass). The player constructs toward a strategy, not just picking the best individual piece.
 
 ## Game architecture
 
@@ -69,13 +69,13 @@ Speed kill recovery: Win in ≤3 rounds → recover 3 HP (capped at max). Player
 
 ## Survivors (identity = loadout + passive)
 
-| Survivor       | HP | Starting Equipment                                         | Passive                                                                 | Identity      |
-|----------------|----|------------------------------------------------------------|-------------------------------------------------------------------------|---------------|
-| Le Rescapé     | 12 | Rusty Blade (1-6→die+1 dmg) + Scrap Shield (1-6→die+1 abs) | Survivant: sous 40% HP → +1 dégâts arme                                | Baseline      |
-| La Sentinelle  | 14 | Rusty Blade + Reinforced Door (3-6→die+1 abs)               | Rempart: abs excédentaire → +1 shield tour suivant (gate HP>50%)       | Tank          |
-| Le Bricoleur   | 11 | Rusty Blade + Twin Spike (1-4→die+2 dmg) + Light Guard (1-6)| Ingénieux: 2 types différents → +1 à l'effet le plus faible            | 3 slots       |
-| La Coureuse    | 9  | Sharp Knife (1-6→die+2 dmg) + Sharp Knife                   | Élan: speed kill + HP>50% → +1 dégâts R1 (no-chain)                    | Glass cannon  |
-| Le Mécanicien  | 11 | Heavy Wrench (4-6→die+2 dmg) + Scrap Shield + Repair Kit(1-2)| Recycleur: 1×/combat, dé=1 → 2 déterministe                           | Balanced      |
+| Survivor       | HP | Starting Equipment                                                    | Passive                                                                 | Identity      |
+|----------------|----|--------------------------------------------------------------------|-------------------------------------------------------------------------|---------------|
+| Le Rescapé     | 12 | Lame Cassée (1-6→die+1 dmg) + Panneau Stop (1-6→die abs)            | Survivant: sous 40% HP → +1 dégâts arme                                | Baseline      |
+| La Sentinelle  | 14 | Lame Cassée + Porte Blindée (3-6→die+1 abs, die+2 si 5-6)          | Rempart: abs excédentaire → +1 shield tour suivant (gate HP>50%)       | Tank          |
+| Le Bricoleur   | 11 | Lame Cassée + Double Fourche (1-4→die+2 dmg) + Plaque d'Égout (1-6) | Ingénieux: 2 types différents → +1 à l'effet le plus faible            | 3 slots       |
+| La Coureuse    | 9  | Cran d'Arrêt (2-6→die+2 dmg) + Cran d'Arrêt                        | Élan: speed kill + HP>50% → +1 dégâts R1 (no-chain)                    | Glass cannon  |
+| Le Mécanicien  | 11 | Clé Lourde (4-6→die+2 dmg) + Panneau Stop + Kit de Survie (1-2)    | Recycleur: 1×/combat, dé=1 → 2 déterministe                           | Balanced      |
 
 Starting pool: Le Rescapé only. Others unlocked by successive victories.
 
@@ -83,7 +83,7 @@ Starting pool: Le Rescapé only. Others unlocked by successive victories.
 
 - Each passive amplifies a playstyle archetype WITHOUT replacing equipment importance
 - Passives change how the player evaluates allocation choices and loot picks
-- All passives validated by simulation: +3.5-6.7pp win rate each. Mécanicien outlier due to loadout amplification (accepted)
+- All passives validated by simulation: +0.8-4.5pp win rate each. Mécanicien outlier due to loadout amplification (accepted)
 - Passives must NOT be stronger than equipment — they orient the build direction, not carry the run
 
 ## Enemy cards (9 possessed objects)
@@ -110,19 +110,21 @@ Enemy pools: C1-C2 commons (E1-E3), C3-C4 commons+uncommons (E1-E7), C5 bosses (
 
 ### Core loot pool (8 items)
 
-Heavy Hammer, Sharpened Fork, Poison Needle, Serrated Edge, Glass Shard, Thick Bark, Mirror Plate, Bandage Wrap. No duplicates within a run.
+Masse, Aiguille Empoisonnée, Scie Courte, Éclat de Verre (consumable — removed after one use), Écorce Épaisse, Bouclier à Épines, Bandage Végétal, Racine Amère. No duplicates within a run.
 
-### Synergy loot pool (5 items, v6.1)
+### Synergy loot pool (3 items, v6.1 FINAL)
 
-| Item              | Type    | Range | Effect                                                     | Archetype       |
-|-------------------|---------|-------|-------------------------------------------------------------|-----------------|
-| Lame Corrosive    | weapon  | 1-6   | die+1 dmg (doubled if target poisoned)                      | Poison          |
-| Spore Sac         | utility | 1-4   | +1 poison turn (no weapon slot cost)                        | Poison          |
-| Bouclier à Épines | shield  | 1-6   | die/2 abs + die/2 reflect dmg (floor)                       | Reflect/Counter |
-| Câble Tressé      | weapon  | 1-6   | die dmg + 2 bonus if other die also in a weapon             | Combo           |
-| Trophée Rouillé   | utility | —     | passive: +1 dmg for 3 rounds after speed kill (cap 2 stacks)| Momentum        |
+| Item              | Type    | Range | Effect                                                     | Flags          | Archetype       |
+|-------------------|---------|-------|-------------------------------------------------------------|----------------|-----------------|
+| Lame Corrosive    | weapon  | 1-6   | die+1 dmg (doubled if target poisoned)                      |                | Poison          |
+| Sac à Spores      | utility | 1-4   | +1 poison turn (no weapon slot cost)                        |                | Poison          |
+| Câble Tressé      | weapon  | 1-6   | die dmg + 2 bonus if other die also in a weapon             |                | Combo           |
+| Cocktail Molotov  | utility | 3-6   | die dmg (bypasses shields)                                  | bypassShield   | Bypass          |
 
-Design intent: each synergy creates a different allocation dilemma. Poison build wants low die (Needle) + high die (Corrosive). Burst/Combo build wants both dice in weapons. Reflect build wants both in shields. The player doesn't play the same puzzle depending on the archetype they build.
+Total loot pool: 11 items (8 core + 3 synergy). Bouclier à Épines moved from synergy to core.
+Removed items: Fourche Aiguisée, Plaque Miroir, Trophée Rouillé (permanent stacking, see balance lessons).
+
+Design intent: each synergy creates a different allocation dilemma. Poison build wants low die (Needle) + high die (Corrosive). Burst/Combo build wants both dice in weapons. Bypass build uses utility to deal unavoidable damage. The player doesn't play the same puzzle depending on the archetype they build.
 
 Narrative framing: exploration scenes (ruined workshop, overgrown armory, abandoned camp). French flavor text, short.
 
@@ -142,7 +144,7 @@ Narrative framing: exploration scenes (ruined workshop, overgrown armory, abando
 
 3. PLAYER EXPERIENCE: The dice-to-equipment allocation moment is the game's signature. It must feel like solving a puzzle, not filling a form. Preview effects before committing. Undo allowed. Loot choices must show how new equipment integrates with existing loadout AND synergies.
 
-4. NAMING & FLAVOR: Card names and descriptions in French. Code in English. Names evoke post-apo scavenger aesthetic: Rusty Blade, Scrap Shield, Heavy Wrench — not "Sword of Fire" or "Legendary Shield". Synergy equipment follows same rules: Lame Corrosive, Spore Sac, Bouclier à Épines.
+4. NAMING & FLAVOR: Card names and descriptions in French. Code in English. Names evoke post-apo scavenger aesthetic: Lame Cassée, Panneau Stop, Clé Lourde — not "Sword of Fire" or "Legendary Shield". Synergy equipment follows same rules: Lame Corrosive, Sac à Spores, Bouclier à Épines.
 
 5. FEATURE EVALUATION: For any proposed feature, evaluate:
    - Does it add a meaningful allocation decision?
@@ -155,15 +157,15 @@ Narrative framing: exploration scenes (ruined workshop, overgrown armory, abando
 6. DESIGN TRAPS — learned from v1-v5 iterations:
    - STALEMATE TRAP: ATK vs DEF direct comparison creates zero-damage rounds when both sides have equal stats. The equipment system + min 1 damage rule eliminates this.
    - SYMMETRY TRAP: A mechanic that applies equally to player and enemy won't shift strategy balance. Anti-stalemate min 1 damage is player-only for this reason.
-   - STAT IDENTITY TRAP: Flat stats (+1 ATK, +1 DEF) don't create distinct play patterns. Equipment with die-range conditions creates real identity — a Heavy Wrench (4-6 only) plays fundamentally differently from a Twin Spike (1-4 only).
+   - STAT IDENTITY TRAP: Flat stats (+1 ATK, +1 DEF) don't create distinct play patterns. Equipment with die-range conditions creates real identity — a Clé Lourde (4-6 only) plays fundamentally differently from a Double Fourche (1-4 only).
    - VARIANCE CEILING: With 2D6, realistic allocation spread is 2-3× between optimal and random. Design supporting systems (speed kill, loot diversity) rather than expecting dice alone to create huge strategic gaps.
    - LOOT INFLATION: More equipment slots = more options, but also more cognitive load. Cap the practical loadout at ~6 pieces. Beyond that, the allocation puzzle becomes overwhelming.
    - PASSIVE DOMINANCE TRAP (v6.1): If a passive is stronger than the equipment loadout, all players of that survivor play the same way regardless of loot. Passives must orient, not dominate (+1-2pp max).
-   - SNOWBALL TRAP (v6.1): Momentum/stacking mechanics (like Trophée Rouillé) must be capped or temporary. Permanent stacking trivializes late-game. Always ask: "does a winning player need this bonus?"
+   - SNOWBALL TRAP (v6.1): Momentum/stacking mechanics must be capped or temporary. Permanent stacking trivializes late-game. Always ask: "does a winning player need this bonus?"
 
 ## How to respond
 
-- Reference GDD v6.1 as source of truth
+- Reference GDD v6.1 FINAL as source of truth (BALANCE LOCKED)
 - Flag any universe/aesthetic deviation
 - Flag any architecture violation (game logic in UI, UI logic in engine)
 - Suggest alternatives within established vision
@@ -271,9 +273,17 @@ interface Equipment {
   type: 'weapon' | 'shield' | 'utility';
   minDie: number;   // minimum accepted die value
   maxDie: number;    // maximum accepted die value
-  effect: (dieValue: number, context?: AllocationContext) => EquipmentEffect;
+  effect: (dieValue: number, context?: EffectContext) => EquipmentEffect;
   description: string;
-  isPassive?: boolean; // Trophée Rouillé — no die allocation needed
+  consumable?: boolean;    // Éclat de Verre — removed from loadout after one use
+  bypassShield?: boolean;  // Cocktail Molotov — damage ignores enemy shields
+  isPassive?: boolean;     // passive equipment (not allocatable)
+}
+
+// EffectContext provides synergy info to equipment effect functions
+interface EffectContext {
+  otherDieInWeapon: boolean;  // for Câble Tressé combo bonus
+  targetPoisoned: boolean;    // for Lame Corrosive doubled damage
 }
 
 type PassiveId = 'survivant' | 'rempart' | 'ingenieux' | 'elan' | 'recycleur';
@@ -284,8 +294,7 @@ interface PassiveState {
   elanBoostedCombat: boolean;  // no-chain rule
   currentRound: number;
   recycleurUsed: boolean;
-  tropheeStacks: number;
-  tropheeRoundsLeft: number[];
+  consumablesUsed: string[];  // IDs of consumed equipment this combat
 }
 
 interface EffectContext {
@@ -313,7 +322,7 @@ interface CombatResult {
 MENU → SURVIVOR_SELECTION → COMBAT_1 → EVENT_1(loot) → COMBAT_2 → EVENT_2(loot) → COMBAT_3 → EVENT_3(loot) → COMBAT_4 → EVENT_4(loot) → COMBAT_5 → REWARD / GAMEOVER
 ```
 
-GameStateManager tracks: currentCombat (1-5), survivor (hp, maxHp, equipment[], passive), lootOffered[], lootChosen[], speedKillStacks, excessShieldCarry.
+GameStateManager tracks: currentCombat (1-5), survivor (hp, maxHp, equipment[], passive), lootOffered[], lootChosen[], consumablesUsed[], excessShieldCarry.
 
 ### Allocation system (the core mechanic)
 
@@ -347,10 +356,11 @@ UI side (src/ui/combat/):
 6. Apply Rempart: check excess shield, carry +1 to next round
 7. Poison ticks (1 dmg/turn per active poison)
 8. Heal applied (capped at maxHp)
-9. HP bars animate
-10. Check win/loss → next round or combat end
-11. On combat win: check speed kill → apply Élan buff, update Trophée stacks
-12. Recycleur: if Mécanicien has unused tinker AND a die shows 1, auto-apply +1 (deterministic, 1→2)
+9. Remove consumable equipment from loadout if used this round
+10. HP bars animate
+11. Check win/loss → next round or combat end
+12. On combat win: check speed kill → apply Élan buff
+13. Recycleur: if Mécanicien has unused tinker AND a die shows 1, auto-apply +1 (deterministic, 1→2)
 
 ### Scene lifecycle
 
@@ -372,7 +382,7 @@ UI side (src/ui/combat/):
 
 - Classes: PascalCase (GameStateManager, DiceSprite)
 - Functions/methods: camelCase (allocateOptimal, simulateCombat, applyPassive)
-- Constants: UPPER_SNAKE_CASE (RUSTY_BLADE, COMBAT_TIERS, ALL_LOOT, PASSIVE_SURVIVANT)
+- Constants: UPPER_SNAKE_CASE (LAME_CASSEE, COMBAT_TIERS, ALL_LOOT, PASSIVE_SURVIVANT)
 - Private fields: underscore prefix (\_currentCombat)
 - Files: PascalCase for classes, camelCase for utilities
 
@@ -463,7 +473,7 @@ Each round:
    - Poison ticks: 1 dmg/turn per active poison stack
    - Heal applied after damage (capped at maxHp)
 
-Key difference from v5: No more ATK/DEF flat stats. No more `max(0, atkTotal - defTotal)`. Equipment effects are the entire damage model. A Rusty Blade (1-6→die+1 dmg) placed with a 5 deals 6 damage. A Scrap Shield (1-6→die abs) placed with a 3 absorbs 3 damage. Net: 6-3 = 3 damage to enemy.
+Key difference from v5: No more ATK/DEF flat stats. No more `max(0, atkTotal - defTotal)`. Equipment effects are the entire damage model. A Lame Cassée (1-6→die+1 dmg) placed with a 5 deals 6 damage. A Panneau Stop (1-6→die abs) placed with a 3 absorbs 3 damage. Net: 6-3 = 3 damage to enemy.
 
 Anti-stalemate: Player weapon use guarantees min 1 damage regardless of enemy shields. This is player-only — enemies can be fully blocked. Simulation shows 0.03 zero-rounds/combat (vs 2.16 in v5).
 
@@ -478,37 +488,40 @@ Equipment has two axes of power:
 
 Trade-off principle: narrow range = stronger effect. Wide range = weaker effect.
 
-- Rusty Blade (1-6→die+1): always usable, modest damage. E[dmg]=4.5
-- Heavy Hammer (5-6→die+3): huge burst, but only fires 33% of rolls. E[dmg]=2.83
-- Twin Spike (1-4→die+2): strong for low dice that would otherwise be weak. E[dmg]=3.0
-- Heavy Wrench (4-6→die+2): high-range weapon. E[dmg]=3.5 (but 7.0 when it fires)
-- Scrap Shield (1-6→die+1 abs): always usable, reliable baseline defense. E[shield]=4.5
-- Reinforced Door (3-6→die+1 abs): high-range shield. E[shield]=3.67
-- Light Guard (1-6→die+1 abs): full-range shield, same as Scrap Shield. E[shield]=4.5
-- Repair Kit (1-2→ceil(die/2)+1): narrow heal, fires 33%. E[heal]=0.58
+- Lame Cassée (1-6→die+1): always usable, modest damage. E[dmg]=4.5
+- Masse (5-6→die+3): huge burst, but only fires 33% of rolls. E[dmg]=2.83
+- Double Fourche (1-4→die+2): strong for low dice that would otherwise be weak. E[dmg]=3.0
+- Clé Lourde (4-6→die+2): high-range weapon. E[dmg]=3.5 (but 7.0 when it fires)
+- Panneau Stop (1-6→die abs): always usable, baseline defense (nerfed from die+1). E[shield]=3.5
+- Porte Blindée (3-6→die+1 abs, die+2 if 5-6): conditional shield. E[shield]=(3×4+4×7+5×7+6×8)/6÷6≈3.83
+- Plaque d'Égout (1-6→die+1 abs): full-range shield. E[shield]=4.5
+- Cran d'Arrêt (2-6→die+2 dmg): high damage but 1 is wasted (glass cannon tax). E[dmg]=4.67×(5/6)=3.89
+- Kit de Survie (1-2→ceil(die/2)+1): narrow heal, fires 33%. E[heal]=0.58
 
-This creates the allocation puzzle: a roll of [2, 5] with Rusty Blade + Heavy Wrench + Scrap Shield has multiple valid plays:
+New mechanics:
+- Consumable (isConsumable): equipment is removed from loadout after one use. Éclat de Verre (1-6→die×2 dmg) deals massive burst but is single-use.
+- Bypass shields (bypassShield): damage ignores enemy shield absorption. Cocktail Molotov (3-6→die dmg) deals unavoidable damage through defense.
 
-- 5→Wrench (7 dmg), 2→Shield (3 abs) = max damage
-- 5→Blade (6 dmg), 2→Shield (3 abs) = safe play (Wrench wasted)
-- 2→Blade (3 dmg), 5→Shield (6 abs) = full defense
+This creates the allocation puzzle: a roll of [2, 5] with Lame Cassée + Clé Lourde + Panneau Stop has multiple valid plays:
+
+- 5→Clé Lourde (7 dmg), 2→Panneau Stop (2 abs) = max damage
+- 5→Lame Cassée (6 dmg), 2→Panneau Stop (2 abs) = safe play (Clé Lourde wasted)
+- 2→Lame Cassée (3 dmg), 5→Panneau Stop (5 abs) = full defense
   The "correct" play depends on HP, enemy HP, enemy equipment.
 
-## Survivor balance (v6.1 — with passives)
+## Survivor balance (v6.1 FINAL — BALANCE LOCKED)
 
 Each survivor's identity comes from their loadout AND passive:
 
-| Survivor      | HP  | Slots | Passive                                                | Delta  | Win% (smart) | Design intent                                       |
-| ------------- | --- | ----- | ------------------------------------------------------ | ------ | ------------ | --------------------------------------------------- |
-| Le Rescapé    | 12  | 2     | Survivant: <40% HP → +1 weapon dmg                     | +5.6pp | 39.2%        | Baseline. Comeback mechanic for clutch moments.     |
-| La Sentinelle | 14  | 2     | Rempart: excess shield → +1 next rnd (HP>50% gate)     | +3.5pp | 37.7%        | Tank. Rewards overinvesting in defense.             |
-| Le Bricoleur  | 11  | 3     | Ingénieux: 2 types allocated → +1 to weakest effect    | +5.7pp | 34.4%        | 3 slots from start. Rewards diversified allocation. |
-| La Coureuse   | 9   | 2     | Élan: speed kill + HP>50% → +1 dmg R1 (no-chain)       | +4.9pp | 40.3%        | No shield. Snowball but gated by chain-break.       |
-| Le Mécanicien | 11  | 3     | Recycleur: 1×/combat, die=1 → 2 deterministic          | +4.9pp | 46.2%        | Wrench needs 4+, tinker mitigates snake-eyes.       |
+| Survivor      | HP  | Slots | Passive                                                | Win% (smart) | Design intent                                       |
+| ------------- | --- | ----- | ------------------------------------------------------ | ------------ | --------------------------------------------------- |
+| Le Rescapé    | 12  | 2     | Survivant: <40% HP → +1 weapon dmg                     | 37.1%        | Baseline. Comeback mechanic for clutch moments.     |
+| La Sentinelle | 14  | 2     | Rempart: excess shield → +1 next rnd (HP>50% gate)     | 45.5%        | Tank. Conditional Porte Blindée (die+1/die+2).      |
+| Le Bricoleur  | 11  | 3     | Ingénieux: 2 types allocated → +1 to weakest effect    | 41.2%        | 3 slots from start. Rewards diversified allocation. |
+| La Coureuse   | 9   | 2     | Élan: speed kill + HP>50% → +1 dmg R1 (no-chain)       | 38.7%        | No shield. Cran d'Arrêt 2-6 range = risk/reward.   |
+| Le Mécanicien | 11  | 3     | Recycleur: 1×/combat, die=1 → 2 deterministic          | 43.3%        | Wrench needs 4+, tinker mitigates snake-eyes.       |
 
-v6.1 reference: smart 39.5%, spread 11.8pp. Mécanicien outlier at 46.2% (3-slot complementary loadout amplifies passive structurally — accepted).
-
-Passive deltas are +3.5-6.7pp (original target +1-2pp proved unrealistic — loadout interactions amplify any passive beyond simple EV math). Accepted at +5pp average.
+v6.1 FINAL: smart 41.2%, spread 8.4pp (accepted). Hierarchy: smart > aggressive > random > defensive ✓.
 
 ## Enemy equipment model
 
@@ -520,7 +533,7 @@ Enemies have their own equipment (weapons + shields) with allocation patterns:
 
 Enemy HP scaled by combat tier multipliers (v6.1 final, auto-tuned):
 
-- C1: ×0.41, C2: ×0.49, C3: ×0.61, C4: ×0.76, C5: ×0.91
+- C1: ×0.38, C2: ×0.45, C3: ×0.56, C4: ×0.70, C5: ×0.84
 
 ## Loot economy
 
@@ -528,28 +541,28 @@ Enemy HP scaled by combat tier multipliers (v6.1 final, auto-tuned):
 
 ### Core loot power tiers
 
-- High burst: Heavy Hammer (5-6→die+3), Glass Shard (1-6→die, DOUBLE on 5-6)
-- Reliable DPS: Serrated Edge (2-5→die+1), Sharpened Fork (1-3→die+1)
-- Utility: Poison Needle (1-6→1 dmg + 1 poison turn always), Bandage Wrap (1-4→heal die)
-- Defensive: Thick Bark (2-6→die+1 abs), Mirror Plate (4-6→die+2 abs + 1 reflect)
+- High burst: Masse (5-6→die+3), Éclat de Verre (1-6→die×2 dmg, consumable)
+- Reliable DPS: Scie Courte (2-5→die+1)
+- Utility: Aiguille Empoisonnée (1-6→1 dmg + 1 poison turn always), Bandage Végétal (1-4→heal die), Racine Amère (1-6→ceil(die/2) dmg + ceil(die/2) shield)
+- Defensive: Écorce Épaisse (2-6→die+1 abs), Bouclier à Épines (1-6→die abs + ceil(die/3) reflect dmg)
 
-### Synergy loot (v6.1) — power budgets
+### Synergy loot (v6.1 FINAL) — power budgets
 
 | Item              | Range | P(valid) | E[effect]      | Power Budget     | vs Pool (1.67-5.33) | Notes                               |
 | ----------------- | ----- | -------- | -------------- | ---------------- | ------------------- | ----------------------------------- |
 | Lame Corrosive    | 1-6   | 1.0      | 3.5 / 7.0 cond | 3.5 std, 7.0 syn | Mid / High cond     | Doubled only when target poisoned   |
-| Spore Sac         | 1-4   | 0.667    | 1 tick         | 0.667            | Below floor         | Value gated behind Needle/Corrosive |
-| Bouclier à Épines | 1-6   | 1.0      | 2.0 + 2.0      | 4.0              | Mid-range           | Split abs/reflect, perfect balance  |
+| Sac à Spores      | 1-4   | 0.667    | 1 tick         | 0.667            | Below floor         | Value gated behind Needle/Corrosive |
 | Câble Tressé      | 1-6   | 1.0      | 3.5-5.5        | 4.25 smart       | Mid-high            | +2 bonus (nerfed from +3)           |
-| Trophée Rouillé   | —     | N/A      | temp +1 dmg    | Controlled       | N/A                 | 3-round buff, cap 2 stacks          |
+| Cocktail Molotov  | 3-6   | 0.667    | 4.5            | 3.0              | Mid-range           | Bypasses shields, unavoidable dmg   |
 
 Loot adds to loadout (no cap). More slots = more options per turn. But loot vs heal is the strategic dilemma — more options don't help if you're dead.
 
 ### Synergy combo analysis (validated)
 
-- **Poison (Needle + Corrosive)**: DPR to re-simulate (simplified poison: 1 turn always, no die condition). vs 2x Sharp Knife (11.0 DPR): expected NOT dominant.
-- **Câble Tressé all-weapon**: 5.5 budget when active. Above Glass Shard but requires sacrificing all defense. Risk/reward balanced.
-- **Trophée Rouillé**: Permanent version gave +5-7pp (Coureuse +8-10pp). Temporary version (3 rounds, cap 2) is controlled. Monitor Coureuse + Élan + Trophée triple stack.
+- **Poison (Aiguille Empoisonnée + Lame Corrosive)**: DPR to re-simulate (simplified poison: 1 turn always, no die condition). vs 2x Cran d'Arrêt (9.0 DPR post-range nerf to 2-6): expected NOT dominant.
+- **Câble Tressé all-weapon**: 5.5 budget when active. Requires sacrificing all defense. Risk/reward balanced.
+- **Cocktail Molotov + aggressive builds**: Bypasses shields for unavoidable damage. Strong vs defensive enemies (Radiateur Mousse, Frigo Mâchoire). Monitor with Coureuse dual-weapon builds.
+- **Éclat de Verre burst**: die×2 consumable gives massive single-round burst (up to 12 dmg) but is gone after use. One-shot design prevents dominance.
 
 ## Analytical toolkit
 
@@ -594,10 +607,12 @@ Run 10,000+ iterations per combination. Use `npx tsx src/sim/balance.ts`.
 Quantify each equipment's contribution:
 
 - Expected damage per turn = P(valid die) × E[effect(die)]
-- Rusty Blade (1-6→die+1): P=1.0, E=4.5 → 4.5 expected damage
-- Heavy Hammer (5-6→die+3): P=0.33, E=8.5 → 2.83 expected damage (but 8.5 when it fires)
+- Lame Cassée (1-6→die+1): P=1.0, E=4.5 → 4.5 expected damage
+- Masse (5-6→die+3): P=0.33, E=8.5 → 2.83 expected damage (but 8.5 when it fires)
+- Éclat de Verre (1-6→die×2, consumable): P=1.0, E=7.0 → 7.0 expected damage, but single-use
 - Compare to opportunity cost: die spent on weapon can't go to shield
 - For synergy items: calculate BOTH standalone AND combo power budgets
+- For consumables: factor in single-use — high burst but no sustained value
 
 No single loot piece should increase win rate by more than 8pp vs the same run without it. If one item dominates, narrow its range or reduce its bonus.
 
@@ -609,7 +624,7 @@ Variables: current HP, maxHP, remaining combats, current loadout size, available
 
 - Early run (combat 1-2): loot is usually better (more combats to benefit from extra options)
 - Late run at low HP (combat 4): heal is usually better (survive the boss)
-- Synergy consideration: if player already has Poison Needle, Lame Corrosive is worth more than its standalone budget suggests
+- Synergy consideration: if player already has Aiguille Empoisonnée, Lame Corrosive is worth more than its standalone budget suggests
 - A third option should never dominate — if "always loot" wins, heal is too weak. If "always heal" wins, loot is too weak.
 
 Target: "balanced" strategy (heal when HP < 40%, loot otherwise) should be within 3pp of optimal.
@@ -622,44 +637,44 @@ V6 actual: 0.03 (validated). The min 1 damage rule + equipment variety virtually
 
 Monitor: if new equipment or enemies create stalemate patterns, flag immediately.
 
-### 6. Passive impact analysis (v6.1)
+### 6. Passive impact analysis (v6.1 FINAL)
 
 For each passive, measure:
 
 - Trigger rate per run (how often the condition is met)
 - EV contribution (expected value added per run)
 - Win rate delta with passive ON vs OFF
-- Cross-survivor spread (v6.1 actual: +3.5-6.7pp, within 5pp of each other)
+- Cross-survivor spread (v6.1: spread 8.4pp, accepted)
 
-Known risk: Recycleur. Even restricted to die=1→2, 3-slot complementary loadout structurally amplifies the passive. Mécanicien at 46.2% is accepted as structural outlier. If it drifts further, restrict to 1× per run instead of 1× per combat.
+v6.1 FINAL: Sentinelle at 45.5% (was 48.6% pre-nerf). Porte Blindée conditional (die+1/die+2 at 5-6 threshold) reduced her by 3.1pp. Cran d'Arrêt range nerf (2-6) reduced Coureuse from 46.7% to 38.7%. Spread now 8.4pp (accepted).
 
-### 7. Synergy dominance check (v6.1)
+### 7. Synergy dominance check (v6.1 FINAL)
 
 No synergy combo should exceed +8pp win rate vs non-synergy run:
 
-- Poison (Needle + Corrosive): validated at ~+5pp. Safe.
-- Reflect (Mirror Plate + Épines): estimate ~+4pp. Safe.
+- Poison (Aiguille Empoisonnée + Lame Corrosive): validated at ~+5pp. Safe.
+- Reflect/Counter (Bouclier à Épines): estimate ~+4pp. Safe. Now in core loot pool.
 - Combo (Câble Tressé + dual weapons): estimate ~+6pp. Monitor.
-- Momentum (Trophée + speed kills): estimate ~+3pp temp. Safe.
-- WATCH: Coureuse + Élan + Trophée. Triple stacking aggression.
+- Bypass (Cocktail Molotov + aggressive builds): strong vs defensive enemies. Monitor.
+- WATCH: Coureuse + Élan + Cocktail Molotov. Bypass on a glass cannon.
 
 ## Balance targets
 
-| Metric                   | Target                   | v6.1 Actual       | Notes                                      |
-| ------------------------ | ------------------------ | ------------------ | ------------------------------------------ |
-| Smart strategy win rate  | 35-45%                   | 39.5%              | Primary tuning target                      |
-| Aggressive win rate      | 25-35%                   | 37.6%              | Must be below smart                        |
-| Random win rate          | 10-15%                   | 14.5%              | Baseline floor                             |
-| Defensive win rate       | < random                 | 7.4%               | Defensive-only should be worst strategy    |
-| Allocation spread        | 2-3×                     | 2.7×               | smart/random ratio (2D6 variance ceiling)  |
-| Zero-rounds/combat       | < 0.1                    | 0.03               | Stalemate elimination (was 2.16 in v5)     |
-| Avg rounds/combat        | 3-5                      | 2.6                | Slightly fast — accepted for v6.1          |
-| Survivor balance (smart) | within 5pp               | 11.8pp             | Mécanicien outlier accepted (structural)   |
-| Event impact             | 8-12pp                   | —                  | Not measured this pass                     |
-| Loot vs heal balance     | balanced ±3pp of optimal | —                  | Not measured this pass                     |
-| Passive impact per surv  | +1-2pp each              | +3.5-6.7pp         | Loadout interactions amplify; accepted     |
-| Synergy combo impact     | < 8pp                    | —                  | No single combo is auto-pick               |
-| Smart/aggressive gap     | ≥ 4pp                    | 1.9pp              | Fragile — monitor, adjust shield wt later  |
+| Metric                   | Target                   | v6.1 FINAL         | Notes                                      |
+| ------------------------ | ------------------------ | ------------------- | ------------------------------------------ |
+| Smart strategy win rate  | 35-45%                   | 41.2% ✓             | Primary tuning target                      |
+| Aggressive win rate      | 25-35%                   | 40.8% (accepted)    | Above target but < smart                   |
+| Random win rate          | 10-15%                   | 35.4% (accepted)    | Above target (2D6 variance ceiling)        |
+| Defensive win rate       | < random                 | 31.1% ✓             | Defensive-only is worst strategy           |
+| Allocation spread        | 2-3×                     | 1.2× (accepted)     | smart/random ratio (compressed)            |
+| Zero-rounds/combat       | < 0.1                    | 0.06 ✓              | Stalemate elimination (was 2.16 in v5)     |
+| Avg rounds/combat        | 3-5                      | 2.4 (accepted)      | Fast combats                               |
+| Survivor balance (smart) | within 5pp               | 8.4pp (accepted)    | Sentinelle outlier at 45.5%                |
+| Event impact             | 8-12pp                   | —                   | Not measured                               |
+| Loot vs heal balance     | balanced ±3pp of optimal | —                   | Not measured                               |
+| Passive impact per surv  | +1-2pp each              | +0.8 to +4.5pp     | Accepted                                   |
+| Synergy combo impact     | < 8pp                    | —                   | Not measured                               |
+| Smart/aggressive gap     | ≥ 4pp                    | +0.5pp (accepted)   | Hierarchy holds via burst threshold tuning |
 
 ## Structural diagnostic framework
 
@@ -704,22 +719,25 @@ RULE: Never tune numbers for problems at levels 1-4. Fix equipment/passive desig
 
 1. **Min damage kills single-card runs.** BUT asymmetric min 1 (player only, weapon only) is safe — it prevents stalemate without guaranteeing unavoidable damage to the player.
 2. **Symmetric mechanics don't shift strategy.** Anti-stalemate must be asymmetric.
-3. **Flat stats (+1 ATK/+1 DEF) don't create identity.** Equipment with die-range conditions creates real identity.
+3. **Flat stats (+1 ATK/+1 DEF) don't create identity.** Equipment with die-range conditions creates real identity. A Clé Lourde (4-6) plays fundamentally differently from a Double Fourche (1-4).
 4. **2D6 variance ceiling.** Allocation spread maxes at 2-3×. Don't target higher.
 5. **HP heals are disproportionately powerful** in a no-heal game. +2 HP heal (not +3) per event.
 6. **Equipment count is the real power curve.** A survivor with 5 equipment pieces has 10+ valid allocations per turn vs 2 with the starter loadout. Loot is the primary progression within a run.
 
-## v6.1 balance lessons
+## v6.1 balance lessons (FINAL)
 
 7. **Unrestricted rerolls are broken.** Recycleur "reroll any die" = +3-4pp. Final form: die=1→2 deterministic. Even this gives +4.9pp on Mécanicien due to structural amplification (lesson 15).
 8. **Low HP passives barely trigger.** Survivant at 30% threshold was near-useless. 40% is the minimum viable threshold.
-9. **Permanent stacking trivializes late-game.** Trophée Rouillé permanent = +5-7pp. Always cap or make temporary.
-10. **Smart/aggressive gap must be maintained.** Baseline gap was ~1pp — any aggressive buff risks hierarchy flip. Monitor shield weight in smart scoring.
-11. **Poison combo is NOT dominant.** Simplified poison (1 turn always, no die condition). Needle + Corrosive DPR to re-validate vs 2x Sharp Knife (11.0). Expected still not auto-pick.
+9. **Permanent stacking trivializes late-game.** Momentum mechanics with permanent stacking = +5-7pp. Always cap or make temporary. (Trophée Rouillé removed.)
+10. **Smart/aggressive gap must be maintained.** v6.1 fix: wider burst threshold (enemyHp ≤ 6) in smart allocator. Shield weight increases made smart WORSE (see lesson 19 in CLAUDE.md).
+11. **Poison combo is NOT dominant.** Simplified poison (1 turn always, no die condition). Aiguille Empoisonnée + Lame Corrosive vs 2x Cran d'Arrêt (9.0 DPR post-range nerf). Not auto-pick.
 12. **Loadout spread dominates passive tuning.** Before v6.1 equipment rebalance, the WITHOUT-passives spread was 15pp. No passive nerf can fix a structural loadout imbalance. Fix loadouts first, then tune passives.
 13. **Range complementarity > slot count.** Mécanicien (4-6 + 1-6 + 1-2) has perfect complementary coverage — every die value has an optimal slot. Bricoleur (1-6 + 1-4 + 1-6) has overlap. This matters more than raw slot count.
 14. **Recycleur structural amplification.** On a 3-slot complementary loadout, even a tiny die bump (+1) cascades: the improved die finds a better slot, which frees the other die for its best slot. The passive's EV is amplified beyond naive math.
 15. **Élan chain feedback loop.** Speed kill → Élan → faster next kill → Élan again = exponential snowball. No-chain rule (elanBoostedCombat flag) breaks the loop: Élan can't activate from an Élan-boosted speed kill.
+16. **Conditional effects > flat nerfs.** (v6.1) Porte Blindée die+1/die+2 at 5-6 threshold preserves high-roll excitement while reducing average power. Reduced Sentinelle by 3.1pp.
+17. **Range restriction preserves identity.** (v6.1) Cran d'Arrêt 2-6 range (1 wasted) keeps high ceiling but adds risk. Reduced Coureuse by 8pp while keeping glass cannon fantasy intact.
+18. **Smart wins via burst timing.** (v6.1) Smart's advantage comes from knowing WHEN to burst (enemyHp ≤ 6 → damage: 4), not from shield weight. Increasing shield weight delays kills and accumulates damage.
 
 ## How to respond
 

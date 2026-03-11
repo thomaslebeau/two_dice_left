@@ -223,12 +223,11 @@ export class V6RunOrchestrator {
 
     // Reset passive state between combats (not before the first)
     if (this._combatNumber > 1) {
-      const hasTrophy = this._equipment.some(e => e.id === 'rusty_trophy');
       this._passiveState = resetPassiveForCombat(
         this._passiveState,
         this._lastSpeedKill,
         this._playerHp / this._playerMaxHp,
-        hasTrophy,
+        false,
       );
     }
 

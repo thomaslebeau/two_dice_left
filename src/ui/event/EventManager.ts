@@ -8,19 +8,7 @@
 
 import type { Equipment, Survivor } from '../../engine/types';
 import { ALL_LOOT } from '../../data/equipment';
-
-// ---------------------------------------------------------------------------
-// Narrative pool (French, thematic)
-// ---------------------------------------------------------------------------
-
-const NARRATIVES: readonly string[] = [
-  'Tu fouilles les décombres d\u2019un atelier. Quelque chose brille sous la mousse.',
-  'Un coffre rouillé, coincé sous une racine. Il cède au troisième coup.',
-  'Les restes d\u2019un campement. Quelqu\u2019un est parti en vitesse.',
-  'Une ancienne armurerie, presque entièrement digérée par le lierre.',
-  'Un bruit métallique sous les feuilles mortes. Tu creuses.',
-  'Derrière un mur effondré, une caisse encore intacte.',
-];
+import { STRINGS } from '../../data/strings';
 
 const HEAL_AMOUNT = 2;
 
@@ -57,7 +45,7 @@ export function generateLootOptions(
  * Pick a random narrative text for the event screen.
  */
 export function pickNarrative(): string {
-  return NARRATIVES[Math.floor(Math.random() * NARRATIVES.length)];
+  return STRINGS.NARRATIVES[Math.floor(Math.random() * STRINGS.NARRATIVES.length)];
 }
 
 // ---------------------------------------------------------------------------

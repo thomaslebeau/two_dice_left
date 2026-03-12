@@ -163,6 +163,11 @@ export class EquipmentSlotIcon extends Container {
     this._borderGlow.visible = true;
   }
 
+  /** Override effect text color (e.g. for high-contrast enemy labels). */
+  setEffectColor(color: number): void {
+    this._effectText.style.fill = color;
+  }
+
   /** Remove border glow. */
   clearBorderGlow(): void {
     this._borderGlow.clear();

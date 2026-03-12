@@ -135,4 +135,14 @@ export const STRINGS = {
   // Event
   EVENT_HEAL: 'REPAIR +2 HP',
   EVENT_SYNERGY: 'SYNERGY',
+
+  // Event narratives
+  NARRATIVES: [
+    'You rummage through the rubble of a workshop. Something glints beneath the moss.',
+    'A rusted chest, wedged under a root. It gives way on the third blow.',
+    'The remains of a campsite. Someone left in a hurry.',
+    'An old armory, almost entirely swallowed by ivy.',
+    'A metallic sound beneath the dead leaves. You dig.',
+    'Behind a collapsed wall, a crate still intact.',
+  ] as readonly string[],
 } as const;

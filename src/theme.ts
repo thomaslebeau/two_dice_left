@@ -81,6 +81,18 @@ export const FONTS = {
   BODY: '"Crimson Text", Georgia, serif',
 } as const;
 
+// --- High-contrast text colors for dark overlays ---
+
+export const TEXT_COLORS = {
+  PLAYER_ACTION: 0x7EC87E,   // bright green (player damage, heal)
+  ENEMY_ACTION: 0xE85555,    // bright red (enemy damage)
+  NEUTRAL: 0xD9CFBA,         // bone (neutral info)
+  POISON: 0xB366CC,          // bright purple (poison)
+  SPEED_KILL: 0xF0C040,      // gold (speed kill reward)
+  VICTORY: 0x7EC87E,         // bright green
+  DEFEAT: 0xE85555,          // bright red
+} as const;
+
 // --- Animation timings (ms) ---
 
 export const timings = {

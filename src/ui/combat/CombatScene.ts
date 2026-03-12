@@ -3,8 +3,7 @@
  * Layout (360x640, bottom-up): enemy zone → creature → dice → player zone → buttons.
  */
 
-import { Container, Text } from 'pixi.js';
-import { FONTS } from '../../theme';
+import { Container } from 'pixi.js';
 import type { Scene } from '../../engine/SceneManager';
 import type { AllocationPattern, Equipment, Survivor, Enemy, PassiveId, PassiveState } from '../../engine/types';
 import { rollDice } from '../../engine/dice';
@@ -18,7 +17,7 @@ import { CreaturePlaceholder } from './CreaturePlaceholder';
 import { EnemyZone } from './EnemyZone';
 import { CombatState, type PoisonSnapshot } from './CombatState';
 import { PassiveFeedback } from './PassiveFeedback';
-import { tickerWait, tickerLoop, type TickerHandle } from './tickerUtils';
+import { tickerWait } from './tickerUtils';
 import { OnboardingHint } from './OnboardingHint';
 import { EquipmentTooltip } from './EquipmentTooltip';
 import { STRINGS } from '../../data/strings';
@@ -53,8 +52,6 @@ export class CombatScene extends Container implements Scene {
   private _state: CombatState | null = null;
   private _passiveId?: PassiveId;
   private _recycleurCancel: { cancel: () => void } | null = null;
-  private _tapPrompt: Text;
-  private _tapPulseHandle: TickerHandle | null = null;
   private _onboarding = new OnboardingHint();
   private _eqTooltip = new EquipmentTooltip();
   private _sw = 360;
@@ -65,15 +62,6 @@ export class CombatScene extends Container implements Scene {
     this.addChild(this._enemyZone);
     this.addChild(this._creature, this._resolution, this._playerDiceZone);
     this.addChild(this._playerZone, this._resetBtn, this._commitBtn, this._passiveFeedback, this._onboarding, this._eqTooltip);
-    this._tapPrompt = new Text({
-      text: STRINGS.TAP_TO_START, style: {
-        fontFamily: FONTS.HEADING, fontSize: 16,
-        fontWeight: 'bold', fill: BONE, letterSpacing: 3,
-      },
-    });
-    this._tapPrompt.anchor.set(0.5);
-    this._tapPrompt.visible = false;
-    this.addChild(this._tapPrompt);
     this._commitBtn.onCommit = () => this._handleCommit();
     this._resetBtn.onReset = () => { this._allocator.resetAllAllocations(); };
     this._playerZone.toolBox.onSlotTap = (i) => this._allocator.handleSlotTap(i);
@@ -128,8 +116,7 @@ export class CombatScene extends Container implements Scene {
 
   onExit(): void {
     this._allocator.reset(); this._playerZone.clear(); this._enemyZone.clear();
-    this._resolution.reset(); this._tapPulseHandle?.stop(); this._tapPulseHandle = null;
-    this._tapPrompt.visible = false; this._passiveFeedback.cleanup(); this._onboarding.cleanup();
+    this._resolution.reset(); this._passiveFeedback.cleanup(); this._onboarding.cleanup();
     this._eqTooltip.cleanup();
     this._playerZone.badge.setDangerPulse(false);
     this._recycleurCancel = null; this._data = null; this._state = null;
@@ -175,8 +162,7 @@ export class CombatScene extends Container implements Scene {
     this._creature.position.set(PADDING, illusY);
     this._creature.layout(avail, creatureH);
 
-    this._resolution.layoutAt(cx, illusY + 10, avail);
-    this._tapPrompt.position.set(cx, illusY + creatureH / 2);
+    this._resolution.setScreenSize(w, h);
     this._eqTooltip.setViewportWidth(w);
   }
 
@@ -256,7 +242,8 @@ export class CombatScene extends Container implements Scene {
       );
     }
     this._updateHpDisplays();
-    this._phase = 'results'; await this._waitForTap();
+    this._phase = 'results';
+    await this._resolution.waitForDismiss();
     if (r.resolutionData.combatEnded) {
       this._phase = 'finished';
       const speedKill = r.resolutionData.playerWon && this._state.round <= 3;
@@ -299,19 +286,4 @@ export class CombatScene extends Container implements Scene {
     }
   }
 
-  private _waitForTap(): Promise<void> {
-    return new Promise((resolve) => {
-      this._tapPrompt.visible = true; this._tapPrompt.alpha = 1;
-      this._tapPulseHandle?.stop();
-      this._tapPulseHandle = tickerLoop((t) => { this._tapPrompt.visible = Math.floor(t / 500) % 2 === 0; });
-      const handler = () => {
-        if (this._phase !== 'results') return;
-        this.off('pointerdown', handler);
-        this._tapPulseHandle?.stop(); this._tapPulseHandle = null;
-        this._tapPrompt.visible = false;
-        resolve();
-      };
-      this.on('pointerdown', handler);
-    });
-  }
 }

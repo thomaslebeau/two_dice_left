@@ -8,7 +8,7 @@ import type { Equipment } from '../../engine/types';
 import { EquipmentSlotIcon, ICON_SIZE } from './EquipmentSlotIcon';
 import { DiceSprite, DIE_SIZE } from './DiceSprite';
 import { tickerWait, tickerSteps } from './tickerUtils';
-import { FONTS } from '../../theme';
+import { FONTS, TEXT_COLORS } from '../../theme';
 
 const BONE = 0xD9CFBA;
 const MOSS = 0x2D4A2E;
@@ -130,7 +130,12 @@ export class EnemyZone extends Container {
   }
 
   placeDie(equipmentIndex: number, dieValue: number): void {
-    this._slots.find(s => s.equipmentIndex === equipmentIndex)?.placeDie(dieValue);
+    const slot = this._slots.find(s => s.equipmentIndex === equipmentIndex);
+    if (!slot) return;
+    slot.placeDie(dieValue);
+    const color = slot.equipment.type === 'weapon'
+      ? TEXT_COLORS.ENEMY_ACTION : TEXT_COLORS.NEUTRAL;
+    slot.setEffectColor(color);
   }
 
   resetSlots(): void { for (const s of this._slots) s.removeDie(); }

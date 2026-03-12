@@ -93,8 +93,12 @@ export class ToolBox extends Container {
       comp.resize(cellW, cellH);
       comp.position.set(this._cellX(c), this._cellY(r));
       comp.on('pointerdown', () => {
+        const wasFilled = comp.slotState === 'filled';
         this.onSlotTap?.(idx);
-        if (comp.slotState === 'filled') this.onFilledSlotTap?.(comp);
+        // Show tooltip if slot was already filled (die placed)
+        // or if nothing happened (empty, no die placed)
+        const isNowFilled = comp.slotState === 'filled';
+        if (wasFilled || !isNowFilled) this.onFilledSlotTap?.(comp);
       });
       this.addChild(comp);
       this._compartments.push(comp);

@@ -101,7 +101,8 @@ export class DiceAllocator {
     if (!this._enabled) return;
     const die = this._dice[idx];
     if (!die) return;
-    if (this._allocs.has(idx)) this._undo(idx);
+    // Already placed — ignore (unplace only via resetAllAllocations)
+    if (this._allocs.has(idx)) return;
     die.visible = true;
     die.setState('dragging');
     this._dragDie = die;
@@ -147,15 +148,8 @@ export class DiceAllocator {
     const slot = this._slotByEq(eqIdx);
     if (!slot) return;
 
-    // Tap filled slot → release that die
-    if (slot.slotState === 'filled') {
-      for (const [di, allocEq] of this._allocs) {
-        if (allocEq === eqIdx) { this._undo(di); break; }
-      }
-      this._highlight();
-      this.onChange?.();
-      return;
-    }
+    // Filled slot — ignore (tooltip handled by ToolBox)
+    if (slot.slotState === 'filled') return;
 
     // Tap empty slot → place first compatible unplaced die
     for (const d of this._dice) {

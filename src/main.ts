@@ -231,6 +231,7 @@ async function main() {
   canvas.style.left = '0';
   canvas.style.width = '100vw';
   canvas.style.height = '100vh';
+  canvas.style.touchAction = 'none';
   document.body.appendChild(canvas);
 
   const orchestrator = new V6RunOrchestrator();

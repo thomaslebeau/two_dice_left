@@ -11,7 +11,7 @@
  */
 
 import { Container, Graphics, Text } from 'pixi.js';
-import type { Scene } from '../../engine/SceneManager';
+import type { Scene } from '../../core/SceneManager';
 import type { Equipment, Survivor } from '../../engine/types';
 import { FONTS } from '../../theme';
 import { STRINGS } from '../../data/strings';

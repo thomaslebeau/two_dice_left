@@ -8,8 +8,8 @@
 import { Application, Container, Graphics, Text } from 'pixi.js';
 import { FONTS } from './theme.ts';
 import { STRINGS } from './data/strings.ts';
-import { SceneManager } from './engine/SceneManager.ts';
-import type { Scene } from './engine/SceneManager.ts';
+import { SceneManager } from './core/SceneManager.ts';
+import type { Scene } from './core/SceneManager.ts';
 import { V6RunOrchestrator } from './core/V6RunOrchestrator.ts';
 import { CombatScene } from './ui/combat/CombatScene.ts';
 import type { CombatSceneData } from './ui/combat/CombatScene.ts';

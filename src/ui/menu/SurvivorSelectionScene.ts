@@ -4,7 +4,7 @@
  */
 
 import { Container, Graphics, Text } from 'pixi.js';
-import type { Scene } from '../../engine/SceneManager';
+import type { Scene } from '../../core/SceneManager';
 import type { Survivor } from '../../engine/types';
 import { SurvivorCard } from './SurvivorCard';
 import { FONTS } from '../../theme';

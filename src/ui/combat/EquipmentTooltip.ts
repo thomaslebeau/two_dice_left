@@ -7,7 +7,7 @@
 import { Container, Graphics, Text } from 'pixi.js';
 import type { Equipment } from '../../engine/types';
 import { FONTS } from '../../theme';
-import { tickerTween } from './tickerUtils';
+import { tickerTween, tickerLoop, type TickerHandle } from './tickerUtils';
 
 const BONE = 0xD9CFBA;
 const CHARCOAL = 0x1A1A1A;
@@ -27,7 +27,7 @@ export class EquipmentTooltip extends Container {
   private _nameText: Text;
   private _effectText: Text;
   private _rangeText: Text;
-  private _hideTimer: ReturnType<typeof setTimeout> | null = null;
+  private _hideHandle: TickerHandle | null = null;
   private _viewportW = 390;
   private _justShown = false;
 
@@ -125,8 +125,10 @@ export class EquipmentTooltip extends Container {
     this.alpha = 0;
     void tickerTween(FADE_MS, (t) => { this.alpha = t; });
 
-    // Auto-hide after 2s
-    this._hideTimer = setTimeout(() => this.hide(), AUTO_HIDE_MS);
+    // Auto-hide after 2s (ticker-based, pauses when tab hidden)
+    this._hideHandle = tickerLoop((elapsed) => {
+      if (elapsed >= AUTO_HIDE_MS) this.hide();
+    });
 
     // Guard: prevent immediate dismiss from same pointerdown event
     this._justShown = true;
@@ -146,9 +148,9 @@ export class EquipmentTooltip extends Container {
   }
 
   private _clearHideTimer(): void {
-    if (this._hideTimer !== null) {
-      clearTimeout(this._hideTimer);
-      this._hideTimer = null;
+    if (this._hideHandle !== null) {
+      this._hideHandle.stop();
+      this._hideHandle = null;
     }
   }
 

@@ -4,7 +4,7 @@
  */
 
 import { Container } from 'pixi.js';
-import type { Scene } from '../../engine/SceneManager';
+import type { Scene } from '../../core/SceneManager';
 import type { Allocation, AllocationPattern, Equipment, Survivor, Enemy, PassiveId, PassiveState } from '../../engine/types';
 import { computeEffectContext } from '../../engine/passives';
 import { rollDice } from '../../engine/dice';

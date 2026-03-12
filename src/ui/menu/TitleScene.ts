@@ -4,7 +4,7 @@
  */
 
 import { Assets, Container, Sprite, Text } from 'pixi.js';
-import type { Scene } from '../../engine/SceneManager';
+import type { Scene } from '../../core/SceneManager';
 import { tickerLoop, tickerTween, type TickerHandle } from '../combat/tickerUtils';
 import { FONTS } from '../../theme';
 import { STRINGS } from '../../data/strings';

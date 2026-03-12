@@ -4,7 +4,7 @@
  */
 
 import { Container, Graphics, Text } from 'pixi.js';
-import type { Equipment, EquipmentEffect } from '../../engine/types';
+import type { Equipment, EquipmentEffect, EffectContext } from '../../engine/types';
 import { canUseDie } from '../../engine/dice';
 import { FONTS } from '../../theme';
 import { STRINGS } from '../../data/strings';
@@ -133,9 +133,9 @@ export class EquipmentSlotIcon extends Container {
 
   lock(): void { this._state = 'locked'; this.cursor = 'default'; this._draw(); }
 
-  showPreview(dieValue: number): void {
+  showPreview(dieValue: number, context?: EffectContext): void {
     if (!this.isCompatible(dieValue)) return;
-    this._effectText.text = `\u2192${fmtEffect(this._equipment.effect(dieValue))}`;
+    this._effectText.text = `\u2192${fmtEffect(this._equipment.effect(dieValue, context))}`;
     this._effectText.visible = true;
   }
 
@@ -166,6 +166,11 @@ export class EquipmentSlotIcon extends Container {
   /** Override effect text color (e.g. for high-contrast enemy labels). */
   setEffectColor(color: number): void {
     this._effectText.style.fill = color;
+  }
+
+  /** Recalculate effect text with context (no-op for enemy slots). */
+  updateEffectWithContext(_context?: EffectContext): void {
+    // Enemy slots don't need synergy preview
   }
 
   /** Remove border glow. */

@@ -6,7 +6,7 @@
  */
 
 import { Container, Graphics, Text } from 'pixi.js';
-import type { Equipment, Allocation } from '../../engine/types';
+import type { Equipment, Allocation, EffectContext } from '../../engine/types';
 import { FONTS } from '../../theme';
 import { STRINGS } from '../../data/strings';
 import { ToolBoxCompartment } from './ToolBoxCompartment';
@@ -26,8 +26,10 @@ const MIN_ROWS = 2;
 const BORDER_W = 3;
 const SEP_W = 2;
 
-function fmtPreviewLine(dieValue: number, eq: Equipment): string {
-  const eff = eq.effect(dieValue);
+function fmtPreviewLine(
+  dieValue: number, eq: Equipment, ctx?: EffectContext,
+): string {
+  const eff = eq.effect(dieValue, ctx);
   const parts: string[] = [];
   if (eff.damage > 0) parts.push(`${eff.damage} ${STRINGS.DAMAGE}`);
   if (eff.shield > 0) parts.push(`${eff.shield} ${STRINGS.BLOCK}`);
@@ -139,12 +141,30 @@ export class ToolBox extends Container {
     slot?.placeDie(dieValue);
   }
 
+  /** Remove a consumed slot (e.g. Glass Shard after one use). */
+  consumeSlot(equipmentIndex: number): void {
+    const idx = this._compartments.findIndex(
+      c => c.equipmentIndex === equipmentIndex,
+    );
+    if (idx < 0) return;
+    const comp = this._compartments[idx];
+    comp.releaseDie();
+    comp.destroy({ children: true });
+    this._compartments.splice(idx, 1);
+    this._allSlots = this._allSlots.filter(
+      s => s.equipmentIndex !== equipmentIndex,
+    );
+    this._repositionCompartments();
+    this._drawBg();
+  }
+
   clear(): void { this._clear(); }
 
   /** Show floating tooltip above the toolbox with allocation results. */
   updatePreview(
     allocations: readonly Allocation[],
     equipment: readonly Equipment[],
+    contextBuilder?: (a: Allocation) => EffectContext,
   ): void {
     if (allocations.length === 0) {
       this.clearPreview();
@@ -154,7 +174,8 @@ export class ToolBox extends Container {
     const lines = allocations
       .map(a => {
         const eq = equipment[a.equipmentIndex];
-        return eq ? fmtPreviewLine(a.dieValue, eq) : null;
+        const ctx = contextBuilder?.(a);
+        return eq ? fmtPreviewLine(a.dieValue, eq, ctx) : null;
       })
       .filter(Boolean)
       .join('\n');

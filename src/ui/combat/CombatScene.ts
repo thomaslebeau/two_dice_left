@@ -6,6 +6,7 @@
 import { Container } from 'pixi.js';
 import type { Scene } from '../../engine/SceneManager';
 import type { AllocationPattern, Equipment, Survivor, Enemy, PassiveId, PassiveState } from '../../engine/types';
+import { computeEffectContext } from '../../engine/passives';
 import { rollDice } from '../../engine/dice';
 import { allocateEnemy } from '../../engine/allocation';
 import { CommitButton } from './CommitButton';
@@ -29,7 +30,7 @@ type CombatPhase = 'rolling' | 'allocating' | 'resolving' | 'results' | 'finishe
 export interface CombatSceneData {
   survivor: Survivor; enemy: Enemy; playerHp: number; playerMaxHp: number;
   playerEquipment: readonly Equipment[];
-  onCombatEnd: (won: boolean, playerHpAfter: number, speedKill: boolean) => void;
+  onCombatEnd: (won: boolean, playerHpAfter: number, speedKill: boolean, equipment: readonly Equipment[]) => void;
   passiveId?: PassiveId;
   passiveState?: PassiveState;
 }
@@ -52,6 +53,7 @@ export class CombatScene extends Container implements Scene {
   private _state: CombatState | null = null;
   private _passiveId?: PassiveId;
   private _recycleurCancel: { cancel: () => void } | null = null;
+  private _consumedIndices = new Set<number>();
   private _onboarding = new OnboardingHint();
   private _eqTooltip = new EquipmentTooltip();
   private _sw = 360;
@@ -74,6 +76,7 @@ export class CombatScene extends Container implements Scene {
       this._commitBtn.setEnabled(this._allocator.isComplete());
       this._resetBtn.setVisible(this._allocator.hasAllocations());
       this._onboarding.dismiss();
+      this._refreshSynergyPreviews();
       if (this._passiveId === 'ingenieux') {
         this._passiveFeedback.checkIngenieuxPreview(
           this._allocator.getAllocations(), this._data!.playerEquipment, // safe: onChange only fires during allocation
@@ -83,6 +86,11 @@ export class CombatScene extends Container implements Scene {
       this._handleRecycleurOnChange();
     };
     this._allocator.onBringToFront = (d) => this.setChildIndex(d, this.children.length - 1);
+    this._allocator.buildContext = (alloc, allAllocs) => {
+      const equip = this._data?.playerEquipment ?? [];
+      const poisoned = this._state ? this._state.enemyPoisonTurns > 0 : false;
+      return computeEffectContext(alloc, allAllocs, equip, poisoned);
+    };
     this.eventMode = 'static';
     this.on('pointerdown', () => this._eqTooltip.dismissOnTapElsewhere());
     this.on('pointermove', (e: { global: { x: number; y: number } }) =>
@@ -121,7 +129,8 @@ export class CombatScene extends Container implements Scene {
     this._resolution.reset(); this._passiveFeedback.cleanup(); this._onboarding.cleanup();
     this._eqTooltip.cleanup();
     this._playerZone.badge.setDangerPulse(false);
-    this._recycleurCancel = null; this._data = null; this._state = null;
+    this._recycleurCancel = null; this._consumedIndices.clear();
+    this._data = null; this._state = null;
   }
 
   onResize(w: number, h: number): void { this._sw = w; this._sh = h; this._layout(); }
@@ -244,12 +253,14 @@ export class CombatScene extends Container implements Scene {
       );
     }
     this._updateHpDisplays();
+    // Mark consumable equipment used this round as consumed
+    this._removeConsumedSlots(pa);
     this._phase = 'results';
     await this._resolution.waitForDismiss();
     if (r.resolutionData.combatEnded) {
       this._phase = 'finished';
       const speedKill = r.resolutionData.playerWon && this._state.round <= 3;
-      this._data.onCombatEnd(r.resolutionData.playerWon, this._state.playerHp, speedKill);
+      this._data.onCombatEnd(r.resolutionData.playerWon, this._state.playerHp, speedKill, this._survivingEquipment());
     } else { this._startRound(); }
   }
 
@@ -285,6 +296,45 @@ export class CombatScene extends Container implements Scene {
     } else if (!this._recycleurCancel) {
       // Die=1 was un-placed, re-show button
       this._trySetupRecycleur();
+    }
+  }
+
+  /** Remove consumed equipment slots after a round. */
+  private _removeConsumedSlots(allocations: readonly Allocation[]): void {
+    if (!this._data) return;
+    const used = new Set(allocations.map(a => a.equipmentIndex));
+    for (const [i, eq] of this._data.playerEquipment.entries()) {
+      if (eq.consumable && used.has(i)) {
+        this._playerZone.toolBox.consumeSlot(i);
+        this._consumedIndices.add(i);
+      }
+    }
+  }
+
+  /** Equipment array with consumed items removed (for passing out). */
+  private _survivingEquipment(): readonly Equipment[] {
+    if (!this._data || this._consumedIndices.size === 0) {
+      return this._data?.playerEquipment ?? [];
+    }
+    return this._data.playerEquipment.filter(
+      (_, i) => !this._consumedIndices.has(i),
+    );
+  }
+
+  /** Recompute effect text on all placed slots with synergy context. */
+  private _refreshSynergyPreviews(): void {
+    if (!this._data || !this._state) return;
+    const allocs = this._allocator.getAllocations();
+    const equip = this._data.playerEquipment;
+    const poisoned = this._state.enemyPoisonTurns > 0;
+    for (const slot of this._playerZone.toolBox.slots) {
+      if (slot.placedDieValue === null) continue;
+      const alloc = allocs.find(
+        a => a.equipmentIndex === slot.equipmentIndex,
+      );
+      if (!alloc) continue;
+      const ctx = computeEffectContext(alloc, allocs, equip, poisoned);
+      slot.updateEffectWithContext(ctx);
     }
   }
 

@@ -4,7 +4,7 @@
  * Used by DiceAllocator and PassiveFeedback.
  */
 
-import type { Equipment } from '../../engine/types';
+import type { Equipment, EffectContext } from '../../engine/types';
 
 export type SlotState = 'empty' | 'valid-target' | 'dimmed' | 'filled' | 'locked';
 
@@ -18,11 +18,13 @@ export interface SlotLike {
   placeDie(dieValue: number): void;
   removeDie(): void;
   lock(): void;
-  showPreview(dieValue: number): void;
+  showPreview(dieValue: number, context?: EffectContext): void;
   clearPreview(): void;
   showPassiveBonus(value: number, color: number): void;
   clearPassiveBonus(): void;
   showBorderGlow(color: number): void;
   clearBorderGlow(): void;
+  /** Recalculate effect text with full allocation context. */
+  updateEffectWithContext(context?: EffectContext): void;
   getBounds(): { x: number; y: number; width: number; height: number };
 }

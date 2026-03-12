@@ -6,7 +6,6 @@
 
 import { Container, Graphics, Text } from 'pixi.js';
 import type { Allocation, Equipment } from '../../engine/types';
-import { sumAllocEffects } from '../../engine/combat';
 import type { CircularHpBadge } from './CircularHpBadge';
 import { tickerTween, tickerWait, tickerLoop, type TickerHandle } from './tickerUtils';
 import { FONTS, TEXT_COLORS } from '../../theme';
@@ -22,11 +21,13 @@ const HP_MS = 300;
 export interface ResolutionData {
   playerAllocations: readonly Allocation[];
   playerEquipment: readonly Equipment[];
+  playerAttackTotal: number;
   playerDamageToEnemy: number;
   playerShieldTotal: number;
   playerHealTotal: number;
   enemyAllocations: readonly Allocation[];
   enemyEquipment: readonly Equipment[];
+  enemyAttackTotal: number;
   enemyDamageToPlayer: number;
   enemyShieldTotal: number;
   playerHpBefore: number;
@@ -171,18 +172,10 @@ export class ResolutionAnimation {
   }
 
   private _buildLines(d: ResolutionData): Text[] {
-    const pAtk = sumAllocEffects(
-      d.playerAllocations, d.playerEquipment, 'damage',
-    );
-    const eShd = sumAllocEffects(
-      d.enemyAllocations, d.enemyEquipment, 'shield',
-    );
-    const eAtk = sumAllocEffects(
-      d.enemyAllocations, d.enemyEquipment, 'damage',
-    );
-    const pShd = sumAllocEffects(
-      d.playerAllocations, d.playerEquipment, 'shield',
-    );
+    const pAtk = d.playerAttackTotal;
+    const eShd = d.enemyShieldTotal;
+    const eAtk = d.enemyAttackTotal;
+    const pShd = d.playerShieldTotal;
 
     // Line 1: player damage calc
     const calc1 = mkLine(FONTS.BODY, 18, TEXT_COLORS.PLAYER_ACTION);

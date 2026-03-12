@@ -264,8 +264,8 @@ async function main() {
           playerEquipment: t.equipment,
           passiveId: t.passiveId,
           passiveState: t.passiveState,
-          onCombatEnd: (won, hpAfter, speedKill) => {
-            orchestrator.handleCombatEnd(won, hpAfter, speedKill);
+          onCombatEnd: (won, hpAfter, speedKill, equip) => {
+            orchestrator.handleCombatEnd(won, hpAfter, speedKill, equip);
           },
         };
         scenes.switchTo('combat', combatData);

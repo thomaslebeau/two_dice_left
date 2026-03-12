@@ -9,7 +9,7 @@
  */
 
 import type { Container } from 'pixi.js';
-import type { Allocation } from '../../engine/types';
+import type { Allocation, EffectContext } from '../../engine/types';
 import { DiceSprite, DIE_SIZE } from './DiceSprite';
 import type { SlotLike } from './SlotLike';
 
@@ -38,6 +38,8 @@ export class DiceAllocator {
 
   onChange: (() => void) | null = null;
   onBringToFront: ((die: DiceSprite) => void) | null = null;
+  /** Build EffectContext for a hypothetical allocation (for drag preview). */
+  buildContext: ((alloc: Allocation, allAllocs: readonly Allocation[]) => EffectContext) | null = null;
   get dice(): readonly DiceSprite[] { return this._dice; }
 
   setup(
@@ -116,9 +118,18 @@ export class DiceAllocator {
     if (!this._dragDie) return;
     this._dragDie.x = pos.x - this._dragOff.x;
     this._dragDie.y = pos.y - this._dragOff.y;
+    const current = this.getAllocations();
     for (const s of this._slots) {
-      if (this._over(this._dragDie, s)) s.showPreview(this._dragDie.value);
-      else s.clearPreview();
+      if (this._over(this._dragDie, s)) {
+        const hypo: Allocation = {
+          equipmentIndex: s.equipmentIndex,
+          dieValue: this._dragDie.value,
+        };
+        const ctx = this.buildContext?.(hypo, [...current, hypo]);
+        s.showPreview(this._dragDie.value, ctx);
+      } else {
+        s.clearPreview();
+      }
     }
   }
 

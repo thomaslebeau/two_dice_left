@@ -195,12 +195,14 @@ export function sumAllocEffects(
   allocations: readonly Allocation[],
   equipment: readonly Equipment[],
   field: keyof EquipmentEffect,
+  contextBuilder?: (alloc: Allocation) => EffectContext,
 ): number {
   let total = 0;
   for (const alloc of allocations) {
     const eq = equipment[alloc.equipmentIndex];
     if (alloc.dieValue >= eq.minDie && alloc.dieValue <= eq.maxDie) {
-      total += eq.effect(alloc.dieValue)[field];
+      const ctx = contextBuilder?.(alloc);
+      total += eq.effect(alloc.dieValue, ctx)[field];
     }
   }
   return total;

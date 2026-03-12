@@ -5,7 +5,7 @@
  */
 
 import { Container, Graphics, Text } from 'pixi.js';
-import type { Equipment, EquipmentEffect } from '../../engine/types';
+import type { Equipment, EquipmentEffect, EffectContext } from '../../engine/types';
 import { canUseDie } from '../../engine/dice';
 import { FONTS } from '../../theme';
 import { STRINGS } from '../../data/strings';
@@ -22,6 +22,7 @@ const RUST = 0x8B3A1A;
 const MOSS = 0x2D4A2E;
 const CHARCOAL = 0x1A1A1A;
 
+const GOLD = 0xF0C040;
 const PLATE_MARGIN = 2;
 const RIVET_R = 2;
 const RIVET_INNER = 1.5;
@@ -142,14 +143,34 @@ export class ToolBoxCompartment extends Container implements SlotLike {
     this._draw();
   }
 
-  showPreview(dieValue: number): void {
+  showPreview(dieValue: number, context?: EffectContext): void {
     if (!this.isCompatible(dieValue)) return;
-    this._effectText.text = `\u2192${fmtEffect(this._equipment.effect(dieValue))}`;
+    this._effectText.text = `\u2192${fmtEffect(this._equipment.effect(dieValue, context))}`;
     this._effectText.visible = true;
   }
 
   clearPreview(): void {
     if (this._state !== 'filled') this._effectText.visible = false;
+  }
+
+  /** Recalculate effect text with full allocation context (synergies). */
+  updateEffectWithContext(context?: EffectContext): void {
+    if (this._placedDieValue === null) return;
+    const base = this._equipment.effect(this._placedDieValue);
+    const full = this._equipment.effect(this._placedDieValue, context);
+    const bonusDmg = full.damage - base.damage;
+    const bonusShd = full.shield - base.shield;
+    const bonusHeal = full.heal - base.heal;
+    const bonus = bonusDmg + bonusShd + bonusHeal;
+    if (bonus > 0) {
+      this._effectText.text = `\u2192${fmtEffect(full)}`;
+      this._passiveBonusText.text = `+${bonus}`;
+      this._passiveBonusText.style.fill = GOLD;
+      this._passiveBonusText.visible = true;
+    } else {
+      this._effectText.text = `\u2192${fmtEffect(full)}`;
+      this._passiveBonusText.visible = false;
+    }
   }
 
   showPassiveBonus(value: number, color: number): void {

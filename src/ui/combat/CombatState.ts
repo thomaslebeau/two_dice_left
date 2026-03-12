@@ -224,13 +224,19 @@ export class CombatState {
     const resolutionData: ResolutionData = {
       playerAllocations: playerAllocs,
       playerEquipment: [...playerEquipment],
+      playerAttackTotal: sumAllocEffects(
+        playerAllocs, playerEquipment, 'damage', contextBuilder,
+      ),
       playerDamageToEnemy: dmgToEnemy,
       playerShieldTotal: sumAllocEffects(
-        playerAllocs, playerEquipment, 'shield',
+        playerAllocs, playerEquipment, 'shield', contextBuilder,
       ),
       playerHealTotal: outcome.playerHeal,
       enemyAllocations: enemyAllocs,
       enemyEquipment: [...enemyEquipment],
+      enemyAttackTotal: sumAllocEffects(
+        enemyAllocs, enemyEquipment, 'damage',
+      ),
       enemyDamageToPlayer: dmgToPlayer,
       enemyShieldTotal: sumAllocEffects(
         enemyAllocs, enemyEquipment, 'shield',

@@ -150,11 +150,15 @@ export class V6RunOrchestrator {
    * If player won combat 5 → victory.
    * If player lost → defeat.
    */
-  handleCombatEnd(won: boolean, playerHpAfter: number, speedKill = false): void {
+  handleCombatEnd(
+    won: boolean, playerHpAfter: number, speedKill = false,
+    equipment?: readonly Equipment[],
+  ): void {
     if (!this._survivor) return;
 
     this._playerHp = playerHpAfter;
     this._lastSpeedKill = speedKill;
+    if (equipment) this._equipment = [...equipment];
 
     if (!won) {
       this._phase = 'defeat';

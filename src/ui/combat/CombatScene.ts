@@ -60,7 +60,7 @@ export class CombatScene extends Container implements Scene {
   constructor() {
     super();
     this.addChild(this._enemyZone);
-    this.addChild(this._creature, this._resolution, this._playerDiceZone);
+    this.addChild(this._creature, this._playerDiceZone);
     this.addChild(this._playerZone, this._resetBtn, this._commitBtn, this._passiveFeedback, this._onboarding, this._eqTooltip);
     this._commitBtn.onCommit = () => this._handleCommit();
     this._resetBtn.onReset = () => { this._allocator.resetAllAllocations(); };
@@ -100,6 +100,8 @@ export class CombatScene extends Container implements Scene {
       d.passiveId, d.passiveState,
     );
     this._passiveFeedback.init(d.passiveId, d.passiveState);
+    // Pass stage ref so the resolution overlay covers the full screen
+    if (this.parent) this._resolution.setStage(this.parent);
     this._enemyZone.setName(d.enemy.name);
     this._creature.setEnemy(d.enemy.name, PAT_LABEL[d.enemy.pattern], PAT_COLOR[d.enemy.pattern]);
     this._buildGrids(d);

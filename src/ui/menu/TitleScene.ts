@@ -47,7 +47,7 @@ export class TitleScene extends Container implements Scene {
       text: 'TOUCHER POUR CONTINUER',
       style: {
         fontFamily: FONTS.HEADING,
-        fontSize: 14,
+        fontSize: 16,
         fill: BONE,
         letterSpacing: 3,
       },

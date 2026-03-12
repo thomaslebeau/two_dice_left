@@ -13,7 +13,7 @@ import { FONTS } from '../../theme';
 // ---------------------------------------------------------------------------
 
 export const PLANK_W = 350;
-export const PLANK_H = 110;
+export const PLANK_H = 130;
 
 // ---------------------------------------------------------------------------
 // Diegetic palette (NOT theme — material colors)
@@ -56,14 +56,6 @@ function typeGlyph(type: Equipment['type']): string {
     case 'weapon': return '\u2694';
     case 'shield': return '\uD83D\uDEE1';
     case 'utility': return '\u2695';
-  }
-}
-
-function typeTag(type: Equipment['type']): string {
-  switch (type) {
-    case 'weapon': return 'ATK';
-    case 'shield': return 'DEF';
-    case 'utility': return 'UTL';
   }
 }
 
@@ -192,20 +184,6 @@ export class LootPlank extends Container {
     glyph.position.set(plateW / 2, plateH / 2 - 8);
     c.addChild(glyph);
 
-    // Type label
-    const tag = new Text({
-      text: typeTag(type),
-      style: {
-        fontFamily: FONTS.HEADING,
-        fontSize: 10,
-        fill: BONE,
-        letterSpacing: 2,
-      },
-    });
-    tag.anchor.set(0.5);
-    tag.position.set(plateW / 2, plateH - 12);
-    c.addChild(tag);
-
     return c;
   }
 
@@ -253,34 +231,34 @@ export class LootPlank extends Container {
       text: eq.name,
       style: {
         fontFamily: FONTS.HEADING,
-        fontSize: 15,
+        fontSize: 18,
         fill: PAPER_TEXT,
         letterSpacing: 1,
       },
     });
     name.position.set(padX, ty);
     c.addChild(name);
-    ty += 18;
+    ty += 22;
 
     // Range
     const range = new Text({
       text: `Dé ${eq.minDie}-${eq.maxDie}`,
       style: {
         fontFamily: FONTS.BODY,
-        fontSize: 11,
+        fontSize: 14,
         fill: PAPER_TEXT,
       },
     });
     range.position.set(padX, ty);
     c.addChild(range);
-    ty += 14;
+    ty += 18;
 
     // Effect
     const effect = new Text({
       text: eq.description,
       style: {
         fontFamily: FONTS.BODY,
-        fontSize: 12,
+        fontSize: 16,
         fill: PAPER_TEXT,
         wordWrap: true,
         wordWrapWidth: maxTextW,
@@ -296,7 +274,7 @@ export class LootPlank extends Container {
         text: 'SYNERGIE',
         style: {
           fontFamily: FONTS.HEADING,
-          fontSize: 10,
+          fontSize: 14,
           fill: RUST,
           letterSpacing: 2,
         },

@@ -33,7 +33,7 @@ export class SurvivorPortrait extends Container {
     this._nameText = new Text({
       text: '',
       style: {
-        fontFamily: FONTS.BODY, fontSize: 11,
+        fontFamily: FONTS.BODY, fontSize: 14,
         fill: BONE, align: 'center',
       },
     });

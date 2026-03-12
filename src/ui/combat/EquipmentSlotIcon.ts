@@ -20,10 +20,10 @@ export type { SlotState } from './SlotLike';
 type SlotState = import('./SlotLike').SlotState;
 
 function fmtEffect(e: EquipmentEffect): string {
-  if (e.damage > 0) return `${e.damage}dmg`;
-  if (e.shield > 0) return `${e.shield}abs`;
-  if (e.heal > 0) return `${e.heal}hp`;
-  if (e.poison > 0) return `${e.poison}psn`;
+  if (e.damage > 0) return `${e.damage} dégâts`;
+  if (e.shield > 0) return `${e.shield} blocage`;
+  if (e.heal > 0) return `${e.heal} soin`;
+  if (e.poison > 0) return `${e.poison} poison`;
   return '0';
 }
 
@@ -77,17 +77,17 @@ export class EquipmentSlotIcon extends Container {
     const half = ICON_SIZE / 2;
 
     this.addChild(this._bg);
-    this._iconText = mkText(typeIcon(equipment.type), 10, c, true);
-    this._iconText.position.set(half, 3);
-    this._rangeText = mkText(`[${equipment.minDie}-${equipment.maxDie}]`, 8, BONE);
-    this._rangeText.position.set(half, 16);
-    this._valueText = mkText('', 14, BONE, true);
+    this._iconText = mkText(typeIcon(equipment.type), 16, c, true);
+    this._iconText.position.set(half, 2);
+    this._rangeText = mkText(`[${equipment.minDie}-${equipment.maxDie}]`, 14, BONE);
+    this._rangeText.position.set(half, 18);
+    this._valueText = mkText('', 16, BONE, true);
     this._valueText.position.set(half, 4);
     this._valueText.visible = false;
-    this._effectText = mkText('', 8, c);
+    this._effectText = mkText('', 14, c);
     this._effectText.position.set(half, 22);
     this._effectText.visible = false;
-    this._passiveBonusText = mkText('', 8, BONE, true);
+    this._passiveBonusText = mkText('', 14, BONE, true);
     this._passiveBonusText.position.set(half, 34);
     this._passiveBonusText.visible = false;
     this._borderGlow.visible = false;

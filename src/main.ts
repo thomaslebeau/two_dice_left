@@ -106,7 +106,7 @@ function createEndScene(onRestart: () => void): Scene {
     text: '',
     style: {
       fontFamily: FONTS.BODY,
-      fontSize: 14,
+      fontSize: 16,
       fill: BONE,
     },
   });
@@ -118,7 +118,7 @@ function createEndScene(onRestart: () => void): Scene {
     text: 'REJOUER',
     style: {
       fontFamily: FONTS.HEADING,
-      fontSize: 18,
+      fontSize: 20,
       fontWeight: 'bold',
       fill: BONE,
       letterSpacing: 3,

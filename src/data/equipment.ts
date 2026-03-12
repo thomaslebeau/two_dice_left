@@ -35,7 +35,7 @@ export const STOP_SIGN: Equipment = {
   minDie: 1,
   maxDie: 6,
   effect: (die) => ({ ...NO_EFFECT, shield: die }),
-  description: 'dé abs',
+  description: 'dé blocage',
 };
 
 /** Cran d'Arrêt — glass cannon weapon, die+2 damage (2-6 range, 1 is wasted) */
@@ -79,7 +79,7 @@ export const REINFORCED_DOOR: Equipment = {
   minDie: 3,
   maxDie: 6,
   effect: (die) => ({ ...NO_EFFECT, shield: die >= 5 ? die + 2 : die + 1 }),
-  description: 'dé+1 abs (dé+2 si 5-6)',
+  description: 'dé+1 blocage (dé+2 si 5-6)',
 };
 
 /** Plaque d'Égout — full-range shield, die+1 absorption */
@@ -90,7 +90,7 @@ export const SEWER_PLATE: Equipment = {
   minDie: 1,
   maxDie: 6,
   effect: (die) => ({ ...NO_EFFECT, shield: die + 1 }),
-  description: 'dé+1 abs',
+  description: 'dé+1 blocage',
 };
 
 /** Kit de Survie — narrow-range utility, ceil(die/2)+1 heal */
@@ -101,7 +101,7 @@ export const SURVIVAL_KIT: Equipment = {
   minDie: 1,
   maxDie: 2,
   effect: (die) => ({ ...NO_EFFECT, heal: Math.ceil(die / 2) + 1 }),
-  description: 'soin dé+1',
+  description: 'soin',
 };
 
 // ---------------------------------------------------------------------------
@@ -157,7 +157,7 @@ export const GLASS_SHARD: Equipment = {
     ...NO_EFFECT,
     damage: die * 2,
   }),
-  description: 'dé×2 dégâts (à usage unique)',
+  description: 'dé×2 dégâts, usage unique',
 };
 
 /** Écorce Épaisse — mid-range shield, die+1 absorption */
@@ -168,7 +168,7 @@ export const THICK_BARK: Equipment = {
   minDie: 2,
   maxDie: 6,
   effect: (die) => ({ ...NO_EFFECT, shield: die + 1 }),
-  description: 'dé+1 abs',
+  description: 'dé+1 blocage',
 };
 
 /** Bandage Végétal — low-range utility, heal = die value */
@@ -194,7 +194,7 @@ export const BITTER_ROOT: Equipment = {
     damage: Math.ceil(die / 2),
     shield: Math.ceil(die / 2),
   }),
-  description: 'dé/2 dégâts + dé/2 abs',
+  description: 'dé/2 dégâts + dé/2 blocage',
 };
 
 // ---------------------------------------------------------------------------
@@ -212,7 +212,7 @@ export const CORROSIVE_BLADE: Equipment = {
     ...NO_EFFECT,
     damage: ctx?.targetPoisoned ? (die + 1) * 2 : die + 1,
   }),
-  description: 'dé+1 dégâts (×2 si empoisonné)',
+  description: 'dé+1 dégâts (×2 si cible empoisonnée)',
 };
 
 /** Sac à Spores — +1 poison turn (utility, no weapon slot cost) */
@@ -238,7 +238,7 @@ export const THORN_SHIELD: Equipment = {
     shield: die,
     damage: Math.ceil(die / 3),
   }),
-  description: 'dé abs + dé/3 renvoi',
+  description: 'dé blocage + dé/3 renvoi',
 };
 
 /** Câble Tressé — die dmg, +2 if another die is also in a weapon slot */
@@ -267,7 +267,7 @@ export const MOLOTOV: Equipment = {
     ...NO_EFFECT,
     damage: die,
   }),
-  description: 'dé dégâts (ignore les boucliers)',
+  description: 'dé dégâts (ignore blocage)',
 };
 
 // ---------------------------------------------------------------------------

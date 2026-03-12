@@ -34,10 +34,10 @@ function typeColor(t: Equipment['type']): number {
 }
 
 function fmtEffect(e: EquipmentEffect): string {
-  if (e.damage > 0) return `${e.damage}dmg`;
-  if (e.shield > 0) return `${e.shield}abs`;
-  if (e.heal > 0) return `${e.heal}hp`;
-  if (e.poison > 0) return `${e.poison}psn`;
+  if (e.damage > 0) return `${e.damage} dégâts`;
+  if (e.shield > 0) return `${e.shield} blocage`;
+  if (e.heal > 0) return `${e.heal} soin`;
+  if (e.poison > 0) return `${e.poison} poison`;
   return '0';
 }
 
@@ -70,16 +70,18 @@ export class ToolBoxCompartment extends Container implements SlotLike {
 
     const tc = typeColor(equipment.type);
 
-    this._glyphText = this._mkText(typeGlyph(equipment.type), 12, tc, true);
+    this._glyphText = this._mkText(typeGlyph(equipment.type), 16, tc, true);
     this._rangeText = this._mkText(
-      `${equipment.minDie}-${equipment.maxDie}`, 8, BONE,
+      `${equipment.minDie}-${equipment.maxDie}`, 14, BONE,
     );
-    this._valueText = this._mkText('', 14, BONE, true);
+    this._valueText = this._mkText('', 16, BONE, true);
     this._valueText.visible = false;
-    this._effectText = this._mkText('', 8, tc);
+    this._effectText = this._mkText('', 14, tc);
     this._effectText.visible = false;
-    this._passiveBonusText = this._mkText('', 8, BONE, true);
+    this._passiveBonusText = this._mkText('', 14, BONE, true);
     this._passiveBonusText.visible = false;
+
+    this._rangeText.visible = false; // shown only on valid-target (drag)
 
     this.addChild(
       this._glyphText, this._rangeText,
@@ -110,6 +112,10 @@ export class ToolBoxCompartment extends Container implements SlotLike {
 
   setState(state: SlotState): void {
     this._state = state;
+    // Show range only when a die is being dragged over (valid-target)
+    if (!this._placedDie && state !== 'filled') {
+      this._rangeText.visible = state === 'valid-target';
+    }
     this._draw();
   }
 

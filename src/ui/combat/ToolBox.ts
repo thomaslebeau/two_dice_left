@@ -1,7 +1,7 @@
 /**
- * Diegetic toolbox — wooden box with 4×3 grid of compartments.
- * Equipment assigned by type: weapons → row 0, shields → row 1,
- * utilities → row 2. Overflow fills other rows left-to-right.
+ * Diegetic toolbox — wooden box with 3-column dynamic grid.
+ * Equipment placed sequentially left-to-right, top-to-bottom.
+ * Extra rows added automatically for >6 equipment.
  * Preview text below the box shows effect when dice are placed.
  */
 
@@ -17,22 +17,21 @@ const WOOD_GRAIN = 0x5C3D2E;
 const WOOD_BORDER = 0x2A1A0F;
 const SEPARATOR = 0x2A1A0F;
 const BONE = 0xD9CFBA;
+const CHARCOAL = 0x1A1A1A;
+const TOOLTIP_PAD = 8;
 
-const COLS = 4;
-const ROWS = 3;
+const COLS = 3;
+const MIN_ROWS = 2;
 const BORDER_W = 3;
 const SEP_W = 2;
-
-// Row type mapping
-const ROW_TYPE: readonly Equipment['type'][] = ['weapon', 'shield', 'utility'];
 
 function fmtPreviewLine(dieValue: number, eq: Equipment): string {
   const eff = eq.effect(dieValue);
   const parts: string[] = [];
-  if (eff.damage > 0) parts.push(`${eff.damage} dmg`);
-  if (eff.shield > 0) parts.push(`${eff.shield} abs`);
-  if (eff.heal > 0) parts.push(`${eff.heal} hp`);
-  if (eff.poison > 0) parts.push(`${eff.poison} psn`);
+  if (eff.damage > 0) parts.push(`${eff.damage} dégâts`);
+  if (eff.shield > 0) parts.push(`${eff.shield} blocage`);
+  if (eff.heal > 0) parts.push(`${eff.heal} soin`);
+  if (eff.poison > 0) parts.push(`${eff.poison} poison`);
   const effect = parts.join(', ') || '0';
   return `\u2192 ${effect} (${eq.name})`;
 }
@@ -41,8 +40,9 @@ export class ToolBox extends Container {
   private _bg = new Graphics();
   private _compartments: ToolBoxCompartment[] = [];
   private _allSlots: ToolBoxCompartment[] = []; // only equipment-bearing
-  private _previewContainer = new Container();
-  private _previewLines: Text[] = [];
+  private _tooltip = new Container();
+  private _tooltipBg = new Graphics();
+  private _tooltipText: Text;
   private _boxW = 280;
   private _boxH = 220;
 
@@ -52,7 +52,19 @@ export class ToolBox extends Container {
   constructor() {
     super();
     this.addChild(this._bg);
-    this.addChild(this._previewContainer);
+
+    // Floating tooltip
+    this._tooltipText = new Text({
+      text: '',
+      style: {
+        fontFamily: FONTS.BODY, fontSize: 16, fill: BONE,
+        wordWrap: true, wordWrapWidth: 260,
+      },
+    });
+    this._tooltipText.position.set(TOOLTIP_PAD, TOOLTIP_PAD);
+    this._tooltip.addChild(this._tooltipBg, this._tooltipText);
+    this._tooltip.visible = false;
+    this.addChild(this._tooltip);
   }
 
   get slots(): readonly SlotLike[] { return this._allSlots; }
@@ -61,64 +73,25 @@ export class ToolBox extends Container {
   build(equipment: readonly Equipment[]): void {
     this._clear();
 
-    // Assign equipment to grid cells by type
-    const grid: (Equipment | null)[][] = Array.from(
-      { length: ROWS }, () => Array(COLS).fill(null) as (Equipment | null)[],
-    );
-    const eqIndexMap = new Map<Equipment, number>();
-    equipment.forEach((eq, i) => eqIndexMap.set(eq, i));
+    // Filter active (non-passive) equipment
+    const active = equipment
+      .map((eq, i) => ({ eq, idx: i }))
+      .filter(({ eq }) => !eq.isPassive);
 
-    // Place by preferred row
-    const placed = new Set<Equipment>();
-    for (const eq of equipment) {
-      if (eq.isPassive) continue; // passive equipment has no slot
-      const rowIdx = ROW_TYPE.indexOf(eq.type);
-      const row = grid[rowIdx];
-      const col = row.findIndex(c => c === null);
-      if (col !== -1) {
-        row[col] = eq;
-        placed.add(eq);
-      }
-    }
-
-    // Overflow: place remaining equipment in any empty cell
-    for (const eq of equipment) {
-      if (placed.has(eq) || eq.isPassive) continue;
-      let done = false;
-      for (let r = 0; r < ROWS && !done; r++) {
-        for (let c = 0; c < COLS && !done; c++) {
-          if (grid[r][c] === null) {
-            grid[r][c] = eq;
-            placed.add(eq);
-            done = true;
-          }
-        }
-      }
-    }
-
-    // Create compartments
+    // Place sequentially: left-to-right, top-to-bottom
     const cellW = this._cellW();
     const cellH = this._cellH();
-    for (let r = 0; r < ROWS; r++) {
-      for (let c = 0; c < COLS; c++) {
-        const eq = grid[r][c];
-        if (!eq) continue;
-        const eqIdx = eqIndexMap.get(eq)!; // safe: eq came from equipment
-        const comp = new ToolBoxCompartment(eq, eqIdx);
-        comp.resize(cellW, cellH);
-        comp.position.set(this._cellX(c), this._cellY(r));
-        comp.on('pointerdown', () => this.onSlotTap?.(eqIdx));
-        this.addChild(comp);
-        this._compartments.push(comp);
-        this._allSlots.push(comp);
-      }
-    }
-
-    // Lock passive equipment
-    for (const eq of equipment) {
-      if (eq.isPassive) {
-        // Passive slots are not shown in toolbox
-      }
+    for (let i = 0; i < active.length; i++) {
+      const { eq, idx } = active[i];
+      const r = Math.floor(i / COLS);
+      const c = i % COLS;
+      const comp = new ToolBoxCompartment(eq, idx);
+      comp.resize(cellW, cellH);
+      comp.position.set(this._cellX(c), this._cellY(r));
+      comp.on('pointerdown', () => this.onSlotTap?.(idx));
+      this.addChild(comp);
+      this._compartments.push(comp);
+      this._allSlots.push(comp);
     }
 
     this._drawBg();
@@ -137,7 +110,6 @@ export class ToolBox extends Container {
       comp.resize(cellW, cellH);
     }
     this._repositionCompartments();
-    this._previewContainer.position.set(BORDER_W, this._boxH + 4);
   }
 
   lockAll(): void {
@@ -158,35 +130,52 @@ export class ToolBox extends Container {
 
   clear(): void { this._clear(); }
 
-  /** Update preview lines below the box. */
+  /** Show floating tooltip above the toolbox with allocation results. */
   updatePreview(
     allocations: readonly Allocation[],
     equipment: readonly Equipment[],
   ): void {
-    this.clearPreview();
-    for (const a of allocations) {
-      const eq = equipment[a.equipmentIndex];
-      if (!eq) continue;
-      const line = new Text({
-        text: fmtPreviewLine(a.dieValue, eq),
-        style: {
-          fontFamily: FONTS.BODY, fontSize: 11, fill: BONE,
-        },
-      });
-      line.position.set(0, this._previewLines.length * 16);
-      this._previewContainer.addChild(line);
-      this._previewLines.push(line);
+    if (allocations.length === 0) {
+      this.clearPreview();
+      return;
     }
+
+    const lines = allocations
+      .map(a => {
+        const eq = equipment[a.equipmentIndex];
+        return eq ? fmtPreviewLine(a.dieValue, eq) : null;
+      })
+      .filter(Boolean)
+      .join('\n');
+
+    this._tooltipText.text = lines;
+    this._tooltipText.style.wordWrapWidth = this._boxW - TOOLTIP_PAD * 2;
+
+    // Size background to text
+    const tw = this._tooltipText.width + TOOLTIP_PAD * 2;
+    const th = this._tooltipText.height + TOOLTIP_PAD * 2;
+    this._tooltipBg.clear();
+    this._tooltipBg.roundRect(0, 0, tw, th, 4);
+    this._tooltipBg.fill({ color: CHARCOAL, alpha: 0.85 });
+
+    // Position above the box
+    this._tooltip.position.set(0, -th - 4);
+    this._tooltip.visible = true;
   }
 
   clearPreview(): void {
-    for (const t of this._previewLines) t.destroy();
-    this._previewLines = [];
+    this._tooltip.visible = false;
+    this._tooltipText.text = '';
   }
 
   // -----------------------------------------------------------------------
   // Private — grid math
   // -----------------------------------------------------------------------
+
+  private _rows(): number {
+    const count = this._compartments.length || MIN_ROWS * COLS;
+    return Math.max(MIN_ROWS, Math.ceil(count / COLS));
+  }
 
   private _cellW(): number {
     return Math.floor(
@@ -195,8 +184,9 @@ export class ToolBox extends Container {
   }
 
   private _cellH(): number {
+    const rows = this._rows();
     return Math.floor(
-      (this._boxH - BORDER_W * 2 - SEP_W * (ROWS - 1)) / ROWS,
+      (this._boxH - BORDER_W * 2 - SEP_W * (rows - 1)) / rows,
     );
   }
 
@@ -209,33 +199,13 @@ export class ToolBox extends Container {
   }
 
   private _repositionCompartments(): void {
-    // Rebuild position from equipment → grid mapping
     const cellW = this._cellW();
     const cellH = this._cellH();
-
-    // Re-assign positions based on type
-    const byType: Map<Equipment['type'], ToolBoxCompartment[]> = new Map();
-    for (const comp of this._compartments) {
-      const t = comp.equipment.type;
-      if (!byType.has(t)) byType.set(t, []);
-      byType.get(t)!.push(comp);
-    }
-
-    const usedCells = new Set<string>();
-    const place = (comp: ToolBoxCompartment, r: number, c: number) => {
-      comp.position.set(this._cellX(c), this._cellY(r));
-      comp.resize(cellW, cellH);
-      usedCells.add(`${r},${c}`);
-    };
-
-    // Place by preferred row
-    for (let ri = 0; ri < ROW_TYPE.length; ri++) {
-      const comps = byType.get(ROW_TYPE[ri]) ?? [];
-      let col = 0;
-      for (const comp of comps) {
-        while (col < COLS && usedCells.has(`${ri},${col}`)) col++;
-        if (col < COLS) place(comp, ri, col++);
-      }
+    for (let i = 0; i < this._compartments.length; i++) {
+      const r = Math.floor(i / COLS);
+      const c = i % COLS;
+      this._compartments[i].position.set(this._cellX(c), this._cellY(r));
+      this._compartments[i].resize(cellW, cellH);
     }
   }
 
@@ -261,6 +231,7 @@ export class ToolBox extends Container {
     }
 
     // Separators — vertical
+    const rows = this._rows();
     for (let c = 1; c < COLS; c++) {
       const x = this._cellX(c) - SEP_W / 2;
       g.moveTo(x, BORDER_W);
@@ -269,7 +240,7 @@ export class ToolBox extends Container {
     }
 
     // Separators — horizontal
-    for (let r = 1; r < ROWS; r++) {
+    for (let r = 1; r < rows; r++) {
       const y = this._cellY(r) - SEP_W / 2;
       g.moveTo(BORDER_W, y);
       g.lineTo(this._boxW - BORDER_W, y);

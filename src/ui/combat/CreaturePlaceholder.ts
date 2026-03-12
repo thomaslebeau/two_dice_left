@@ -46,7 +46,7 @@ export class CreaturePlaceholder extends Container {
       text: '',
       style: {
         fontFamily: FONTS.BODY,
-        fontSize: 12,
+        fontSize: 16,
         fill: BONE,
       },
     });

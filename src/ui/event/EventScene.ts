@@ -36,8 +36,8 @@ const RUST = 0x8B3A1A;
 const PADDING = 16;
 const PLANK_GAP = 12;
 const SECTION_GAP = 14;
-const CONFIRM_BTN_W = 180;
-const CONFIRM_BTN_H = 48;
+const CONFIRM_BTN_W = 358;
+const CONFIRM_BTN_H = 56;
 
 // ---------------------------------------------------------------------------
 // Config
@@ -82,7 +82,7 @@ export class EventScene extends Container implements Scene {
       text: '',
       style: {
         fontFamily: FONTS.BODY,
-        fontSize: 15,
+        fontSize: 16,
         fill: BONE,
         fontStyle: 'italic',
         wordWrap: true,
@@ -97,9 +97,10 @@ export class EventScene extends Container implements Scene {
       text: 'CONFIRMER',
       style: {
         fontFamily: FONTS.HEADING,
-        fontSize: 15,
+        fontSize: 22,
         fontWeight: 'bold',
         fill: BONE,
+        letterSpacing: 3,
       },
     });
     this._confirmBtnText.anchor.set(0.5);
@@ -166,10 +167,11 @@ export class EventScene extends Container implements Scene {
       y += PLANK_H + SECTION_GAP;
     }
 
-    // Confirm button
-    this._confirmBtn.position.set(cx - CONFIRM_BTN_W / 2, y);
+    // Confirm button (full width minus margins)
+    const confirmW = Math.min(CONFIRM_BTN_W, this._sw - PADDING * 2);
+    this._confirmBtn.position.set(cx - confirmW / 2, y);
     this._confirmBtnText.position.set(
-      CONFIRM_BTN_W / 2, CONFIRM_BTN_H / 2,
+      confirmW / 2, CONFIRM_BTN_H / 2,
     );
   }
 
@@ -230,12 +232,13 @@ export class EventScene extends Container implements Scene {
 
   private _drawConfirmButton(): void {
     const enabled = this._selectedIndex !== null;
+    const confirmW = Math.min(CONFIRM_BTN_W, this._sw - PADDING * 2);
     this._confirmBtnBg.clear();
-    this._confirmBtnBg.roundRect(0, 0, CONFIRM_BTN_W, CONFIRM_BTN_H, 6);
+    this._confirmBtnBg.roundRect(0, 0, confirmW, CONFIRM_BTN_H, 6);
     this._confirmBtnBg.fill({
       color: enabled ? RUST : 0x333333,
     });
-    this._confirmBtnBg.roundRect(0, 0, CONFIRM_BTN_W, CONFIRM_BTN_H, 6);
+    this._confirmBtnBg.roundRect(0, 0, confirmW, CONFIRM_BTN_H, 6);
     this._confirmBtnBg.stroke({
       color: enabled ? RUST : 0x555555,
       width: 2,

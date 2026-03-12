@@ -73,7 +73,7 @@ export class CircularHpBadge extends Container {
       text: '',
       style: {
         fontFamily: FONTS.HEADING,
-        fontSize: 9,
+        fontSize: 14,
         fontWeight: 'bold',
         fill: BONE,
       },
@@ -197,7 +197,7 @@ export class CircularHpBadge extends Container {
   private _redrawPoisonBg(): void {
     this._poisonBg.clear();
     const w = Math.max(BADGE_DIAMETER, 40);
-    this._poisonBg.roundRect(0, 0, w, 16, 4);
+    this._poisonBg.roundRect(0, 0, w, 22, 4);
     this._poisonBg.fill({ color: VENOM, alpha: 0.85 });
     this._poisonLabel.position.set(w / 2, 2);
   }

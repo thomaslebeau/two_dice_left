@@ -17,7 +17,7 @@ export const PASSIVE_INFO: Record<PassiveId, PassiveInfo> = {
   },
   rempart: {
     name: 'Rempart',
-    description: 'Absorption excédentaire → +1 bouclier tour suivant (PV>50%)',
+    description: 'Blocage excédentaire → +1 blocage tour suivant',
   },
   ingenieux: {
     name: 'Ingénieux',
@@ -25,10 +25,10 @@ export const PASSIVE_INFO: Record<PassiveId, PassiveInfo> = {
   },
   elan: {
     name: 'Élan',
-    description: 'Speed kill + PV>50% → +1 dégâts R1',
+    description: 'Speed kill + PV>50% → +1 dégâts round 1',
   },
   recycleur: {
     name: 'Recycleur',
-    description: '1×/combat, dé=1 → 2 automatique',
+    description: '1×/combat, dé de 1 → 2',
   },
 };

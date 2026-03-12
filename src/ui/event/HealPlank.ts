@@ -11,7 +11,7 @@ import { FONTS } from '../../theme';
 // ---------------------------------------------------------------------------
 
 export const HEAL_PLANK_W = 350;
-export const HEAL_PLANK_H = 110;
+export const HEAL_PLANK_H = 130;
 
 // ---------------------------------------------------------------------------
 // Diegetic palette
@@ -56,7 +56,7 @@ export class HealPlank extends Container {
       text: 'REPARER +2 PV',
       style: {
         fontFamily: FONTS.BODY,
-        fontSize: 16,
+        fontSize: 20,
         fontWeight: 'bold',
         fill: 0x000000,
       },
@@ -70,7 +70,7 @@ export class HealPlank extends Container {
       text: 'REPARER +2 PV',
       style: {
         fontFamily: FONTS.BODY,
-        fontSize: 16,
+        fontSize: 20,
         fontWeight: 'bold',
         fill: BONE,
       },
@@ -84,25 +84,25 @@ export class HealPlank extends Container {
       text: '',
       style: {
         fontFamily: FONTS.BODY,
-        fontSize: 12,
+        fontSize: 16,
         fill: 0x000000,
       },
     });
     this._hpShadow.anchor.set(0.5);
     this._hpShadow.alpha = 0.5;
-    this._hpShadow.position.set(HEAL_PLANK_W / 2 + 1, HEAL_PLANK_H / 2 + 14 + 1);
+    this._hpShadow.position.set(HEAL_PLANK_W / 2 + 1, HEAL_PLANK_H / 2 + 18 + 1);
     this.addChild(this._hpShadow);
 
     this._hpText = new Text({
       text: '',
       style: {
         fontFamily: FONTS.BODY,
-        fontSize: 12,
+        fontSize: 16,
         fill: BONE,
       },
     });
     this._hpText.anchor.set(0.5);
-    this._hpText.position.set(HEAL_PLANK_W / 2, HEAL_PLANK_H / 2 + 14);
+    this._hpText.position.set(HEAL_PLANK_W / 2, HEAL_PLANK_H / 2 + 18);
     this.addChild(this._hpText);
 
     this.updateHp(currentHp, maxHp);

@@ -8,8 +8,8 @@ import { Container, Graphics, Text } from 'pixi.js';
 import { FONTS } from '../../theme';
 
 const BONE = 0xD9CFBA;
-const BTN_WIDTH = 100;
-const BTN_HEIGHT = 36;
+const BTN_WIDTH = 140;
+const BTN_HEIGHT = 48;
 const CORNER_R = 6;
 
 export class ResetButton extends Container {
@@ -26,7 +26,7 @@ export class ResetButton extends Container {
       text: 'ANNULER',
       style: {
         fontFamily: FONTS.HEADING,
-        fontSize: 14, fontWeight: 'bold',
+        fontSize: 16, fontWeight: 'bold',
         fill: BONE, letterSpacing: 3,
       },
     });

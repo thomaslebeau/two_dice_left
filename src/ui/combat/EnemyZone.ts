@@ -14,9 +14,9 @@ const BONE = 0xD9CFBA;
 const MOSS = 0x2D4A2E;
 const BLOOD = 0x6B1C1C;
 const VENOM = 0x7B2D8B;
-const HP_BAR_H = 6;
+const HP_BAR_H = 10;
 const SLOT_GAP = 3;
-const DICE_SCALE = 0.6;
+const DICE_SCALE = 0.75;
 const DICE_GAP = 4;
 const ROW_GAP = 4;
 
@@ -35,14 +35,14 @@ export class EnemyZone extends Container {
 
   constructor() {
     super();
-    this._nameText = this._mkText(12, BONE, true);
+    this._nameText = this._mkText(20, BONE, true);
     this.addChild(this._nameText);
     this.addChild(this._hpBg, this._hpFill);
-    this._hpText = this._mkText(9, BONE);
+    this._hpText = this._mkText(14, BONE);
     this.addChild(this._hpText);
     this._poisonBadge.visible = false;
     this._poisonBadge.addChild(this._poisonBg);
-    this._poisonLabel = this._mkText(9, BONE, true);
+    this._poisonLabel = this._mkText(16, BONE, true);
     this._poisonLabel.position.set(4, 2);
     this._poisonBadge.addChild(this._poisonLabel);
     this.addChild(this._poisonBadge);
@@ -161,8 +161,8 @@ export class EnemyZone extends Container {
 
   private _redrawPoisonBg(): void {
     this._poisonBg.clear();
-    const w = this._poisonLabel.width + 8;
-    this._poisonBg.roundRect(0, 0, w, 14, 3);
+    const w = this._poisonLabel.width + 10;
+    this._poisonBg.roundRect(0, 0, w, 22, 3);
     this._poisonBg.fill({ color: VENOM, alpha: 0.85 });
   }
 

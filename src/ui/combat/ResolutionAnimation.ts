@@ -58,10 +58,10 @@ function mkText(size: number, color: number, bold = false): Text {
 
 export class ResolutionAnimation extends Container {
   private _overlay = new Graphics();
-  private _calc1 = mkText(14, BONE);
-  private _calc2 = mkText(14, BONE);
-  private _result = mkText(16, BONE, true);
-  private _speed = mkText(14, MOSS, true);
+  private _calc1 = mkText(18, BONE);
+  private _calc2 = mkText(18, BONE);
+  private _result = mkText(24, BONE, true);
+  private _speed = mkText(18, MOSS, true);
   private _end: Text;
   private _playerBadge: CircularHpBadge | null = null;
   private _enemyBar: Graphics | null = null;
@@ -73,7 +73,7 @@ export class ResolutionAnimation extends Container {
     this.addChild(this._overlay);
     this._end = new Text({
       text: '', style: {
-        fontFamily: FONTS.HEADING, fontSize: 32,
+        fontFamily: FONTS.HEADING, fontSize: 36,
         fontWeight: 'bold', fill: BONE, letterSpacing: 6,
       },
     });
@@ -88,14 +88,14 @@ export class ResolutionAnimation extends Container {
   }
 
   layoutAt(cx: number, top: number, w: number): void {
-    const g = 22;
+    const g = 28;
     this._calc1.position.set(cx, top);
     this._calc2.position.set(cx, top + g);
-    this._result.position.set(cx, top + g * 2 + 8);
-    this._speed.position.set(cx, top + g * 3 + 8);
-    this._end.position.set(cx, top + g * 4 + 8);
+    this._result.position.set(cx, top + g * 2 + 10);
+    this._speed.position.set(cx, top + g * 3 + 10);
+    this._end.position.set(cx, top + g * 4 + 10);
     this._overlay.clear();
-    this._overlay.rect(cx - w / 2, top - 10, w, g * 5 + 28);
+    this._overlay.rect(cx - w / 2, top - 10, w, g * 5 + 40);
     this._overlay.fill({ color: CHARCOAL, alpha: 0.85 });
   }
 
@@ -110,9 +110,9 @@ export class ResolutionAnimation extends Container {
     const eAtk = sumAllocEffects(d.enemyAllocations, d.enemyEquipment, 'damage');
     const pShd = sumAllocEffects(d.playerAllocations, d.playerEquipment, 'shield');
 
-    this._calc1.text = `You: ${pAtk} atk - ${eShd} shield = ${d.playerDamageToEnemy} dmg`;
+    this._calc1.text = `Vous : ${pAtk} dégâts - ${eShd} blocage = ${d.playerDamageToEnemy} dégâts`;
     this._calc1.style.fill = d.playerDamageToEnemy > 0 ? MOSS : BONE;
-    this._calc2.text = `Foe: ${eAtk} atk - ${pShd} shield = ${d.enemyDamageToPlayer} dmg`;
+    this._calc2.text = `Ennemi : ${eAtk} dégâts - ${pShd} blocage = ${d.enemyDamageToPlayer} dégâts`;
     this._calc2.style.fill = d.enemyDamageToPlayer > 0 ? BLOOD : BONE;
     await tickerWait(CALC_MS);
 
@@ -120,13 +120,13 @@ export class ResolutionAnimation extends Container {
     this._animatePlayerBadge(d.playerHpBefore, d.playerHpAfter, d.playerMaxHp);
 
     const parts: string[] = [];
-    if (d.playerDamageToEnemy > 0) parts.push(`Enemy -${d.playerDamageToEnemy} HP`);
-    if (d.enemyDamageToPlayer > 0) parts.push(`You -${d.enemyDamageToPlayer} HP`);
+    if (d.playerDamageToEnemy > 0) parts.push(`Ennemi -${d.playerDamageToEnemy} PV`);
+    if (d.enemyDamageToPlayer > 0) parts.push(`Vous -${d.enemyDamageToPlayer} PV`);
     if (d.enemyPoisonTick > 0) parts.push(`\u2620 -1 poison`);
-    if (d.playerPoisonTick > 0) parts.push(`\u2620 You -1 poison`);
+    if (d.playerPoisonTick > 0) parts.push(`\u2620 Vous -1 poison`);
     if (d.enemyNewPoison > 0) parts.push(`\u2620 +${d.enemyNewPoison} poison`);
-    if (d.playerHealTotal > 0) parts.push(`You +${d.playerHealTotal} heal`);
-    this._result.text = parts.join('  |  ') || 'No damage';
+    if (d.playerHealTotal > 0) parts.push(`Vous +${d.playerHealTotal} soin`);
+    this._result.text = parts.join('  |  ') || 'Aucun dégât';
     if (d.enemyPoisonTick > 0 || d.enemyNewPoison > 0 || d.playerPoisonTick > 0) {
       this._result.style.fill = POISON;
     }
@@ -134,7 +134,7 @@ export class ResolutionAnimation extends Container {
 
     if (d.speedKillRecovery > 0) this._speed.text = `Victoire rapide! +${d.speedKillRecovery} PV`;
     if (d.combatEnded) {
-      this._end.text = d.playerWon ? 'VICTORY' : 'DEFEAT';
+      this._end.text = d.playerWon ? 'VICTOIRE' : 'DÉFAITE';
       this._end.style.fill = d.playerWon ? MOSS : BLOOD;
       await tickerWait(END_MS);
     }

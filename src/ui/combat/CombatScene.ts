@@ -19,6 +19,7 @@ import { EnemyZone } from './EnemyZone';
 import { CombatState, type PoisonSnapshot } from './CombatState';
 import { PassiveFeedback } from './PassiveFeedback';
 import { tickerWait, tickerLoop, type TickerHandle } from './tickerUtils';
+import { OnboardingHint } from './OnboardingHint';
 
 const BONE = 0xD9CFBA, RUST = 0x8B3A1A, MOSS = 0x2D4A2E;
 const PADDING = 8, GAP = 4;
@@ -32,7 +33,7 @@ export interface CombatSceneData {
   passiveState?: PassiveState;
 }
 
-const PAT_LABEL: Record<AllocationPattern, string> = { aggressive: 'ATK Agressif', defensive: 'DEF Defensif', neutral: 'Neutre' };
+const PAT_LABEL: Record<AllocationPattern, string> = { aggressive: 'Agressif', defensive: 'Défensif', neutral: 'Neutre' };
 const PAT_COLOR: Record<AllocationPattern, number> = { aggressive: RUST, defensive: MOSS, neutral: BONE };
 
 export class CombatScene extends Container implements Scene {
@@ -52,6 +53,7 @@ export class CombatScene extends Container implements Scene {
   private _recycleurCancel: { cancel: () => void } | null = null;
   private _tapPrompt: Text;
   private _tapPulseHandle: TickerHandle | null = null;
+  private _onboarding = new OnboardingHint();
   private _sw = 360;
   private _sh = 640;
 
@@ -59,9 +61,9 @@ export class CombatScene extends Container implements Scene {
     super();
     this.addChild(this._enemyZone);
     this.addChild(this._creature, this._resolution, this._playerDiceZone);
-    this.addChild(this._playerZone, this._resetBtn, this._commitBtn, this._passiveFeedback);
+    this.addChild(this._playerZone, this._resetBtn, this._commitBtn, this._passiveFeedback, this._onboarding);
     this._tapPrompt = new Text({
-      text: 'TAP TO CONTINUE', style: {
+      text: 'TOUCHER POUR CONTINUER', style: {
         fontFamily: FONTS.HEADING, fontSize: 16,
         fontWeight: 'bold', fill: BONE, letterSpacing: 3,
       },
@@ -75,6 +77,7 @@ export class CombatScene extends Container implements Scene {
     this._allocator.onChange = () => {
       this._commitBtn.setEnabled(this._allocator.isComplete());
       this._resetBtn.setVisible(this._allocator.hasAllocations());
+      this._onboarding.dismiss();
       if (this._passiveId === 'ingenieux') {
         this._passiveFeedback.checkIngenieuxPreview(
           this._allocator.getAllocations(), this._data!.playerEquipment, // safe: onChange only fires during allocation
@@ -117,7 +120,7 @@ export class CombatScene extends Container implements Scene {
   onExit(): void {
     this._allocator.reset(); this._playerZone.clear(); this._enemyZone.clear();
     this._resolution.reset(); this._tapPulseHandle?.stop(); this._tapPulseHandle = null;
-    this._tapPrompt.visible = false; this._passiveFeedback.cleanup();
+    this._tapPrompt.visible = false; this._passiveFeedback.cleanup(); this._onboarding.cleanup();
     this._playerZone.badge.setDangerPulse(false);
     this._recycleurCancel = null; this._data = null; this._state = null;
   }
@@ -142,7 +145,7 @@ export class CombatScene extends Container implements Scene {
     if (this._state) this._enemyZone.updateHp(this._state.enemyHp, this._state.enemyMaxHp, avail * 0.6);
 
     // Buttons — at 82%, always visible
-    const btnGap = 8;
+    const btnGap = 12;
     const totalBtnW = this._resetBtn.buttonWidth + btnGap + this._commitBtn.buttonWidth;
     this._resetBtn.position.set(cx - totalBtnW / 2, btnY);
     this._commitBtn.position.set(cx - totalBtnW / 2 + this._resetBtn.buttonWidth + btnGap, btnY);
@@ -196,6 +199,11 @@ export class CombatScene extends Container implements Scene {
     void tickerWait(2000).then(() => {
       this._phase = 'allocating';
       this._allocator.setEnabled(true);
+      // Onboarding hint — first round, first ever combat
+      if (this._state?.round === 1 && OnboardingHint.shouldShow()) {
+        const diceY = this._sh * 0.44;
+        this._onboarding.show(this._sw / 2, diceY - 56);
+      }
       // Survivant: toggle danger pulse based on HP
       if (this._passiveId === 'survivant' && this._state) {
         this._passiveFeedback.updateSurvivantDanger(

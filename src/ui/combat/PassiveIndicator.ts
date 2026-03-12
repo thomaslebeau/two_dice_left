@@ -15,7 +15,7 @@ export class PassiveIndicator extends Container {
     super();
     this._label = new Text({
       text: '',
-      style: { fontFamily: FONTS.HEADING, fontSize: 12, fontWeight: 'bold', fill: 0xD9CFBA },
+      style: { fontFamily: FONTS.HEADING, fontSize: 16, fontWeight: 'bold', fill: 0xD9CFBA },
     });
     this._label.anchor.set(0.5);
     this.addChild(this._label);

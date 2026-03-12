@@ -21,9 +21,9 @@ const CHARCOAL = 0x1A1A1A;
 // Constants
 // ---------------------------------------------------------------------------
 
-export const DIE_SIZE = 36;
-const CORNER_RADIUS = 5;
-const PIP_RADIUS = 3;
+export const DIE_SIZE = 52;
+const CORNER_RADIUS = 7;
+const PIP_RADIUS = 4;
 const PIP_COLOR = CHARCOAL;
 const ROLL_DURATION = 1800;
 const ROLL_START_SPEED = 40;

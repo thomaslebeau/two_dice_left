@@ -18,8 +18,8 @@ const MOSS = 0x2D4A2E;
 // Constants
 // ---------------------------------------------------------------------------
 
-const BTN_WIDTH = 160;
-const BTN_HEIGHT = 36;
+const BTN_WIDTH = 200;
+const BTN_HEIGHT = 56;
 const CORNER_RADIUS = 6;
 
 export class CommitButton extends Container {
@@ -39,7 +39,7 @@ export class CommitButton extends Container {
       text: 'VALIDER',
       style: {
         fontFamily: FONTS.HEADING,
-        fontSize: 18,
+        fontSize: 22,
         fontWeight: 'bold',
         fill: BONE,
         letterSpacing: 3,

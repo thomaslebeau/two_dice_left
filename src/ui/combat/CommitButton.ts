@@ -5,6 +5,7 @@
 
 import { Container, Graphics, Text } from 'pixi.js';
 import { FONTS } from '../../theme';
+import { STRINGS } from '../../data/strings';
 
 // ---------------------------------------------------------------------------
 // V6 palette
@@ -36,7 +37,7 @@ export class CommitButton extends Container {
     this.addChild(this._bg);
 
     this._labelText = new Text({
-      text: 'VALIDER',
+      text: STRINGS.VALIDATE,
       style: {
         fontFamily: FONTS.HEADING,
         fontSize: 22,

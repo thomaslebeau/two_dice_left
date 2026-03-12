@@ -5,6 +5,7 @@
 
 import { Container, Graphics, Text } from 'pixi.js';
 import { FONTS } from '../../theme';
+import { STRINGS } from '../../data/strings';
 
 // ---------------------------------------------------------------------------
 // Dimensions (same as LootPlank)
@@ -53,7 +54,7 @@ export class HealPlank extends Container {
 
     // Shadow + main text: "REPARER +2 PV"
     this._mainShadow = new Text({
-      text: 'REPARER +2 PV',
+      text: `${STRINGS.REPAIR} +2 HP`,
       style: {
         fontFamily: FONTS.BODY,
         fontSize: 20,
@@ -67,7 +68,7 @@ export class HealPlank extends Container {
     this.addChild(this._mainShadow);
 
     this._mainText = new Text({
-      text: 'REPARER +2 PV',
+      text: `${STRINGS.REPAIR} +2 HP`,
       style: {
         fontFamily: FONTS.BODY,
         fontSize: 20,

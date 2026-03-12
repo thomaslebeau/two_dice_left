@@ -9,6 +9,7 @@ import { sumAllocEffects } from '../../engine/combat';
 import type { CircularHpBadge } from './CircularHpBadge';
 import { tickerWait, tickerTween } from './tickerUtils';
 import { FONTS } from '../../theme';
+import { STRINGS } from '../../data/strings';
 
 const BONE = 0xD9CFBA;
 const MOSS = 0x2D4A2E;
@@ -110,9 +111,9 @@ export class ResolutionAnimation extends Container {
     const eAtk = sumAllocEffects(d.enemyAllocations, d.enemyEquipment, 'damage');
     const pShd = sumAllocEffects(d.playerAllocations, d.playerEquipment, 'shield');
 
-    this._calc1.text = `Vous : ${pAtk} dégâts - ${eShd} blocage = ${d.playerDamageToEnemy} dégâts`;
+    this._calc1.text = STRINGS.RES_YOU(pAtk, eShd, d.playerDamageToEnemy);
     this._calc1.style.fill = d.playerDamageToEnemy > 0 ? MOSS : BONE;
-    this._calc2.text = `Ennemi : ${eAtk} dégâts - ${pShd} blocage = ${d.enemyDamageToPlayer} dégâts`;
+    this._calc2.text = STRINGS.RES_ENEMY(eAtk, pShd, d.enemyDamageToPlayer);
     this._calc2.style.fill = d.enemyDamageToPlayer > 0 ? BLOOD : BONE;
     await tickerWait(CALC_MS);
 
@@ -120,21 +121,21 @@ export class ResolutionAnimation extends Container {
     this._animatePlayerBadge(d.playerHpBefore, d.playerHpAfter, d.playerMaxHp);
 
     const parts: string[] = [];
-    if (d.playerDamageToEnemy > 0) parts.push(`Ennemi -${d.playerDamageToEnemy} PV`);
-    if (d.enemyDamageToPlayer > 0) parts.push(`Vous -${d.enemyDamageToPlayer} PV`);
-    if (d.enemyPoisonTick > 0) parts.push(`\u2620 -1 poison`);
-    if (d.playerPoisonTick > 0) parts.push(`\u2620 Vous -1 poison`);
-    if (d.enemyNewPoison > 0) parts.push(`\u2620 +${d.enemyNewPoison} poison`);
-    if (d.playerHealTotal > 0) parts.push(`Vous +${d.playerHealTotal} soin`);
-    this._result.text = parts.join('  |  ') || 'Aucun dégât';
+    if (d.playerDamageToEnemy > 0) parts.push(STRINGS.RES_ENEMY_HP(d.playerDamageToEnemy));
+    if (d.enemyDamageToPlayer > 0) parts.push(STRINGS.RES_PLAYER_HP(d.enemyDamageToPlayer));
+    if (d.enemyPoisonTick > 0) parts.push(STRINGS.RES_POISON_TICK);
+    if (d.playerPoisonTick > 0) parts.push(STRINGS.RES_PLAYER_POISON_TICK);
+    if (d.enemyNewPoison > 0) parts.push(STRINGS.RES_NEW_POISON(d.enemyNewPoison));
+    if (d.playerHealTotal > 0) parts.push(STRINGS.RES_HEAL(d.playerHealTotal));
+    this._result.text = parts.join('  |  ') || STRINGS.NO_DAMAGE;
     if (d.enemyPoisonTick > 0 || d.enemyNewPoison > 0 || d.playerPoisonTick > 0) {
       this._result.style.fill = POISON;
     }
     await tickerWait(HP_MS);
 
-    if (d.speedKillRecovery > 0) this._speed.text = `Victoire rapide! +${d.speedKillRecovery} PV`;
+    if (d.speedKillRecovery > 0) this._speed.text = STRINGS.SPEED_KILL(d.speedKillRecovery);
     if (d.combatEnded) {
-      this._end.text = d.playerWon ? 'VICTOIRE' : 'DÉFAITE';
+      this._end.text = d.playerWon ? STRINGS.VICTORY : STRINGS.DEFEAT;
       this._end.style.fill = d.playerWon ? MOSS : BLOOD;
       await tickerWait(END_MS);
     }

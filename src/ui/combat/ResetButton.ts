@@ -6,6 +6,7 @@
 
 import { Container, Graphics, Text } from 'pixi.js';
 import { FONTS } from '../../theme';
+import { STRINGS } from '../../data/strings';
 
 const BONE = 0xD9CFBA;
 const BTN_WIDTH = 140;
@@ -23,7 +24,7 @@ export class ResetButton extends Container {
     this.addChild(this._bg);
 
     this._label = new Text({
-      text: 'ANNULER',
+      text: STRINGS.CANCEL,
       style: {
         fontFamily: FONTS.HEADING,
         fontSize: 16, fontWeight: 'bold',

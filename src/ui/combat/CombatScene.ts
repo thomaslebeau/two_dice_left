@@ -20,6 +20,8 @@ import { CombatState, type PoisonSnapshot } from './CombatState';
 import { PassiveFeedback } from './PassiveFeedback';
 import { tickerWait, tickerLoop, type TickerHandle } from './tickerUtils';
 import { OnboardingHint } from './OnboardingHint';
+import { EquipmentTooltip } from './EquipmentTooltip';
+import { STRINGS } from '../../data/strings';
 
 const BONE = 0xD9CFBA, RUST = 0x8B3A1A, MOSS = 0x2D4A2E;
 const PADDING = 8, GAP = 4;
@@ -33,7 +35,7 @@ export interface CombatSceneData {
   passiveState?: PassiveState;
 }
 
-const PAT_LABEL: Record<AllocationPattern, string> = { aggressive: 'Agressif', defensive: 'Défensif', neutral: 'Neutre' };
+const PAT_LABEL: Record<AllocationPattern, string> = { aggressive: STRINGS.PATTERN_AGGRESSIVE, defensive: STRINGS.PATTERN_DEFENSIVE, neutral: STRINGS.PATTERN_NEUTRAL };
 const PAT_COLOR: Record<AllocationPattern, number> = { aggressive: RUST, defensive: MOSS, neutral: BONE };
 
 export class CombatScene extends Container implements Scene {
@@ -54,6 +56,7 @@ export class CombatScene extends Container implements Scene {
   private _tapPrompt: Text;
   private _tapPulseHandle: TickerHandle | null = null;
   private _onboarding = new OnboardingHint();
+  private _eqTooltip = new EquipmentTooltip();
   private _sw = 360;
   private _sh = 640;
 
@@ -61,9 +64,9 @@ export class CombatScene extends Container implements Scene {
     super();
     this.addChild(this._enemyZone);
     this.addChild(this._creature, this._resolution, this._playerDiceZone);
-    this.addChild(this._playerZone, this._resetBtn, this._commitBtn, this._passiveFeedback, this._onboarding);
+    this.addChild(this._playerZone, this._resetBtn, this._commitBtn, this._passiveFeedback, this._onboarding, this._eqTooltip);
     this._tapPrompt = new Text({
-      text: 'TOUCHER POUR CONTINUER', style: {
+      text: STRINGS.TAP_TO_START, style: {
         fontFamily: FONTS.HEADING, fontSize: 16,
         fontWeight: 'bold', fill: BONE, letterSpacing: 3,
       },
@@ -74,7 +77,12 @@ export class CombatScene extends Container implements Scene {
     this._commitBtn.onCommit = () => this._handleCommit();
     this._resetBtn.onReset = () => { this._allocator.resetAllAllocations(); };
     this._playerZone.toolBox.onSlotTap = (i) => this._allocator.handleSlotTap(i);
+    this._playerZone.toolBox.onFilledSlotTap = (comp) => {
+      const global = comp.toGlobal({ x: comp.width / 2, y: 0 });
+      this._eqTooltip.show(comp.equipment, global.x, global.y);
+    };
     this._allocator.onChange = () => {
+      this._eqTooltip.hide();
       this._commitBtn.setEnabled(this._allocator.isComplete());
       this._resetBtn.setVisible(this._allocator.hasAllocations());
       this._onboarding.dismiss();
@@ -88,6 +96,7 @@ export class CombatScene extends Container implements Scene {
     };
     this._allocator.onBringToFront = (d) => this.setChildIndex(d, this.children.length - 1);
     this.eventMode = 'static';
+    this.on('pointerdown', () => this._eqTooltip.dismissOnTapElsewhere());
     this.on('pointermove', (e: { global: { x: number; y: number } }) =>
       this._allocator.handlePointerMove(e.global));
     this.on('pointerup', () => this._allocator.handlePointerUp());
@@ -121,6 +130,7 @@ export class CombatScene extends Container implements Scene {
     this._allocator.reset(); this._playerZone.clear(); this._enemyZone.clear();
     this._resolution.reset(); this._tapPulseHandle?.stop(); this._tapPulseHandle = null;
     this._tapPrompt.visible = false; this._passiveFeedback.cleanup(); this._onboarding.cleanup();
+    this._eqTooltip.cleanup();
     this._playerZone.badge.setDangerPulse(false);
     this._recycleurCancel = null; this._data = null; this._state = null;
   }
@@ -167,6 +177,7 @@ export class CombatScene extends Container implements Scene {
 
     this._resolution.layoutAt(cx, illusY + 10, avail);
     this._tapPrompt.position.set(cx, illusY + creatureH / 2);
+    this._eqTooltip.setViewportWidth(w);
   }
 
   private _updateHpDisplays(): void {

@@ -7,6 +7,7 @@ import { Assets, Container, Sprite, Text } from 'pixi.js';
 import type { Scene } from '../../engine/SceneManager';
 import { tickerLoop, tickerTween, type TickerHandle } from '../combat/tickerUtils';
 import { FONTS } from '../../theme';
+import { STRINGS } from '../../data/strings';
 
 // ---------------------------------------------------------------------------
 // V6 palette
@@ -44,7 +45,7 @@ export class TitleScene extends Container implements Scene {
     super();
 
     this._prompt = new Text({
-      text: 'TOUCHER POUR CONTINUER',
+      text: STRINGS.TAP_TO_START,
       style: {
         fontFamily: FONTS.HEADING,
         fontSize: 16,

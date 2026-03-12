@@ -7,6 +7,7 @@
 
 import { Application, Container, Graphics, Text } from 'pixi.js';
 import { FONTS } from './theme.ts';
+import { STRINGS } from './data/strings.ts';
 import { SceneManager } from './engine/SceneManager.ts';
 import type { Scene } from './engine/SceneManager.ts';
 import { V6RunOrchestrator } from './core/V6RunOrchestrator.ts';
@@ -115,7 +116,7 @@ function createEndScene(onRestart: () => void): Scene {
 
   const restartBg = new Graphics();
   const restartLabel = new Text({
-    text: 'REJOUER',
+    text: STRINGS.RESTART,
     style: {
       fontFamily: FONTS.HEADING,
       fontSize: 20,
@@ -140,7 +141,7 @@ function createEndScene(onRestart: () => void): Scene {
       survivorName: string;
       detail: string;
     };
-    heading.text = d.victory ? 'VICTOIRE' : 'DEFAITE';
+    heading.text = d.victory ? STRINGS.VICTORY : STRINGS.DEFEAT;
     heading.style.fill = d.victory ? MOSS : RUST;
     detail.text = `${d.survivorName} — ${d.detail}`;
   };
@@ -300,7 +301,7 @@ async function main() {
         scenes.switchTo('end', {
           victory: true,
           survivorName: t.survivor.name,
-          detail: `${t.playerHp} PV restants`,
+          detail: STRINGS.END_HP_REMAINING(t.playerHp),
         });
         break;
       }
@@ -319,7 +320,7 @@ async function main() {
         scenes.switchTo('end', {
           victory: false,
           survivorName: t.survivor.name,
-          detail: `Combat ${t.combatNumber}/5`,
+          detail: STRINGS.END_COMBAT_REACHED(t.combatNumber),
         });
         break;
       }

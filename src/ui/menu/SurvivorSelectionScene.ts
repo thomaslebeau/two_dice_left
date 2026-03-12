@@ -8,6 +8,7 @@ import type { Scene } from '../../engine/SceneManager';
 import type { Survivor } from '../../engine/types';
 import { SurvivorCard } from './SurvivorCard';
 import { FONTS } from '../../theme';
+import { STRINGS } from '../../data/strings';
 
 // ---------------------------------------------------------------------------
 // V6 palette
@@ -66,7 +67,7 @@ export class SurvivorSelectionScene extends Container implements Scene {
     super();
 
     this._title = new Text({
-      text: 'CHOISIR UN SURVIVANT',
+      text: STRINGS.CHOOSE_SURVIVOR,
       style: {
         fontFamily: FONTS.HEADING, fontSize: 22,
         fontWeight: 'bold', fill: BONE, letterSpacing: 3,
@@ -92,7 +93,7 @@ export class SurvivorSelectionScene extends Container implements Scene {
 
     // Start button
     this._startBtnLabel = new Text({
-      text: 'COMMENCER',
+      text: STRINGS.START,
       style: {
         fontFamily: FONTS.HEADING, fontSize: 22,
         fontWeight: 'bold', fill: BONE, letterSpacing: 3,

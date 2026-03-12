@@ -14,6 +14,7 @@ import { Container, Graphics, Text } from 'pixi.js';
 import type { Scene } from '../../engine/SceneManager';
 import type { Equipment, Survivor } from '../../engine/types';
 import { FONTS } from '../../theme';
+import { STRINGS } from '../../data/strings';
 import { LootPlank, PLANK_W, PLANK_H } from './LootPlank';
 import { HealPlank } from './HealPlank';
 import {
@@ -94,7 +95,7 @@ export class EventScene extends Container implements Scene {
 
     // Confirm button
     this._confirmBtnText = new Text({
-      text: 'CONFIRMER',
+      text: STRINGS.CONFIRM,
       style: {
         fontFamily: FONTS.HEADING,
         fontSize: 22,

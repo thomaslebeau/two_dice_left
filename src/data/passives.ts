@@ -1,9 +1,10 @@
 /**
- * Passive display info — French names and descriptions for UI.
+ * Passive display info — names and descriptions for UI.
  * Pure data, zero Pixi imports.
  */
 
 import type { PassiveId } from '../engine/types';
+import { STRINGS } from './strings';
 
 export interface PassiveInfo {
   readonly name: string;
@@ -12,23 +13,23 @@ export interface PassiveInfo {
 
 export const PASSIVE_INFO: Record<PassiveId, PassiveInfo> = {
   survivant: {
-    name: 'Survivant',
-    description: 'Sous 40% PV, +1 dégâts arme',
+    name: STRINGS.PASSIVE_SURVIVANT,
+    description: STRINGS.PASSIVE_SURVIVANT_DESC,
   },
   rempart: {
-    name: 'Rempart',
-    description: 'Blocage excédentaire → +1 blocage tour suivant',
+    name: STRINGS.PASSIVE_REMPART,
+    description: STRINGS.PASSIVE_REMPART_DESC,
   },
   ingenieux: {
-    name: 'Ingénieux',
-    description: '2 types équipés → +1 à l\'effet le plus faible',
+    name: STRINGS.PASSIVE_INGENIEUX,
+    description: STRINGS.PASSIVE_INGENIEUX_DESC,
   },
   elan: {
-    name: 'Élan',
-    description: 'Speed kill + PV>50% → +1 dégâts round 1',
+    name: STRINGS.PASSIVE_ELAN,
+    description: STRINGS.PASSIVE_ELAN_DESC,
   },
   recycleur: {
-    name: 'Recycleur',
-    description: '1×/combat, dé de 1 → 2',
+    name: STRINGS.PASSIVE_RECYCLEUR,
+    description: STRINGS.PASSIVE_RECYCLEUR_DESC,
   },
 };

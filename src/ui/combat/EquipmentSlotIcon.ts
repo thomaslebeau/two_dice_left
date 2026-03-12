@@ -7,6 +7,7 @@ import { Container, Graphics, Text } from 'pixi.js';
 import type { Equipment, EquipmentEffect } from '../../engine/types';
 import { canUseDie } from '../../engine/dice';
 import { FONTS } from '../../theme';
+import { STRINGS } from '../../data/strings';
 
 const BONE = 0xD9CFBA;
 const RUST = 0x8B3A1A;
@@ -20,10 +21,10 @@ export type { SlotState } from './SlotLike';
 type SlotState = import('./SlotLike').SlotState;
 
 function fmtEffect(e: EquipmentEffect): string {
-  if (e.damage > 0) return `${e.damage} dégâts`;
-  if (e.shield > 0) return `${e.shield} blocage`;
-  if (e.heal > 0) return `${e.heal} soin`;
-  if (e.poison > 0) return `${e.poison} poison`;
+  if (e.damage > 0) return `${e.damage} ${STRINGS.DAMAGE}`;
+  if (e.shield > 0) return `${e.shield} ${STRINGS.BLOCK}`;
+  if (e.heal > 0) return `${e.heal} ${STRINGS.HEAL}`;
+  if (e.poison > 0) return `${e.poison} ${STRINGS.POISON}`;
   return '0';
 }
 

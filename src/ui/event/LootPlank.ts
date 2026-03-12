@@ -7,6 +7,7 @@
 import { Container, Graphics, Text } from 'pixi.js';
 import type { Equipment } from '../../engine/types';
 import { FONTS } from '../../theme';
+import { STRINGS } from '../../data/strings';
 
 // ---------------------------------------------------------------------------
 // Dimensions
@@ -271,7 +272,7 @@ export class LootPlank extends Container {
     // Synergy badge
     if (SYNERGY_IDS.has(eq.id)) {
       const syn = new Text({
-        text: 'SYNERGIE',
+        text: STRINGS.EVENT_SYNERGY,
         style: {
           fontFamily: FONTS.HEADING,
           fontSize: 14,

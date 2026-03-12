@@ -5,6 +5,7 @@
  */
 
 import type { Survivor } from '../engine/types';
+import { STRINGS } from './strings';
 import {
   RUSTY_BLADE,
   STOP_SIGN,
@@ -19,7 +20,7 @@ import {
 /** Le Rescapé — baseline (weapon + shield) */
 export const RESCAPE: Survivor = {
   id: 1,
-  name: 'Le Rescapé',
+  name: STRINGS.SURVIVOR_RESCAPÉ,
   hp: 12,
   maxHp: 12,
   equipment: [RUSTY_BLADE, STOP_SIGN],
@@ -29,7 +30,7 @@ export const RESCAPE: Survivor = {
 /** La Sentinelle — tank (weapon + heavy shield) */
 export const SENTINELLE: Survivor = {
   id: 2,
-  name: 'La Sentinelle',
+  name: STRINGS.SURVIVOR_SENTINELLE,
   hp: 14,
   maxHp: 14,
   equipment: [RUSTY_BLADE, REINFORCED_DOOR],
@@ -39,7 +40,7 @@ export const SENTINELLE: Survivor = {
 /** Le Bricoleur — 3 slots (weapon + weapon + shield) */
 export const BRICOLEUR: Survivor = {
   id: 3,
-  name: 'Le Bricoleur',
+  name: STRINGS.SURVIVOR_BRICOLEUR,
   hp: 11,
   maxHp: 11,
   equipment: [RUSTY_BLADE, DOUBLE_FORK, SEWER_PLATE],
@@ -49,7 +50,7 @@ export const BRICOLEUR: Survivor = {
 /** La Coureuse — glass cannon (two weapons, no shield) */
 export const COUREUSE: Survivor = {
   id: 4,
-  name: 'La Coureuse',
+  name: STRINGS.SURVIVOR_COUREUSE,
   hp: 9,
   maxHp: 9,
   equipment: [SWITCHBLADE, SWITCHBLADE],
@@ -59,7 +60,7 @@ export const COUREUSE: Survivor = {
 /** Le Mécanicien — balanced 3 slots (weapon + shield + utility) */
 export const MECANICIEN: Survivor = {
   id: 5,
-  name: 'Le Mécanicien',
+  name: STRINGS.SURVIVOR_MÉCANICIEN,
   hp: 11,
   maxHp: 11,
   equipment: [HEAVY_KEY, STOP_SIGN, SURVIVAL_KIT],

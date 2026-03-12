@@ -8,6 +8,7 @@
 import { Container, Graphics, Text } from 'pixi.js';
 import type { Equipment, Allocation } from '../../engine/types';
 import { FONTS } from '../../theme';
+import { STRINGS } from '../../data/strings';
 import { ToolBoxCompartment } from './ToolBoxCompartment';
 import type { SlotLike } from './SlotLike';
 
@@ -28,10 +29,10 @@ const SEP_W = 2;
 function fmtPreviewLine(dieValue: number, eq: Equipment): string {
   const eff = eq.effect(dieValue);
   const parts: string[] = [];
-  if (eff.damage > 0) parts.push(`${eff.damage} dégâts`);
-  if (eff.shield > 0) parts.push(`${eff.shield} blocage`);
-  if (eff.heal > 0) parts.push(`${eff.heal} soin`);
-  if (eff.poison > 0) parts.push(`${eff.poison} poison`);
+  if (eff.damage > 0) parts.push(`${eff.damage} ${STRINGS.DAMAGE}`);
+  if (eff.shield > 0) parts.push(`${eff.shield} ${STRINGS.BLOCK}`);
+  if (eff.heal > 0) parts.push(`${eff.heal} ${STRINGS.HEAL}`);
+  if (eff.poison > 0) parts.push(`${eff.poison} ${STRINGS.POISON}`);
   const effect = parts.join(', ') || '0';
   return `\u2192 ${effect} (${eq.name})`;
 }
@@ -46,8 +47,11 @@ export class ToolBox extends Container {
   private _boxW = 280;
   private _boxH = 220;
 
-  /** Callback when a compartment is tapped. */
+  /** Callback when a compartment is tapped (for dice allocation). */
   onSlotTap: ((equipmentIndex: number) => void) | null = null;
+
+  /** Callback when a filled compartment is tapped (for tooltip). */
+  onFilledSlotTap: ((comp: ToolBoxCompartment) => void) | null = null;
 
   constructor() {
     super();
@@ -88,7 +92,10 @@ export class ToolBox extends Container {
       const comp = new ToolBoxCompartment(eq, idx);
       comp.resize(cellW, cellH);
       comp.position.set(this._cellX(c), this._cellY(r));
-      comp.on('pointerdown', () => this.onSlotTap?.(idx));
+      comp.on('pointerdown', () => {
+        this.onSlotTap?.(idx);
+        if (comp.slotState === 'filled') this.onFilledSlotTap?.(comp);
+      });
       this.addChild(comp);
       this._compartments.push(comp);
       this._allSlots.push(comp);

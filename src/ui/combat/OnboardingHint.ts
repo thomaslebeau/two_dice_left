@@ -5,6 +5,7 @@
 
 import { Container, Graphics, Text } from 'pixi.js';
 import { FONTS } from '../../theme';
+import { STRINGS } from '../../data/strings';
 import { tickerLoop, type TickerHandle } from './tickerUtils';
 
 const LS_KEY = 'tdl_onboarding_done';
@@ -28,7 +29,7 @@ export class OnboardingHint extends Container {
     this.addChild(bg);
 
     this._text = new Text({
-      text: 'GLISSE UN DÉ VERS UN EMPLACEMENT',
+      text: STRINGS.DRAG_HINT,
       style: {
         fontFamily: FONTS.HEADING, fontSize: 16,
         fontWeight: 'bold', fill: BONE, letterSpacing: 1,

@@ -110,8 +110,8 @@ export class TitleScene extends Container implements Scene {
       this._logo.scale.set(1);
       const natW = this._logo.width;
       const natH = this._logo.height;
-      const maxW = this._sw * 0.7;
-      const maxH = this._sh * 0.25;
+      const maxW = this._sw * 0.95;
+      const maxH = this._sh * 0.6;
       const scale = Math.min(maxW / natW, maxH / natH);
       this._logo.scale.set(scale);
       this._logo.position.set(cx, this._sh * 0.35);

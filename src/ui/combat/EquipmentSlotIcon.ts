@@ -7,7 +7,7 @@ import { Container, Graphics, Text } from 'pixi.js';
 import type { Equipment, EquipmentEffect, EffectContext } from '../../engine/types';
 import { canUseDie } from '../../engine/dice';
 import { FONTS, TEXT_COLORS } from '../../theme';
-import { STRINGS } from '../../data/strings';
+import { STRINGS, formatRange } from '../../data/strings';
 
 const BONE = 0xD9CFBA;
 const RUST = 0x8B3A1A;
@@ -21,15 +21,16 @@ export type { SlotState } from './SlotLike';
 type SlotState = import('./SlotLike').SlotState;
 
 function fmtEffect(e: EquipmentEffect): string {
-  if (e.damage > 0) return `${e.damage} ${STRINGS.DAMAGE}`;
-  if (e.shield > 0) return `${e.shield} ${STRINGS.BLOCK}`;
-  if (e.heal > 0) return `${e.heal} ${STRINGS.HEAL}`;
-  if (e.poison > 0) return `${e.poison} ${STRINGS.POISON}`;
-  return '0';
+  const parts: string[] = [];
+  if (e.damage > 0) parts.push(`${e.damage} ${STRINGS.DAMAGE}`);
+  if (e.shield > 0) parts.push(`${e.shield} ${STRINGS.BLOCK}`);
+  if (e.heal > 0) parts.push(`${e.heal} ${STRINGS.HEAL}`);
+  if (e.poison > 0) parts.push(`${e.poison} ${STRINGS.POISON}`);
+  return parts.join(' ') || '0';
 }
 
 function typeIcon(t: Equipment['type']): string {
-  return t === 'weapon' ? '\u2694' : t === 'shield' ? '\u{1F6E1}' : '\u2695';
+  return t === 'weapon' ? '\u{1F5E1}' : t === 'shield' ? '\u{1F6E1}' : '\u2695';
 }
 
 function typeColor(t: Equipment['type']): number {
@@ -86,7 +87,8 @@ export class EquipmentSlotIcon extends Container {
     this.addChild(this._bg);
     this._iconText = mkText(typeIcon(equipment.type), 16, c, true);
     this._iconText.position.set(half, 2);
-    this._rangeText = mkText(`[${equipment.minDie}-${equipment.maxDie}]`, 14, TEXT_COLORS.MUTED);
+    const rng = formatRange(equipment.minDie, equipment.maxDie);
+    this._rangeText = mkText(rng ? `[${rng}]` : '', 14, TEXT_COLORS.MUTED);
     this._rangeText.position.set(half, 18);
     this._valueText = mkText('', 16, BONE, true);
     this._valueText.position.set(half, 4);

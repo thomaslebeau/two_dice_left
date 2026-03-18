@@ -9,6 +9,7 @@ import { EquipmentSlotIcon, ICON_SIZE } from './EquipmentSlotIcon';
 import { DiceSprite, DIE_SIZE } from './DiceSprite';
 import { tickerWait, tickerSteps } from './tickerUtils';
 import { FONTS, TEXT_COLORS } from '../../theme';
+import { PipBar } from '../shared/PipBar';
 
 const BONE = 0xD9CFBA;
 const MOSS = 0x2D4A2E;
@@ -29,6 +30,7 @@ export class EnemyZone extends Container {
   private _poisonBg = new Graphics();
   private _poisonLabel: Text;
   private _slots: EquipmentSlotIcon[] = [];
+  private _pips: PipBar[] = [];
   private _dice: DiceSprite[] = [];
   private _diceValues: number[] = [];
   private _zoneHeight = 0;
@@ -57,12 +59,25 @@ export class EnemyZone extends Container {
 
   buildSlots(equipment: readonly Equipment[]): void {
     for (const s of this._slots) s.destroy({ children: true });
+    for (const p of this._pips) p.destroy({ children: true });
     this._slots = [];
+    this._pips = [];
     for (let i = 0; i < equipment.length; i++) {
-      const slot = new EquipmentSlotIcon(equipment[i], i);
+      const eq = equipment[i];
+      const slot = new EquipmentSlotIcon(eq, i);
       slot.lock();
       this.addChild(slot);
       this._slots.push(slot);
+
+      // Pip bar below each slot
+      const maxEff = eq.effect(eq.maxDie);
+      const maxVal = maxEff.damage + maxEff.shield
+        + maxEff.heal + maxEff.poison;
+      const color = eq.type === 'weapon'
+        ? TEXT_COLORS.ENEMY_ACTION : TEXT_COLORS.BLOCK;
+      const pip = new PipBar(Math.max(maxVal, 1), color, 4, 2);
+      this.addChild(pip);
+      this._pips.push(pip);
     }
   }
 
@@ -78,6 +93,32 @@ export class EnemyZone extends Container {
       this.addChild(d);
       d.roll(values[i]);
     }
+  }
+
+  /**
+   * Grey out dice that weren't placed (incompatible with remaining slots).
+   * Placed dice are removed; unplaced ones stay visible but dimmed.
+   */
+  dimUnplacedDice(placedValues: Set<number>): void {
+    const remaining: DiceSprite[] = [];
+    // Remove placed dice (their value is shown in the slot)
+    // Use a copy of placedValues to handle duplicate die values
+    const toRemove = new Map<number, number>();
+    for (const v of placedValues) {
+      toRemove.set(v, (toRemove.get(v) ?? 0) + 1);
+    }
+    for (const d of this._dice) {
+      const count = toRemove.get(d.value) ?? 0;
+      if (count > 0) {
+        toRemove.set(d.value, count - 1);
+        d.destroy();
+      } else {
+        d.alpha = 0.3;
+        d.setState('incompatible');
+        remaining.push(d);
+      }
+    }
+    this._dice = remaining;
   }
 
   clearDice(): void {
@@ -136,17 +177,36 @@ export class EnemyZone extends Container {
     const color = slot.equipment.type === 'weapon'
       ? TEXT_COLORS.ENEMY_ACTION : TEXT_COLORS.NEUTRAL;
     slot.setEffectColor(color);
+
+    // Fill pips for this slot
+    const idx = this._slots.indexOf(slot);
+    if (idx >= 0 && idx < this._pips.length) {
+      const eff = slot.equipment.effect(dieValue);
+      const count = eff.damage + eff.shield + eff.heal + eff.poison;
+      this._pips[idx].fillPips(count);
+    }
   }
 
-  resetSlots(): void { for (const s of this._slots) s.removeDie(); }
+  resetSlots(): void {
+    for (const s of this._slots) s.removeDie();
+    for (const p of this._pips) p.reset();
+  }
 
   layout(_availW: number): void {
     this._nameText.position.set(0, 0);
     const row1H = this._nameText.height + 1 + HP_BAR_H + 2;
     const row2Y = row1H + ROW_GAP;
     let sx = 0;
-    for (const slot of this._slots) {
-      slot.position.set(sx, row2Y);
+    for (let i = 0; i < this._slots.length; i++) {
+      this._slots[i].position.set(sx, row2Y);
+      // Position pips centered below slot
+      if (i < this._pips.length) {
+        const pipW = this._pips[i].totalWidth;
+        this._pips[i].position.set(
+          sx + (ICON_SIZE - pipW) / 2,
+          row2Y + ICON_SIZE + 2,
+        );
+      }
       sx += ICON_SIZE + SLOT_GAP;
     }
     const dieW = DIE_SIZE * DICE_SCALE;
@@ -155,12 +215,15 @@ export class EnemyZone extends Container {
       d.position.set(dx, row2Y + (ICON_SIZE - dieW) / 2);
       dx += dieW + DICE_GAP;
     }
-    this._zoneHeight = row2Y + ICON_SIZE;
+    const pipRowH = this._pips.length > 0 ? 10 : 0;
+    this._zoneHeight = row2Y + ICON_SIZE + pipRowH;
   }
 
   clear(): void {
     for (const s of this._slots) s.destroy({ children: true });
+    for (const p of this._pips) p.destroy({ children: true });
     this._slots = [];
+    this._pips = [];
     this.clearDice();
   }
 

@@ -9,6 +9,7 @@ import {
 } from 'pixi.js';
 import type { Survivor, Equipment, EquipmentType, PassiveId } from '../../engine/types';
 import { PASSIVE_INFO } from '../../data/passives';
+import { formatRange } from '../../data/strings';
 import { FONTS } from '../../theme';
 
 // ---------------------------------------------------------------------------
@@ -48,7 +49,7 @@ const PORTRAIT_ASSETS: Record<number, string> = {
 // ---------------------------------------------------------------------------
 
 function typeGlyph(t: EquipmentType): string {
-  return t === 'weapon' ? '\u2694' : t === 'shield' ? '\u{1F6E1}' : '\u2695';
+  return t === 'weapon' ? '\u{1F5E1}' : t === 'shield' ? '\u{1F6E1}' : '\u2695';
 }
 
 function typeColor(t: EquipmentType): number {
@@ -273,16 +274,19 @@ export class SurvivorCard extends Container {
       effect.position.set(cardW - 40, EQUIP_CARD_H / 2);
       row.addChild(effect);
 
-      const range = new Text({
-        text: `${eq.minDie}-${eq.maxDie}`,
-        style: {
-          fontFamily: FONTS.BODY, fontSize: 14, fill: BONE,
-        },
-      });
-      range.anchor.set(1, 0.5);
-      range.alpha = 0.5;
-      range.position.set(cardW - 8, EQUIP_CARD_H / 2);
-      row.addChild(range);
+      const rangeStr = formatRange(eq.minDie, eq.maxDie);
+      if (rangeStr) {
+        const range = new Text({
+          text: rangeStr,
+          style: {
+            fontFamily: FONTS.BODY, fontSize: 14, fill: BONE,
+          },
+        });
+        range.anchor.set(1, 0.5);
+        range.alpha = 0.5;
+        range.position.set(cardW - 8, EQUIP_CARD_H / 2);
+        row.addChild(range);
+      }
 
       row.y = i * (EQUIP_CARD_H + EQUIP_GAP);
       this._equipContainer.addChild(row);

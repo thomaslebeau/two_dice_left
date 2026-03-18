@@ -53,6 +53,7 @@ export class CombatScene extends Container implements Scene {
   private _state: CombatState | null = null;
   private _passiveId?: PassiveId;
   private _recycleurCancel: { cancel: () => void } | null = null;
+  private _precomputedEnemyAlloc: Allocation[] = [];
   private _consumedIndices = new Set<number>();
   private _onboarding = new OnboardingHint();
   private _eqTooltip = new EquipmentTooltip();
@@ -196,7 +197,7 @@ export class CombatScene extends Container implements Scene {
     this._state.nextRound(); this._phase = 'rolling';
     this._resolution.reset(); this._playerZone.toolBox.resetAll();
     this._enemyZone.resetSlots(); this._allocator.reset(); this._enemyZone.clearDice();
-    this._recycleurCancel = null;
+    this._recycleurCancel = null; this._precomputedEnemyAlloc = [];
     const pv = rollDice(2); // Raw dice — Recycleur is now interactive
     const ev = rollDice(2);
     for (const die of this._allocator.setup(pv, [...this._playerZone.toolBox.slots], this._sw, this._playerDiceZone.y, this))
@@ -204,7 +205,23 @@ export class CombatScene extends Container implements Scene {
     this._enemyZone.buildDice(ev);
     this._commitBtn.setEnabled(false); this._resetBtn.setVisible(false);
     this._allocator.layoutDice(); this._layout();
+    // Allocate and place enemy dice immediately after roll animation
     void tickerWait(2000).then(() => {
+      // Enemy places dice first — player sees the result before allocating
+      if (this._data) {
+        const ea = allocateEnemy(
+          [...this._enemyZone.diceValues],
+          this._data.enemy.equipment,
+          this._data.enemy.pattern,
+        );
+        for (const a of ea) {
+          this._enemyZone.placeDie(a.equipmentIndex, a.dieValue);
+        }
+        // Grey out unplaced dice, keep placed ones visible in slots
+        const placedValues = new Set(ea.map(a => a.dieValue));
+        this._enemyZone.dimUnplacedDice(placedValues);
+        this._precomputedEnemyAlloc = ea;
+      }
       this._phase = 'allocating';
       this._allocator.setEnabled(true);
       // Onboarding hint — first round, first ever combat
@@ -234,9 +251,8 @@ export class CombatScene extends Container implements Scene {
     this._commitBtn.setEnabled(false); this._resetBtn.setVisible(false);
     this._allocator.setEnabled(false); this._playerZone.toolBox.lockAll();
     const pa = this._allocator.getAllocations();
-    const ea = allocateEnemy([...this._enemyZone.diceValues], this._data.enemy.equipment, this._data.enemy.pattern);
-    for (const a of ea) this._enemyZone.placeDie(a.equipmentIndex, a.dieValue);
-    this._enemyZone.clearDice(); await tickerWait(500);
+    const ea = this._precomputedEnemyAlloc;
+    await tickerWait(500);
     const r = this._state.applyRound(pa, [...this._data.playerEquipment], ea, [...this._data.enemy.equipment]);
     this._playerZone.applyPoison(r.playerPoison); this._applyEnemyPoison(r.enemyPoison);
     await this._resolution.play(r.resolutionData);

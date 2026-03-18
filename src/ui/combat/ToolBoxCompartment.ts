@@ -8,9 +8,10 @@ import { Container, Graphics, Text } from 'pixi.js';
 import type { Equipment, EquipmentEffect, EffectContext } from '../../engine/types';
 import { canUseDie } from '../../engine/dice';
 import { FONTS, TEXT_COLORS } from '../../theme';
-import { STRINGS } from '../../data/strings';
+import { STRINGS, formatRange } from '../../data/strings';
 import type { SlotLike, SlotState } from './SlotLike';
 import type { DiceSprite } from './DiceSprite';
+import { PipBar } from '../shared/PipBar';
 
 // Diegetic palette (same as LootPlank)
 const IRON_FILL = 0x3A3A3A;
@@ -28,7 +29,7 @@ const RIVET_R = 2;
 const RIVET_INNER = 1.5;
 
 function typeGlyph(t: Equipment['type']): string {
-  return t === 'weapon' ? '\u2694' : t === 'shield' ? '\uD83D\uDEE1' : '\u2695';
+  return t === 'weapon' ? '\u{1F5E1}' : t === 'shield' ? '\uD83D\uDEE1' : '\u2695';
 }
 
 /** Brand colors for borders/accents (NOT text on dark bg). */
@@ -43,12 +44,31 @@ function typeTextColor(t: Equipment['type']): number {
     : TEXT_COLORS.NEUTRAL;
 }
 
+/** Compute pip color based on equipment type. */
+function pipColor(t: Equipment['type']): number {
+  return t === 'weapon' ? TEXT_COLORS.PLAYER_ACTION
+    : t === 'shield' ? TEXT_COLORS.BLOCK
+    : TEXT_COLORS.PLAYER_ACTION;
+}
+
+/** Compute max possible pips for an equipment (die at maxDie). */
+function maxPips(eq: Equipment): number {
+  const eff = eq.effect(eq.maxDie);
+  return Math.max(eff.damage + eff.shield + eff.heal + eff.poison, 1);
+}
+
+/** Compute total pips for an effect. */
+function effectPips(eff: EquipmentEffect): number {
+  return eff.damage + eff.shield + eff.heal + eff.poison;
+}
+
 function fmtEffect(e: EquipmentEffect): string {
-  if (e.damage > 0) return `${e.damage} ${STRINGS.DAMAGE}`;
-  if (e.shield > 0) return `${e.shield} ${STRINGS.BLOCK}`;
-  if (e.heal > 0) return `${e.heal} ${STRINGS.HEAL}`;
-  if (e.poison > 0) return `${e.poison} ${STRINGS.POISON}`;
-  return '0';
+  const parts: string[] = [];
+  if (e.damage > 0) parts.push(`${e.damage} ${STRINGS.DAMAGE}`);
+  if (e.shield > 0) parts.push(`${e.shield} ${STRINGS.BLOCK}`);
+  if (e.heal > 0) parts.push(`${e.heal} ${STRINGS.HEAL}`);
+  if (e.poison > 0) parts.push(`${e.poison} ${STRINGS.POISON}`);
+  return parts.join(' ') || '0';
 }
 
 export class ToolBoxCompartment extends Container implements SlotLike {
@@ -65,6 +85,7 @@ export class ToolBoxCompartment extends Container implements SlotLike {
   private _effectText: Text;
   private _passiveBonusText: Text;
   private _borderGlow = new Graphics();
+  private _pipBar: PipBar;
 
   private _w = 70;
   private _h = 73;
@@ -82,7 +103,7 @@ export class ToolBoxCompartment extends Container implements SlotLike {
 
     this._glyphText = this._mkText(typeGlyph(equipment.type), 16, tc, true);
     this._rangeText = this._mkText(
-      `${equipment.minDie}-${equipment.maxDie}`, 14, TEXT_COLORS.MUTED,
+      formatRange(equipment.minDie, equipment.maxDie), 14, TEXT_COLORS.MUTED,
     );
     this._valueText = this._mkText('', 16, BONE, true);
     this._valueText.visible = false;
@@ -97,6 +118,13 @@ export class ToolBoxCompartment extends Container implements SlotLike {
       this._glyphText, this._rangeText,
       this._valueText, this._effectText, this._passiveBonusText,
     );
+
+    // Pip bar below plate
+    this._pipBar = new PipBar(
+      maxPips(equipment), pipColor(equipment.type), 5, 2,
+    );
+    this._pipBar.visible = false;
+    this.addChild(this._pipBar);
 
     this.eventMode = 'static';
     this.cursor = 'pointer';
@@ -135,6 +163,7 @@ export class ToolBoxCompartment extends Container implements SlotLike {
     this._valueText.text = `${dieValue}`;
     this._effectText.text = `\u2192${fmtEffect(this._equipment.effect(dieValue))}`;
     this._toggleFilled(true);
+    this._updatePips(dieValue);
     this._draw();
   }
 
@@ -142,6 +171,8 @@ export class ToolBoxCompartment extends Container implements SlotLike {
     this._placedDieValue = null;
     this._state = 'empty';
     this._toggleFilled(false);
+    this._pipBar.reset();
+    this._pipBar.visible = false;
     this._draw();
   }
 
@@ -179,6 +210,8 @@ export class ToolBoxCompartment extends Container implements SlotLike {
       this._effectText.text = `\u2192${fmtEffect(full)}`;
       this._passiveBonusText.visible = false;
     }
+    // Update pips with synergy context
+    this._updatePips(this._placedDieValue, context);
   }
 
   showPassiveBonus(value: number, color: number): void {
@@ -254,6 +287,14 @@ export class ToolBoxCompartment extends Container implements SlotLike {
     return t;
   }
 
+  private _updatePips(dieValue: number, context?: EffectContext): void {
+    const eff = this._equipment.effect(dieValue, context);
+    const count = effectPips(eff);
+    this._pipBar.setMax(maxPips(this._equipment));
+    this._pipBar.fillPips(count);
+    this._pipBar.visible = true;
+  }
+
   private _layoutTexts(): void {
     const cx = this._w / 2;
     this._glyphText.position.set(cx, PLATE_MARGIN + 6);
@@ -261,6 +302,11 @@ export class ToolBoxCompartment extends Container implements SlotLike {
     this._valueText.position.set(cx, PLATE_MARGIN + 8);
     this._effectText.position.set(cx, this._h - PLATE_MARGIN - 16);
     this._passiveBonusText.position.set(cx, this._h - PLATE_MARGIN - 4);
+    // Pip bar below the plate
+    const pipW = this._pipBar.totalWidth;
+    this._pipBar.position.set(
+      cx - pipW / 2, this._h + 2,
+    );
   }
 
   private _toggleFilled(filled: boolean): void {

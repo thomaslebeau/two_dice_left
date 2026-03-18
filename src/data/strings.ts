@@ -15,7 +15,7 @@ export const STRINGS = {
   VALIDATE: 'VALIDATE',
   CANCEL: 'CANCEL',
   ADJUST: 'ADJUST',
-  REPAIR: 'REPAIR',
+  REPAIR: 'HEAL',
   RESTART: 'PLAY AGAIN',
   VICTORY: 'VICTORY',
   DEFEAT: 'DEFEAT',
@@ -24,30 +24,31 @@ export const STRINGS = {
   NO_DAMAGE: 'No damage',
   SPEED_KILL: (hp: number) => `Speed kill! +${hp} HP`,
 
-  // Resolution
-  RES_YOU: (atk: number, shd: number, dmg: number) =>
-    `You: ${atk} damage - ${shd} block = ${dmg} damage`,
-  RES_ENEMY: (atk: number, shd: number, dmg: number) =>
-    `Enemy: ${atk} damage - ${shd} block = ${dmg} damage`,
-  RES_ENEMY_HP: (dmg: number) => `Enemy -${dmg} HP`,
-  RES_PLAYER_HP: (dmg: number) => `You -${dmg} HP`,
-  RES_POISON_TICK: '\u2620 -1 poison',
-  RES_PLAYER_POISON_TICK: '\u2620 You -1 poison',
-  RES_NEW_POISON: (n: number) => `\u2620 +${n} poison`,
-  RES_HEAL: (n: number) => `You +${n} heal`,
+  // Resolution (impact numbers, not formulas)
+  RES_BLOCK: (n: number) => `\u{1F6E1} ${n}`,
+  RES_DMG_TO_ENEMY: (n: number) => `\u{1F5E1} ${n}`,
+  RES_DMG_TO_PLAYER: (n: number) => `\u{1F5E1} ${n}`,
+  RES_BYPASS: (n: number) => `\u{1F5E1} ${n} bypass`,
+  RES_POISON_TICK: '\u2620 1',
+  RES_PLAYER_POISON_TICK: '\u2620 1',
+  RES_NEW_POISON: (n: number) => `\u2620 +${n}`,
+  RES_HEAL: (n: number) => `\u2764 +${n}`,
+  RES_MIN: '(min)',
+  RES_HP: (label: string, hp: number, max: number) =>
+    `${label} ${hp}/${max} HP`,
 
   // End screen
   END_HP_REMAINING: (hp: number) => `${hp} HP remaining`,
   END_COMBAT_REACHED: (n: number) => `Combat ${n}/5`,
 
-  // Vocabulary
-  DAMAGE: 'damage',
-  BLOCK: 'block',
-  HEAL: 'heal',
-  POISON: 'poison',
-  REFLECT: 'reflect',
-  ONE_USE: 'one use',
-  IGNORES_BLOCK: 'ignores block',
+  // Vocabulary (used in preview formatting)
+  DAMAGE: '\u{1F5E1}',
+  BLOCK: '\u{1F6E1}',
+  HEAL: '\u2764',
+  POISON: '\u2620',
+  REFLECT: '\u21A9',
+  ONE_USE: '\u{1F4A5}',
+  IGNORES_BLOCK: 'ignore \u{1F6E1}',
 
   // Types
   WEAPON: 'Weapon',
@@ -95,27 +96,27 @@ export const STRINGS = {
   EQ_CABLE_TRESSE: 'Braided Cable',
   EQ_MOLOTOV: 'Molotov Cocktail',
 
-  // Equipment effects
-  EFF_LAME_CASSEE: 'die+1 damage',
-  EFF_PANNEAU_STOP: 'die block',
-  EFF_CRAN_ARRET: 'die+2 damage',
-  EFF_DOUBLE_FOURCHE: 'die+2 damage',
-  EFF_CLE_LOURDE: 'die+2 damage',
-  EFF_PORTE_BLINDEE: 'die+1 block (die+2 if 5-6)',
-  EFF_PLAQUE_EGOUT: 'die+1 block',
-  EFF_KIT_SURVIE: 'heal',
-  EFF_MASSE: 'die+3 damage',
-  EFF_AIGUILLE: '1 damage + 1 poison turn',
-  EFF_SCIE_COURTE: 'die+1 damage',
-  EFF_ECLAT_VERRE: 'die\u00D72 damage, one use',
-  EFF_ECORCE: 'die+1 block',
-  EFF_BOUCLIER_EPINES: 'die block + die/3 reflect',
-  EFF_BANDAGE: 'heal = die value',
-  EFF_RACINE_AMERE: 'die/2 damage + die/2 block',
-  EFF_LAME_CORROSIVE: 'die+1 damage (\u00D72 if poisoned)',
-  EFF_SAC_SPORES: '+1 poison turn',
-  EFF_CABLE_TRESSE: 'die damage (+2 if dual weapon)',
-  EFF_MOLOTOV: 'die damage (ignores block)',
+  // Equipment effects (icon format)
+  EFF_LAME_CASSEE: '\uD83C\uDFB2+1 \u{1F5E1}',
+  EFF_PANNEAU_STOP: '\uD83C\uDFB2 \u{1F6E1}',
+  EFF_CRAN_ARRET: '\uD83C\uDFB2+2 \u{1F5E1}',
+  EFF_DOUBLE_FOURCHE: '\uD83C\uDFB2+2 \u{1F5E1}',
+  EFF_CLE_LOURDE: '\uD83C\uDFB2+2 \u{1F5E1}',
+  EFF_PORTE_BLINDEE: '\uD83C\uDFB2+1 \u{1F6E1} (\uD83C\uDFB2+2 if 5-6)',
+  EFF_PLAQUE_EGOUT: '\uD83C\uDFB2+1 \u{1F6E1}',
+  EFF_KIT_SURVIE: '\uD83C\uDFB2/2+1 \u2764',
+  EFF_MASSE: '\uD83C\uDFB2+3 \u{1F5E1}',
+  EFF_AIGUILLE: '1 \u{1F5E1} + 1 \u2620',
+  EFF_SCIE_COURTE: '\uD83C\uDFB2+1 \u{1F5E1}',
+  EFF_ECLAT_VERRE: '\uD83C\uDFB2\u00D72 \u{1F5E1} \u{1F4A5}',
+  EFF_ECORCE: '\uD83C\uDFB2+1 \u{1F6E1}',
+  EFF_BOUCLIER_EPINES: '\uD83C\uDFB2 \u{1F6E1} + \uD83C\uDFB2/3 \u21A9',
+  EFF_BANDAGE: '\uD83C\uDFB2 \u2764',
+  EFF_RACINE_AMERE: '\uD83C\uDFB2/2 \u{1F5E1} + \uD83C\uDFB2/2 \u{1F6E1}',
+  EFF_LAME_CORROSIVE: '\uD83C\uDFB2+1 \u{1F5E1} (\u00D72 if \u2620)',
+  EFF_SAC_SPORES: '+1 \u2620',
+  EFF_CABLE_TRESSE: '\uD83C\uDFB2 \u{1F5E1} (+2 if duo \u{1F5E1})',
+  EFF_MOLOTOV: '\uD83C\uDFB2 \u{1F5E1} (ignore \u{1F6E1})',
 
   // Enemies
   ENEMY_SECATEUR: 'Creeping Shears',
@@ -134,8 +135,7 @@ export const STRINGS = {
   PATTERN_NEUTRAL: 'Neutral',
 
   // Event
-  EVENT_HEAL: 'REPAIR +2 HP',
-  EVENT_SYNERGY: 'SYNERGY',
+  EVENT_HEAL: 'HEAL +2 HP',
 
   // Event narratives
   NARRATIVES: [
@@ -147,3 +147,12 @@ export const STRINGS = {
     'Behind a collapsed wall, a crate still intact.',
   ] as readonly string[],
 } as const;
+
+/** Format die range: nothing for 1-6, "Min X" / "Max Y" / both. */
+export function formatRange(minDie: number, maxDie: number): string {
+  if (minDie === 1 && maxDie === 6) return '';
+  const parts: string[] = [];
+  if (minDie > 1) parts.push(`Min ${minDie}`);
+  if (maxDie < 6) parts.push(`Max ${maxDie}`);
+  return parts.join('  ');
+}

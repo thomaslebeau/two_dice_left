@@ -7,6 +7,7 @@
 import { Container, Graphics, Text } from 'pixi.js';
 import type { Equipment } from '../../engine/types';
 import { FONTS } from '../../theme';
+import { formatRange } from '../../data/strings';
 import { tickerTween, tickerLoop, type TickerHandle } from './tickerUtils';
 
 const BONE = 0xD9CFBA;
@@ -86,7 +87,7 @@ export class EquipmentTooltip extends Container {
 
     this._nameText.text = eq.name;
     this._effectText.text = eq.description;
-    this._rangeText.text = `${eq.minDie}-${eq.maxDie}`;
+    this._rangeText.text = formatRange(eq.minDie, eq.maxDie);
 
     // Measure content width
     const nameW = this._nameText.width;

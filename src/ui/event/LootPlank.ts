@@ -7,7 +7,7 @@
 import { Container, Graphics, Text } from 'pixi.js';
 import type { Equipment } from '../../engine/types';
 import { FONTS } from '../../theme';
-import { STRINGS } from '../../data/strings';
+import { formatRange } from '../../data/strings';
 
 // ---------------------------------------------------------------------------
 // Dimensions
@@ -41,12 +41,6 @@ const RUST = 0x8B3A1A;
 // Synergy detection
 // ---------------------------------------------------------------------------
 
-const SYNERGY_IDS = new Set([
-  'corrosive_blade',
-  'spore_sac',
-  'braided_cable',
-  'molotov',
-]);
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -54,7 +48,7 @@ const SYNERGY_IDS = new Set([
 
 function typeGlyph(type: Equipment['type']): string {
   switch (type) {
-    case 'weapon': return '\u2694';
+    case 'weapon': return '\u{1F5E1}';
     case 'shield': return '\uD83D\uDEE1';
     case 'utility': return '\u2695';
   }
@@ -241,18 +235,21 @@ export class LootPlank extends Container {
     c.addChild(name);
     ty += 22;
 
-    // Range
-    const range = new Text({
-      text: `Dé ${eq.minDie}-${eq.maxDie}`,
-      style: {
-        fontFamily: FONTS.BODY,
-        fontSize: 14,
-        fill: PAPER_TEXT,
-      },
-    });
-    range.position.set(padX, ty);
-    c.addChild(range);
-    ty += 18;
+    // Range (only if restricted)
+    const rangeStr = formatRange(eq.minDie, eq.maxDie);
+    if (rangeStr) {
+      const range = new Text({
+        text: rangeStr,
+        style: {
+          fontFamily: FONTS.BODY,
+          fontSize: 14,
+          fill: PAPER_TEXT,
+        },
+      });
+      range.position.set(padX, ty);
+      c.addChild(range);
+      ty += 18;
+    }
 
     // Effect
     const effect = new Text({
@@ -268,21 +265,6 @@ export class LootPlank extends Container {
     effect.position.set(padX, ty);
     c.addChild(effect);
     ty += effect.height + 4;
-
-    // Synergy badge
-    if (SYNERGY_IDS.has(eq.id)) {
-      const syn = new Text({
-        text: STRINGS.EVENT_SYNERGY,
-        style: {
-          fontFamily: FONTS.HEADING,
-          fontSize: 14,
-          fill: 0xF0C040,
-          letterSpacing: 2,
-        },
-      });
-      syn.position.set(padX, ty);
-      c.addChild(syn);
-    }
 
     return c;
   }

@@ -92,6 +92,12 @@ export interface RoundOutcome {
   playerUsedWeapon: boolean;
   playerShieldTotal: number;
   enemyRawDmg: number;
+  /** Breakdown for coherent UI display */
+  playerNormalDmg: number;
+  playerBypassDmg: number;
+  enemyShieldTotal: number;
+  normalDmgToEnemy: number;
+  minRuleApplied: boolean;
 }
 
 /** Sum bypass damage from allocations where equipment has bypassShield */
@@ -162,11 +168,13 @@ export function resolveRound(
     || playerNormalUtilDmg > 0 || playerBypassDmg > 0;
 
   // Normal damage: reduced by enemy shields, min 1 if weapon used
-  let normalDmgToEnemy = totalNormalPlayerDmg - totalEnemyShield;
+  const rawNormalDmg = totalNormalPlayerDmg - totalEnemyShield;
+  const minRuleApplied = playerUsedWeapon && rawNormalDmg < 1;
+  let normalDmgToEnemy: number;
   if (playerUsedWeapon) {
-    normalDmgToEnemy = Math.max(1, normalDmgToEnemy);
+    normalDmgToEnemy = Math.max(1, rawNormalDmg);
   } else {
-    normalDmgToEnemy = Math.max(0, normalDmgToEnemy);
+    normalDmgToEnemy = Math.max(0, rawNormalDmg);
   }
 
   // Total: normal + bypass (bypass not reduced by shields)
@@ -184,6 +192,11 @@ export function resolveRound(
     playerUsedWeapon,
     playerShieldTotal: totalPlayerShield,
     enemyRawDmg: totalEnemyDmg,
+    playerNormalDmg: totalNormalPlayerDmg,
+    playerBypassDmg,
+    enemyShieldTotal: totalEnemyShield,
+    normalDmgToEnemy,
+    minRuleApplied,
   };
 }
 

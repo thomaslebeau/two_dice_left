@@ -10,7 +10,7 @@
  */
 
 import type { Allocation, Equipment, PassiveId, PassiveState, PassiveEvent } from '../../engine/types';
-import { resolveRound, sumAllocEffects } from '../../engine/combat';
+import { resolveRound } from '../../engine/combat';
 import {
   createPassiveState,
   computeEffectContext,
@@ -220,27 +220,30 @@ export class CombatState {
     // Tick trophee stacks
     tickTropheeStacks(state);
 
+    // Compute passive bonus damage (difference from engine outcome)
+    const passiveBonus = dmgToEnemy - outcome.damageToEnemy;
+
+    // Compute passive shield bonus (Ingenieux + Rempart)
+    const passiveShield = ingBonus.bonusShield + rempartConsumed;
+
     // Build ResolutionData for animation
     const resolutionData: ResolutionData = {
       playerAllocations: playerAllocs,
       playerEquipment: [...playerEquipment],
-      playerAttackTotal: sumAllocEffects(
-        playerAllocs, playerEquipment, 'damage', contextBuilder,
-      ),
+      playerNormalDmg: outcome.playerNormalDmg,
+      enemyBlockTotal: outcome.enemyShieldTotal,
+      normalDmgToEnemy: outcome.normalDmgToEnemy,
+      playerBypassDmg: outcome.playerBypassDmg,
+      playerPassiveBonus: Math.max(0, passiveBonus),
+      minRuleApplied: outcome.minRuleApplied,
       playerDamageToEnemy: dmgToEnemy,
-      playerShieldTotal: sumAllocEffects(
-        playerAllocs, playerEquipment, 'shield', contextBuilder,
-      ),
+      playerShieldFromEquip: outcome.playerShieldTotal,
+      playerPassiveShield: passiveShield,
       playerHealTotal: outcome.playerHeal,
       enemyAllocations: enemyAllocs,
       enemyEquipment: [...enemyEquipment],
-      enemyAttackTotal: sumAllocEffects(
-        enemyAllocs, enemyEquipment, 'damage',
-      ),
+      enemyAttackTotal: outcome.enemyRawDmg,
       enemyDamageToPlayer: dmgToPlayer,
-      enemyShieldTotal: sumAllocEffects(
-        enemyAllocs, enemyEquipment, 'shield',
-      ),
       playerHpBefore,
       playerHpAfter: this._playerHp,
       playerMaxHp: this._playerMaxHp,

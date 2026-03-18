@@ -10,13 +10,13 @@ import { applyIngenieux } from '../../engine/passives';
 import { PassiveIndicator } from './PassiveIndicator';
 import { RecycleurButton } from './RecycleurButton';
 import { tickerTween, tickerWait } from './tickerUtils';
-import { timings, FONTS } from '../../theme';
+import { timings, FONTS, TEXT_COLORS } from '../../theme';
 import type { SlotLike } from './SlotLike';
 import type { CircularHpBadge } from './CircularHpBadge';
 import type { DiceSprite } from './DiceSprite';
 import { DIE_SIZE } from './DiceSprite';
 
-const BONE = 0xD9CFBA, RUST = 0x8B3A1A, MOSS = 0x2D4A2E;
+const BONE = 0xD9CFBA, RUST = 0x8B3A1A;
 
 export class PassiveFeedback extends Container {
   private _passiveId?: PassiveId;
@@ -48,7 +48,7 @@ export class PassiveFeedback extends Container {
       text: '\u26A1 \u00C9LAN',
       style: {
         fontFamily: FONTS.HEADING, fontSize: 22,
-        fontWeight: 'bold', fill: RUST, letterSpacing: 3,
+        fontWeight: 'bold', fill: TEXT_COLORS.SPEED_KILL, letterSpacing: 3,
       },
     });
     banner.anchor.set(0.5);
@@ -139,7 +139,7 @@ export class PassiveFeedback extends Container {
 
   /** Show persistent shield carry icon next to shield slot. */
   showRempartCarry(x: number, y: number): void {
-    this._rempartIndicator.persist('\u{1F6E1}+1', MOSS, x, y);
+    this._rempartIndicator.persist('\u{1F6E1}+1', TEXT_COLORS.BLOCK, x, y);
   }
 
   /** Slide carry indicator toward badge and fade. */
@@ -208,7 +208,7 @@ export class PassiveFeedback extends Container {
             if (slot) {
               const bounds = slot.getBounds();
               await this._indicator.popup(
-                `+${evt.value}`, RUST,
+                `+${evt.value}`, TEXT_COLORS.PLAYER_ACTION,
                 bounds.x + bounds.width / 2, bounds.y - 14,
               );
             }

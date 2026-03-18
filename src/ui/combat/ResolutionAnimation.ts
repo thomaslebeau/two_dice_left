@@ -21,15 +21,31 @@ const HP_MS = 300;
 export interface ResolutionData {
   playerAllocations: readonly Allocation[];
   playerEquipment: readonly Equipment[];
-  playerAttackTotal: number;
+  /** Player weapon + normal util damage (subject to shields) */
+  playerNormalDmg: number;
+  /** Enemy shield total */
+  enemyBlockTotal: number;
+  /** Normal damage after shield subtraction + min-1 rule */
+  normalDmgToEnemy: number;
+  /** Bypass damage (not reduced by shields) */
+  playerBypassDmg: number;
+  /** Passive bonus damage (Survivant, Ingenieux, Elan, Trophee) */
+  playerPassiveBonus: number;
+  /** Whether min-1 rule was applied */
+  minRuleApplied: boolean;
+  /** Final total damage to enemy */
   playerDamageToEnemy: number;
-  playerShieldTotal: number;
+  /** Player shield total (equipment only, before passives) */
+  playerShieldFromEquip: number;
+  /** Passive shield bonus (Ingenieux, Rempart) */
+  playerPassiveShield: number;
   playerHealTotal: number;
   enemyAllocations: readonly Allocation[];
   enemyEquipment: readonly Equipment[];
+  /** Enemy total attack */
   enemyAttackTotal: number;
+  /** Final damage to player (after all shields) */
   enemyDamageToPlayer: number;
-  enemyShieldTotal: number;
   playerHpBefore: number;
   playerHpAfter: number;
   playerMaxHp: number;
@@ -172,18 +188,16 @@ export class ResolutionAnimation {
   }
 
   private _buildLines(d: ResolutionData): Text[] {
-    const pAtk = d.playerAttackTotal;
-    const eShd = d.enemyShieldTotal;
-    const eAtk = d.enemyAttackTotal;
-    const pShd = d.playerShieldTotal;
-
-    // Line 1: player damage calc
+    // Line 1: player damage calc (mathematically coherent)
     const calc1 = mkLine(FONTS.BODY, 18, TEXT_COLORS.PLAYER_ACTION);
-    calc1.text = STRINGS.RES_YOU(pAtk, eShd, d.playerDamageToEnemy);
+    calc1.text = this._formatPlayerLine(d);
 
     // Line 2: enemy damage calc
     const calc2 = mkLine(FONTS.BODY, 18, TEXT_COLORS.ENEMY_ACTION);
-    calc2.text = STRINGS.RES_ENEMY(eAtk, pShd, d.enemyDamageToPlayer);
+    const totalPlayerBlock = d.playerShieldFromEquip + d.playerPassiveShield;
+    calc2.text = STRINGS.RES_ENEMY(
+      d.enemyAttackTotal, totalPlayerBlock, d.enemyDamageToPlayer,
+    );
 
     // Line 3: HP result summary
     const result = mkLine(FONTS.HEADING, 28, TEXT_COLORS.NEUTRAL, true);
@@ -232,6 +246,34 @@ export class ResolutionAnimation {
     lines.push(tap);
 
     return lines;
+  }
+
+  private _formatPlayerLine(d: ResolutionData): string {
+    const hasExtras = d.playerBypassDmg > 0 || d.playerPassiveBonus > 0;
+
+    // Simple case: no bypass, no passives, no min rule
+    if (!hasExtras && !d.minRuleApplied) {
+      return STRINGS.RES_YOU(
+        d.playerNormalDmg, d.enemyBlockTotal, d.playerDamageToEnemy,
+      );
+    }
+
+    // Build detailed breakdown
+    let line = `You: ${d.playerNormalDmg} dmg - ${d.enemyBlockTotal} block`;
+    line += ` = ${d.normalDmgToEnemy}`;
+    if (d.minRuleApplied) line += ' (min)';
+    if (d.playerBypassDmg > 0) {
+      line += ` + ${d.playerBypassDmg} bypass`;
+    }
+    if (d.playerPassiveBonus > 0) {
+      line += ` + ${d.playerPassiveBonus} passive`;
+    }
+    // Only add total suffix if there are additive components
+    if (hasExtras) {
+      line += ` = ${d.playerDamageToEnemy}`;
+    }
+    line += ' damage';
+    return line;
   }
 
   private _waitForTap(): Promise<void> {

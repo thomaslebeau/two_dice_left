@@ -276,7 +276,7 @@ export class LootPlank extends Container {
         style: {
           fontFamily: FONTS.HEADING,
           fontSize: 14,
-          fill: RUST,
+          fill: 0xF0C040,
           letterSpacing: 2,
         },
       });

@@ -6,7 +6,7 @@
 import { Container, Graphics, Text } from 'pixi.js';
 import type { Equipment, EquipmentEffect, EffectContext } from '../../engine/types';
 import { canUseDie } from '../../engine/dice';
-import { FONTS } from '../../theme';
+import { FONTS, TEXT_COLORS } from '../../theme';
 import { STRINGS } from '../../data/strings';
 
 const BONE = 0xD9CFBA;
@@ -34,6 +34,12 @@ function typeIcon(t: Equipment['type']): string {
 
 function typeColor(t: Equipment['type']): number {
   return t === 'weapon' ? RUST : t === 'shield' ? MOSS : BONE;
+}
+
+function typeTextColor(t: Equipment['type']): number {
+  return t === 'weapon' ? TEXT_COLORS.PLAYER_ACTION
+    : t === 'shield' ? TEXT_COLORS.BLOCK
+    : TEXT_COLORS.NEUTRAL;
 }
 
 function brighten(c: number): number {
@@ -80,12 +86,12 @@ export class EquipmentSlotIcon extends Container {
     this.addChild(this._bg);
     this._iconText = mkText(typeIcon(equipment.type), 16, c, true);
     this._iconText.position.set(half, 2);
-    this._rangeText = mkText(`[${equipment.minDie}-${equipment.maxDie}]`, 14, BONE);
+    this._rangeText = mkText(`[${equipment.minDie}-${equipment.maxDie}]`, 14, TEXT_COLORS.MUTED);
     this._rangeText.position.set(half, 18);
     this._valueText = mkText('', 16, BONE, true);
     this._valueText.position.set(half, 4);
     this._valueText.visible = false;
-    this._effectText = mkText('', 14, c);
+    this._effectText = mkText('', 14, typeTextColor(equipment.type));
     this._effectText.position.set(half, 22);
     this._effectText.visible = false;
     this._passiveBonusText = mkText('', 14, BONE, true);

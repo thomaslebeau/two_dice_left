@@ -89,6 +89,8 @@ export const TEXT_COLORS = {
   NEUTRAL: 0xD9CFBA,         // bone (neutral info)
   POISON: 0xB366CC,          // bright purple (poison)
   SPEED_KILL: 0xF0C040,      // gold (speed kill reward)
+  BLOCK: 0x8BB8E0,           // light blue (shield, block info)
+  MUTED: 0x888888,           // grey (secondary text, ranges)
   VICTORY: 0x7EC87E,         // bright green
   DEFEAT: 0xE85555,          // bright red
 } as const;

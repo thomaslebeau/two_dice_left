@@ -7,7 +7,7 @@
 import { Container, Graphics, Text } from 'pixi.js';
 import type { Equipment, EquipmentEffect, EffectContext } from '../../engine/types';
 import { canUseDie } from '../../engine/dice';
-import { FONTS } from '../../theme';
+import { FONTS, TEXT_COLORS } from '../../theme';
 import { STRINGS } from '../../data/strings';
 import type { SlotLike, SlotState } from './SlotLike';
 import type { DiceSprite } from './DiceSprite';
@@ -31,8 +31,16 @@ function typeGlyph(t: Equipment['type']): string {
   return t === 'weapon' ? '\u2694' : t === 'shield' ? '\uD83D\uDEE1' : '\u2695';
 }
 
+/** Brand colors for borders/accents (NOT text on dark bg). */
 function typeColor(t: Equipment['type']): number {
   return t === 'weapon' ? RUST : t === 'shield' ? MOSS : BONE;
+}
+
+/** High-contrast colors for text on dark backgrounds. */
+function typeTextColor(t: Equipment['type']): number {
+  return t === 'weapon' ? TEXT_COLORS.PLAYER_ACTION
+    : t === 'shield' ? TEXT_COLORS.BLOCK
+    : TEXT_COLORS.NEUTRAL;
 }
 
 function fmtEffect(e: EquipmentEffect): string {
@@ -74,11 +82,11 @@ export class ToolBoxCompartment extends Container implements SlotLike {
 
     this._glyphText = this._mkText(typeGlyph(equipment.type), 16, tc, true);
     this._rangeText = this._mkText(
-      `${equipment.minDie}-${equipment.maxDie}`, 14, BONE,
+      `${equipment.minDie}-${equipment.maxDie}`, 14, TEXT_COLORS.MUTED,
     );
     this._valueText = this._mkText('', 16, BONE, true);
     this._valueText.visible = false;
-    this._effectText = this._mkText('', 14, tc);
+    this._effectText = this._mkText('', 14, typeTextColor(equipment.type));
     this._effectText.visible = false;
     this._passiveBonusText = this._mkText('', 14, BONE, true);
     this._passiveBonusText.visible = false;

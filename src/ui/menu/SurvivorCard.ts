@@ -1,16 +1,18 @@
 /**
- * SurvivorCard — full-screen carousel card for survivor selection.
- * Vertical layout: portrait area, name, passive, equipment icons, HP badge.
- * Locked state: greyed out with 48px padlock.
+ * SurvivorCard — full-bleed portrait with semi-transparent info overlay.
+ * Layer stack: blood red bg → portrait sprite (full card) → info overlay (bottom).
+ * HP badge at overlay junction. Locked: greyscale + padlock.
  */
 
-import { Container, Graphics, Text } from 'pixi.js';
-import type { Survivor, Equipment, EquipmentType } from '../../engine/types';
+import {
+  Assets, ColorMatrixFilter, Container, Graphics, Sprite, Text,
+} from 'pixi.js';
+import type { Survivor, Equipment, EquipmentType, PassiveId } from '../../engine/types';
 import { PASSIVE_INFO } from '../../data/passives';
 import { FONTS } from '../../theme';
 
 // ---------------------------------------------------------------------------
-// V6 palette
+// Palette
 // ---------------------------------------------------------------------------
 
 const BONE = 0xD9CFBA;
@@ -18,18 +20,28 @@ const RUST = 0x8B3A1A;
 const BLOOD = 0x6B1C1C;
 const CHARCOAL = 0x1A1A1A;
 const MOSS = 0x2D4A2E;
+const INFO_OVERLAY = 0x060606;
+const INFO_OVERLAY_ALPHA = 0.4;
 
 // ---------------------------------------------------------------------------
 // Layout constants
 // ---------------------------------------------------------------------------
 
+const HP_BADGE_SIZE = 44;
+const HP_BADGE_R = HP_BADGE_SIZE / 2;
+const INFO_PAD_TOP = 20;
+const INFO_PAD_X = 16;
+const INFO_PAD_BOTTOM = 16;
 const EQUIP_CARD_H = 36;
 const EQUIP_GAP = 6;
-const HP_BADGE_SIZE = 44;
-const PORTRAIT_H = 220;
-const PAD = 16;
 const EQUIP_BG = 0x2A2A2A;
-const TYPE_STRIPE_W = 3;
+const EQUIP_STRIPE_W = 3;
+const BORDER_W = 2;
+
+/** Map survivor id → portrait asset path. Only illustrated survivors. */
+const PORTRAIT_ASSETS: Record<number, string> = {
+  1: '/assets/survivors/rescape.png',
+};
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -48,32 +60,41 @@ function typeColor(t: EquipmentType): number {
 // ---------------------------------------------------------------------------
 
 export class SurvivorCard extends Container {
-  private _bg = new Graphics();
-  private _selectionBorder = new Graphics();
-  private _lockOverlay = new Container();
   private _survivor: Survivor;
   private _isLocked: boolean;
   private _selected = false;
   private _cardWidth = 330;
-  private _cardHeight = 500;
+  private _cardHeight = 440;
 
-  // Text elements stored for layout updates
+  // Layer 1: background
+  private _bg = new Graphics();
+  // Layer 2: portrait
   private _portraitLabel: Text;
+  private _portrait: Sprite | null = null;
+  // Card-level mask (clips all layers)
+  private _cardMask = new Graphics();
+  // Layer 3: info overlay
+  private _infoOverlay = new Container();
+  private _infoBg = new Graphics();
   private _nameText: Text;
   private _passiveNameText: Text | null = null;
   private _passiveDescText: Text | null = null;
   private _equipContainer = new Container();
+  // Layer 4: HP badge + borders
+  private _cardBorder = new Graphics();
+  private _selectionBorder = new Graphics();
   private _hpBadge: Container;
+  private _lockOverlay = new Container();
 
   constructor(survivor: Survivor, isLocked: boolean) {
     super();
     this._survivor = survivor;
     this._isLocked = isLocked;
 
-    this.addChild(this._selectionBorder);
+    // Layer 1: blood red bg
     this.addChild(this._bg);
 
-    // Portrait placeholder
+    // Layer 2: portrait placeholder (sprite added async)
     this._portraitLabel = new Text({
       text: survivor.name,
       style: {
@@ -84,66 +105,47 @@ export class SurvivorCard extends Container {
     this._portraitLabel.anchor.set(0.5);
     this.addChild(this._portraitLabel);
 
-    // Name
+    // Card mask (clips everything to card rect)
+    this.addChild(this._cardMask);
+    this.mask = this._cardMask;
+
+    // Layer 3: info overlay
+    this._infoOverlay.addChild(this._infoBg);
     this._nameText = new Text({
       text: survivor.name,
       style: {
         fontFamily: FONTS.HEADING, fontSize: 28,
-        fontWeight: 'bold', fill: BONE, letterSpacing: 3,
+        fontWeight: 'bold', fill: BONE, letterSpacing: 2,
       },
     });
     this._nameText.anchor.set(0.5, 0);
-    this.addChild(this._nameText);
-
-    // Passive info (if not locked)
+    this._infoOverlay.addChild(this._nameText);
     if (!isLocked && survivor.passive) {
-      const info = PASSIVE_INFO[survivor.passive];
-      this._passiveNameText = new Text({
-        text: info.name,
-        style: {
-          fontFamily: FONTS.HEADING, fontSize: 18,
-          fontWeight: 'bold', fill: RUST, letterSpacing: 1,
-        },
-      });
-      this._passiveNameText.anchor.set(0.5, 0);
-      this.addChild(this._passiveNameText);
-
-      this._passiveDescText = new Text({
-        text: info.description,
-        style: {
-          fontFamily: FONTS.BODY, fontSize: 16,
-          fill: BONE, wordWrap: true, wordWrapWidth: 280,
-          lineHeight: 22,
-        },
-      });
-      this._passiveDescText.anchor.set(0.5, 0);
-      this.addChild(this._passiveDescText);
+      this._buildPassiveTexts(survivor.passive);
     }
-
-    // Equipment mini-cards
     if (!isLocked) {
       this._buildEquipCards(survivor.equipment, 280);
     }
-    this.addChild(this._equipContainer);
+    this._infoOverlay.addChild(this._equipContainer);
+    this.addChild(this._infoOverlay);
 
-    // HP badge
+    // Card border
+    this.addChild(this._cardBorder);
+    this.addChild(this._selectionBorder);
+
+    // Layer 4: HP badge (topmost)
     this._hpBadge = this._buildHpBadge();
     this.addChild(this._hpBadge);
 
     // Lock overlay
     if (isLocked) {
-      const lock = new Text({
-        text: '\u{1F512}',
-        style: { fontSize: 48, fill: BONE },
-      });
-      lock.anchor.set(0.5);
-      this._lockOverlay.addChild(lock);
-      this.addChild(this._lockOverlay);
-      this.alpha = 0.4;
+      this._applyLockedState();
     }
 
     this.eventMode = isLocked ? 'none' : 'static';
     this.cursor = isLocked ? 'default' : 'pointer';
+
+    if (!isLocked) this._loadPortrait();
   }
 
   get survivor(): Survivor { return this._survivor; }
@@ -157,12 +159,40 @@ export class SurvivorCard extends Container {
 
   setSelected(selected: boolean): void {
     this._selected = selected;
-    this._drawSelectionBorder();
+    this._drawBorders();
   }
 
-  // kept for backward compat with scene
   setWidth(width: number): void {
     this.setSize(width, this._cardHeight);
+  }
+
+  // -----------------------------------------------------------------------
+  // Passive texts
+  // -----------------------------------------------------------------------
+
+  private _buildPassiveTexts(passiveId: PassiveId): void {
+    const info = PASSIVE_INFO[passiveId];
+    this._passiveNameText = new Text({
+      text: info.name,
+      style: {
+        fontFamily: FONTS.BODY, fontSize: 18,
+        fontWeight: 'bold', fill: RUST, letterSpacing: 1,
+      },
+    });
+    this._passiveNameText.anchor.set(0.5, 0);
+    this._infoOverlay.addChild(this._passiveNameText);
+
+    this._passiveDescText = new Text({
+      text: info.description,
+      style: {
+        fontFamily: FONTS.BODY, fontSize: 16,
+        fill: BONE, wordWrap: true, wordWrapWidth: 280,
+        lineHeight: 22,
+      },
+    });
+    this._passiveDescText.anchor.set(0.5, 0);
+    this._passiveDescText.alpha = 0.8;
+    this._infoOverlay.addChild(this._passiveDescText);
   }
 
   // -----------------------------------------------------------------------
@@ -171,79 +201,71 @@ export class SurvivorCard extends Container {
 
   private _buildHpBadge(): Container {
     const badge = new Container();
-    const r = HP_BADGE_SIZE / 2;
     const bg = new Graphics();
-    bg.circle(r, r, r);
-    bg.fill({ color: MOSS, alpha: 0.9 });
-    bg.circle(r, r, r);
-    bg.stroke({ color: 0x444444, width: 1 });
+    bg.circle(HP_BADGE_R, HP_BADGE_R, HP_BADGE_R);
+    bg.fill({ color: CHARCOAL });
+    bg.circle(HP_BADGE_R, HP_BADGE_R, HP_BADGE_R);
+    bg.stroke({ color: MOSS, width: 3 });
     badge.addChild(bg);
 
     const hp = new Text({
       text: `${this._survivor.hp}`,
       style: {
-        fontFamily: FONTS.HEADING, fontSize: 18,
+        fontFamily: FONTS.HEADING, fontSize: 20,
         fontWeight: 'bold', fill: BONE,
       },
     });
     hp.anchor.set(0.5);
-    hp.position.set(r, r);
+    hp.position.set(HP_BADGE_R, HP_BADGE_R);
     badge.addChild(hp);
     return badge;
   }
 
   // -----------------------------------------------------------------------
-  // Equipment icons
+  // Equipment mini-cards
   // -----------------------------------------------------------------------
 
-  /** Build horizontal mini-cards stacked vertically. */
   private _buildEquipCards(
     equipment: readonly Equipment[], cardW: number,
   ): void {
+    this._equipContainer.removeChildren();
     for (let i = 0; i < equipment.length; i++) {
       const eq = equipment[i];
       const row = new Container();
       const tc = typeColor(eq.type);
 
-      // Background
       const bg = new Graphics();
-      bg.roundRect(0, 0, cardW, EQUIP_CARD_H, 4);
-      bg.fill({ color: EQUIP_BG });
+      bg.roundRect(0, 0, cardW, EQUIP_CARD_H, 3);
+      bg.fill({ color: EQUIP_BG, alpha: 0.8 });
       row.addChild(bg);
 
-      // Left color stripe
       const stripe = new Graphics();
-      stripe.rect(0, 0, TYPE_STRIPE_W, EQUIP_CARD_H);
+      stripe.rect(0, 0, EQUIP_STRIPE_W, EQUIP_CARD_H);
       stripe.fill(tc);
       row.addChild(stripe);
 
-      // Type glyph
       const glyph = new Text({
         text: typeGlyph(eq.type),
-        style: { fontSize: 18, fill: tc },
+        style: { fontSize: 20, fill: tc },
       });
       glyph.anchor.set(0, 0.5);
-      glyph.position.set(TYPE_STRIPE_W + 8, EQUIP_CARD_H / 2);
+      glyph.position.set(12, EQUIP_CARD_H / 2);
       row.addChild(glyph);
 
-      // Name
       const name = new Text({
         text: eq.name,
         style: {
-          fontFamily: FONTS.HEADING, fontSize: 14,
-          fill: BONE,
+          fontFamily: FONTS.HEADING, fontSize: 15, fill: BONE,
         },
       });
       name.anchor.set(0, 0.5);
-      name.position.set(TYPE_STRIPE_W + 30, EQUIP_CARD_H / 2);
+      name.position.set(36, EQUIP_CARD_H / 2);
       row.addChild(name);
 
-      // Effect (description) — centered area
       const effect = new Text({
         text: eq.description,
         style: {
-          fontFamily: FONTS.BODY, fontSize: 14,
-          fill: BONE,
+          fontFamily: FONTS.BODY, fontSize: 14, fill: BONE,
         },
       });
       effect.anchor.set(1, 0.5);
@@ -251,12 +273,10 @@ export class SurvivorCard extends Container {
       effect.position.set(cardW - 40, EQUIP_CARD_H / 2);
       row.addChild(effect);
 
-      // Range — right aligned
       const range = new Text({
         text: `${eq.minDie}-${eq.maxDie}`,
         style: {
-          fontFamily: FONTS.BODY, fontSize: 14,
-          fill: BONE,
+          fontFamily: FONTS.BODY, fontSize: 14, fill: BONE,
         },
       });
       range.anchor.set(1, 0.5);
@@ -264,9 +284,61 @@ export class SurvivorCard extends Container {
       range.position.set(cardW - 8, EQUIP_CARD_H / 2);
       row.addChild(range);
 
-      row.position.set(0, i * (EQUIP_CARD_H + EQUIP_GAP));
+      row.y = i * (EQUIP_CARD_H + EQUIP_GAP);
       this._equipContainer.addChild(row);
     }
+  }
+
+  // -----------------------------------------------------------------------
+  // Portrait loading
+  // -----------------------------------------------------------------------
+
+  private async _loadPortrait(): Promise<void> {
+    const path = PORTRAIT_ASSETS[this._survivor.id];
+    if (!path) return;
+    try {
+      const texture = await Assets.load(path);
+      if (this.destroyed) return;
+      const sprite = new Sprite(texture);
+      sprite.anchor.set(0, 1); // bottom-left
+      this._portrait = sprite;
+      // Insert above bg, below card mask
+      const maskIdx = this.getChildIndex(this._cardMask);
+      this.addChildAt(sprite, maskIdx);
+      this._portraitLabel.visible = false;
+      this._layoutPortrait();
+    } catch {
+      // Keep text placeholder
+    }
+  }
+
+  private _layoutPortrait(): void {
+    if (!this._portrait) return;
+    const h = this._cardHeight;
+    const texH = this._portrait.texture.height;
+    const scale = h / texH;
+    this._portrait.scale.set(scale);
+    this._portrait.position.set(0, h);
+  }
+
+  // -----------------------------------------------------------------------
+  // Locked state
+  // -----------------------------------------------------------------------
+
+  private _applyLockedState(): void {
+    // Greyscale + dim filter on the whole card
+    const grey = new ColorMatrixFilter();
+    grey.desaturate();
+    grey.brightness(0.4, false);
+    this.filters = [grey];
+
+    // Padlock icon
+    const lock = new Text({
+      text: '\u{1F512}', style: { fontSize: 48, fill: BONE },
+    });
+    lock.anchor.set(0.5);
+    this._lockOverlay.addChild(lock);
+    this.addChild(this._lockOverlay);
   }
 
   // -----------------------------------------------------------------------
@@ -278,75 +350,84 @@ export class SurvivorCard extends Container {
     const h = this._cardHeight;
     const cx = w / 2;
 
-    // Background
+    // Layer 1: blood red bg
     this._bg.clear();
-    this._bg.roundRect(0, 0, w, h, 8);
-    this._bg.fill({ color: CHARCOAL });
-    this._bg.roundRect(0, 0, w, h, 8);
-    this._bg.stroke({ color: BLOOD, width: 3 });
+    this._bg.rect(0, 0, w, h);
+    this._bg.fill({ color: BLOOD });
 
-    // Portrait area — top portion
-    this._bg.rect(PAD, PAD, w - PAD * 2, PORTRAIT_H);
-    this._bg.fill({ color: 0x111111, alpha: 0.5 });
+    // Card mask
+    this._cardMask.clear();
+    this._cardMask.roundRect(0, 0, w, h, 6);
+    this._cardMask.fill({ color: 0xffffff });
 
-    let y = PAD + PORTRAIT_H / 2;
-    this._portraitLabel.position.set(cx, y);
+    // Portrait placeholder
+    this._portraitLabel.position.set(cx, h / 2);
 
-    // HP badge — top-right of portrait
-    this._hpBadge.position.set(
-      w - PAD - HP_BADGE_SIZE - 4,
-      PAD + 4,
-    );
+    // Portrait sprite
+    this._layoutPortrait();
 
-    y = PAD + PORTRAIT_H + 16;
+    // Info overlay — compute content height
+    const equipW = w - INFO_PAD_X * 2;
+    let y = INFO_PAD_TOP;
 
-    // Name
     this._nameText.position.set(cx, y);
     y += 36;
 
-    // Passive
     if (this._passiveNameText) {
       this._passiveNameText.position.set(cx, y);
       y += 24;
     }
     if (this._passiveDescText) {
-      this._passiveDescText.style.wordWrapWidth = w - PAD * 4;
+      this._passiveDescText.style.wordWrapWidth = equipW;
       this._passiveDescText.position.set(cx, y);
       y += Math.min(this._passiveDescText.height, 50) + 12;
     }
 
-    // Equipment mini-cards — stacked vertically, centered
-    const eqCount = this._equipContainer.children.length;
-    if (eqCount > 0) {
-      const cardW = w - PAD * 4;
-      // Rebuild cards at correct width if changed
-      if (!this._isLocked) {
-        this._equipContainer.removeChildren();
-        this._buildEquipCards(this._survivor.equipment, cardW);
-      }
-      this._equipContainer.position.set(cx - cardW / 2, y);
+    if (!this._isLocked) {
+      this._buildEquipCards(this._survivor.equipment, equipW);
     }
+    this._equipContainer.position.set(INFO_PAD_X, y);
 
-    // Lock overlay
+    const eqH = this._isLocked ? 0
+      : this._survivor.equipment.length
+        * (EQUIP_CARD_H + EQUIP_GAP) - EQUIP_GAP;
+    const infoH = y + eqH + INFO_PAD_BOTTOM;
+
+    // Semi-transparent overlay bg
+    this._infoBg.clear();
+    this._infoBg.rect(0, 0, w, infoH);
+    this._infoBg.fill({ color: INFO_OVERLAY, alpha: INFO_OVERLAY_ALPHA });
+
+    // Position overlay at bottom of card
+    this._infoOverlay.y = h - infoH;
+
+    // HP badge at junction
+    this._hpBadge.position.set(
+      w - 20 - HP_BADGE_SIZE,
+      h - infoH - HP_BADGE_R,
+    );
+
+    // Lock overlay centered
     if (this._isLocked) {
       this._lockOverlay.position.set(cx, h / 2);
     }
 
-    this._drawSelectionBorder();
+    this._drawBorders();
   }
 
-  private _drawSelectionBorder(): void {
+  private _drawBorders(): void {
+    const w = this._cardWidth;
+    const h = this._cardHeight;
+
+    this._cardBorder.clear();
+    this._cardBorder.roundRect(0, 0, w, h, 6);
+    this._cardBorder.stroke({ color: BLOOD, width: BORDER_W });
+
     this._selectionBorder.clear();
     if (!this._selected) return;
-    const pad = 3;
-    this._selectionBorder.roundRect(
-      -pad, -pad,
-      this._cardWidth + pad * 2,
-      this._cardHeight + pad * 2,
-      10,
-    );
-    this._selectionBorder.stroke({ color: RUST, width: 3 });
+    this._selectionBorder.roundRect(-1, -1, w + 2, h + 2, 7);
+    this._selectionBorder.stroke({ color: RUST, width: BORDER_W });
   }
 }
 
-export const SURVIVOR_CARD_HEIGHT = 500; // default, overridden by setSize
+export const SURVIVOR_CARD_HEIGHT = 440;

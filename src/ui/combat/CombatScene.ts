@@ -20,7 +20,6 @@ import { CombatState, type PoisonSnapshot } from './CombatState';
 import { PassiveFeedback } from './PassiveFeedback';
 import { tickerWait } from './tickerUtils';
 import { OnboardingHint } from './OnboardingHint';
-import { EquipmentTooltip } from './EquipmentTooltip';
 import { STRINGS } from '../../data/strings';
 
 const BONE = 0xD9CFBA, RUST = 0x8B3A1A, MOSS = 0x2D4A2E;
@@ -56,7 +55,6 @@ export class CombatScene extends Container implements Scene {
   private _precomputedEnemyAlloc: Allocation[] = [];
   private _consumedIndices = new Set<number>();
   private _onboarding = new OnboardingHint();
-  private _eqTooltip = new EquipmentTooltip();
   private _sw = 360;
   private _sh = 640;
 
@@ -64,16 +62,11 @@ export class CombatScene extends Container implements Scene {
     super();
     this.addChild(this._enemyZone);
     this.addChild(this._creature, this._playerDiceZone);
-    this.addChild(this._playerZone, this._resetBtn, this._commitBtn, this._passiveFeedback, this._onboarding, this._eqTooltip);
+    this.addChild(this._playerZone, this._resetBtn, this._commitBtn, this._passiveFeedback, this._onboarding);
     this._commitBtn.onCommit = () => this._handleCommit();
     this._resetBtn.onReset = () => { this._allocator.resetAllAllocations(); };
     this._playerZone.toolBox.onSlotTap = (i) => this._allocator.handleSlotTap(i);
-    this._playerZone.toolBox.onFilledSlotTap = (comp) => {
-      const global = comp.toGlobal({ x: comp.width / 2, y: 0 });
-      this._eqTooltip.show(comp.equipment, global.x, global.y);
-    };
     this._allocator.onChange = () => {
-      this._eqTooltip.hide();
       this._commitBtn.setEnabled(this._allocator.isComplete());
       this._resetBtn.setVisible(this._allocator.hasAllocations());
       this._onboarding.dismiss();
@@ -93,7 +86,6 @@ export class CombatScene extends Container implements Scene {
       return computeEffectContext(alloc, allAllocs, equip, poisoned);
     };
     this.eventMode = 'static';
-    this.on('pointerdown', () => this._eqTooltip.dismissOnTapElsewhere());
     this.on('pointermove', (e: { global: { x: number; y: number } }) =>
       this._allocator.handlePointerMove(e.global));
     this.on('pointerup', () => this._allocator.handlePointerUp());
@@ -128,7 +120,6 @@ export class CombatScene extends Container implements Scene {
   onExit(): void {
     this._allocator.reset(); this._playerZone.clear(); this._enemyZone.clear();
     this._resolution.reset(); this._passiveFeedback.cleanup(); this._onboarding.cleanup();
-    this._eqTooltip.cleanup();
     this._playerZone.badge.setDangerPulse(false);
     this._recycleurCancel = null; this._consumedIndices.clear();
     this._data = null; this._state = null;
@@ -175,7 +166,6 @@ export class CombatScene extends Container implements Scene {
     this._creature.layout(avail, creatureH);
 
     this._resolution.setScreenSize(w, h);
-    this._eqTooltip.setViewportWidth(w);
   }
 
   private _updateHpDisplays(): void {

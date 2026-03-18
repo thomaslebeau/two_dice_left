@@ -1,7 +1,7 @@
 /**
- * Single toolbox compartment — metal plate on wood for equipment,
- * bare wood for empty slots. Implements SlotLike for DiceAllocator
- * compatibility. Supports die reparenting (DiceSprite centered on plate).
+ * Single toolbox compartment — metal plate showing equipment info.
+ * Layout: icon + effect (top), name (middle), range (bottom).
+ * When die placed: die replaces icon, effect shows computed value.
  */
 
 import { Container, Graphics, Text } from 'pixi.js';
@@ -13,51 +13,40 @@ import type { SlotLike, SlotState } from './SlotLike';
 import type { DiceSprite } from './DiceSprite';
 import { PipBar } from '../shared/PipBar';
 
-// Diegetic palette (same as LootPlank)
 const IRON_FILL = 0x3A3A3A;
 const IRON_BORDER = 0x555555;
-const RIVET_FILL = 0x888888;
-const RIVET_SHADOW = 0x555555;
 const BONE = 0xD9CFBA;
 const RUST = 0x8B3A1A;
 const MOSS = 0x2D4A2E;
 const CHARCOAL = 0x1A1A1A;
-
 const GOLD = 0xF0C040;
 const PLATE_MARGIN = 2;
-const RIVET_R = 2;
-const RIVET_INNER = 1.5;
 
 function typeGlyph(t: Equipment['type']): string {
   return t === 'weapon' ? '\u{1F5E1}' : t === 'shield' ? '\uD83D\uDEE1' : '\u2695';
 }
 
-/** Brand colors for borders/accents (NOT text on dark bg). */
 function typeColor(t: Equipment['type']): number {
   return t === 'weapon' ? RUST : t === 'shield' ? MOSS : BONE;
 }
 
-/** High-contrast colors for text on dark backgrounds. */
 function typeTextColor(t: Equipment['type']): number {
   return t === 'weapon' ? TEXT_COLORS.PLAYER_ACTION
     : t === 'shield' ? TEXT_COLORS.BLOCK
     : TEXT_COLORS.NEUTRAL;
 }
 
-/** Compute pip color based on equipment type. */
 function pipColor(t: Equipment['type']): number {
   return t === 'weapon' ? TEXT_COLORS.PLAYER_ACTION
     : t === 'shield' ? TEXT_COLORS.BLOCK
     : TEXT_COLORS.PLAYER_ACTION;
 }
 
-/** Compute max possible pips for an equipment (die at maxDie). */
 function maxPips(eq: Equipment): number {
   const eff = eq.effect(eq.maxDie);
   return Math.max(eff.damage + eff.shield + eff.heal + eff.poison, 1);
 }
 
-/** Compute total pips for an effect. */
 function effectPips(eff: EquipmentEffect): number {
   return eff.damage + eff.shield + eff.heal + eff.poison;
 }
@@ -80,15 +69,15 @@ export class ToolBoxCompartment extends Container implements SlotLike {
 
   private _plate = new Graphics();
   private _glyphText: Text;
+  private _nameText: Text;
   private _rangeText: Text;
-  private _valueText: Text;
   private _effectText: Text;
   private _passiveBonusText: Text;
   private _borderGlow = new Graphics();
   private _pipBar: PipBar;
 
-  private _w = 70;
-  private _h = 73;
+  private _w = 90;
+  private _h = 72;
 
   constructor(equipment: Equipment, equipmentIndex: number) {
     super();
@@ -101,22 +90,40 @@ export class ToolBoxCompartment extends Container implements SlotLike {
 
     const tc = typeColor(equipment.type);
 
-    this._glyphText = this._mkText(typeGlyph(equipment.type), 16, tc, true);
-    this._rangeText = this._mkText(
-      formatRange(equipment.minDie, equipment.maxDie), 14, TEXT_COLORS.MUTED,
+    // Top-left: type icon
+    this._glyphText = this._mkText(
+      typeGlyph(equipment.type), 14, tc, true, 'left',
     );
-    this._valueText = this._mkText('', 16, BONE, true);
-    this._valueText.visible = false;
-    this._effectText = this._mkText('', 14, typeTextColor(equipment.type));
-    this._effectText.visible = false;
-    this._passiveBonusText = this._mkText('', 14, BONE, true);
+
+    // Top-right: effect description
+    this._effectText = this._mkText(
+      equipment.description, 11, typeTextColor(equipment.type),
+      false, 'right',
+    );
+    this._effectText.style.fontFamily = FONTS.BODY;
+
+    // Middle: equipment name
+    this._nameText = this._mkText(
+      equipment.name, 11, BONE, true, 'center',
+    );
+
+    // Bottom: range
+    const rng = formatRange(equipment.minDie, equipment.maxDie);
+    this._rangeText = this._mkText(
+      rng, 10, TEXT_COLORS.MUTED, false, 'center',
+    );
+    this._rangeText.style.fontFamily = FONTS.BODY;
+    this._rangeText.visible = rng.length > 0;
+
+    // Passive bonus (synergy "+2")
+    this._passiveBonusText = this._mkText(
+      '', 11, BONE, true, 'right',
+    );
     this._passiveBonusText.visible = false;
 
-    this._rangeText.visible = false; // shown only on valid-target (drag)
-
     this.addChild(
-      this._glyphText, this._rangeText,
-      this._valueText, this._effectText, this._passiveBonusText,
+      this._glyphText, this._effectText,
+      this._nameText, this._rangeText, this._passiveBonusText,
     );
 
     // Pip bar below plate
@@ -128,6 +135,7 @@ export class ToolBoxCompartment extends Container implements SlotLike {
 
     this.eventMode = 'static';
     this.cursor = 'pointer';
+    this._layoutTexts();
     this._draw();
   }
 
@@ -136,7 +144,6 @@ export class ToolBoxCompartment extends Container implements SlotLike {
   get slotState(): SlotState { return this._state; }
   get placedDieValue(): number | null { return this._placedDieValue; }
 
-  /** Resize compartment dimensions (called by ToolBox). */
   resize(w: number, h: number): void {
     this._w = w;
     this._h = h;
@@ -150,18 +157,16 @@ export class ToolBoxCompartment extends Container implements SlotLike {
 
   setState(state: SlotState): void {
     this._state = state;
-    // Show range only when a die is being dragged over (valid-target)
-    if (!this._placedDie && state !== 'filled') {
-      this._rangeText.visible = state === 'valid-target';
-    }
     this._draw();
   }
 
   placeDie(dieValue: number): void {
     this._placedDieValue = dieValue;
     this._state = 'filled';
-    this._valueText.text = `${dieValue}`;
-    this._effectText.text = `\u2192${fmtEffect(this._equipment.effect(dieValue))}`;
+    // Switch effect from description to computed value
+    this._effectText.text = fmtEffect(
+      this._equipment.effect(dieValue),
+    );
     this._toggleFilled(true);
     this._updatePips(dieValue);
     this._draw();
@@ -170,6 +175,8 @@ export class ToolBoxCompartment extends Container implements SlotLike {
   removeDie(): void {
     this._placedDieValue = null;
     this._state = 'empty';
+    // Restore description
+    this._effectText.text = this._equipment.description;
     this._toggleFilled(false);
     this._pipBar.reset();
     this._pipBar.visible = false;
@@ -184,33 +191,32 @@ export class ToolBoxCompartment extends Container implements SlotLike {
 
   showPreview(dieValue: number, context?: EffectContext): void {
     if (!this.isCompatible(dieValue)) return;
-    this._effectText.text = `\u2192${fmtEffect(this._equipment.effect(dieValue, context))}`;
-    this._effectText.visible = true;
+    this._effectText.text = fmtEffect(
+      this._equipment.effect(dieValue, context),
+    );
   }
 
   clearPreview(): void {
-    if (this._state !== 'filled') this._effectText.visible = false;
+    if (this._state !== 'filled') {
+      this._effectText.text = this._equipment.description;
+    }
   }
 
-  /** Recalculate effect text with full allocation context (synergies). */
   updateEffectWithContext(context?: EffectContext): void {
     if (this._placedDieValue === null) return;
     const base = this._equipment.effect(this._placedDieValue);
     const full = this._equipment.effect(this._placedDieValue, context);
-    const bonusDmg = full.damage - base.damage;
-    const bonusShd = full.shield - base.shield;
-    const bonusHeal = full.heal - base.heal;
-    const bonus = bonusDmg + bonusShd + bonusHeal;
+    const bonus = (full.damage - base.damage)
+      + (full.shield - base.shield)
+      + (full.heal - base.heal);
+    this._effectText.text = fmtEffect(full);
     if (bonus > 0) {
-      this._effectText.text = `\u2192${fmtEffect(full)}`;
       this._passiveBonusText.text = `+${bonus}`;
       this._passiveBonusText.style.fill = GOLD;
       this._passiveBonusText.visible = true;
     } else {
-      this._effectText.text = `\u2192${fmtEffect(full)}`;
       this._passiveBonusText.visible = false;
     }
-    // Update pips with synergy context
     this._updatePips(this._placedDieValue, context);
   }
 
@@ -240,32 +246,31 @@ export class ToolBoxCompartment extends Container implements SlotLike {
     this._borderGlow.visible = false;
   }
 
-  /** Receive a DiceSprite — reparent it into this compartment. */
   receiveDie(die: DiceSprite): void {
     this._placedDie = die;
     this.addChild(die);
-    // Center die on the plate
-    const pw = this._w - PLATE_MARGIN * 2;
-    const ph = this._h - PLATE_MARGIN * 2;
+    // Center die in the upper portion of the compartment
+    const dieScale = 0.6;
+    const dieW = 52 * dieScale;
+    die.scale.set(dieScale);
     die.position.set(
-      PLATE_MARGIN + (pw - 36) / 2,
-      PLATE_MARGIN + (ph - 36) / 2 - 4,
+      (this._w - dieW) / 2,
+      PLATE_MARGIN + 4,
     );
     die.visible = true;
     die.setState('placed');
-    // Hide text layers behind die
     this._glyphText.visible = false;
-    this._rangeText.visible = false;
   }
 
-  /** Release the reparented DiceSprite back. Does NOT call setState — caller owns die lifecycle. */
   releaseDie(): DiceSprite | null {
     const die = this._placedDie;
     if (!die) return null;
     this._placedDie = null;
-    if (!die.destroyed) this.removeChild(die);
+    if (!die.destroyed) {
+      this.removeChild(die);
+      die.scale.set(1);
+    }
     this._glyphText.visible = true;
-    this._rangeText.visible = true;
     return die;
   }
 
@@ -274,7 +279,8 @@ export class ToolBoxCompartment extends Container implements SlotLike {
   // -----------------------------------------------------------------------
 
   private _mkText(
-    txt: string, size: number, color: number, bold = false,
+    txt: string, size: number, color: number,
+    bold: boolean, anchor: 'left' | 'center' | 'right',
   ): Text {
     const t = new Text({
       text: txt,
@@ -283,43 +289,65 @@ export class ToolBoxCompartment extends Container implements SlotLike {
         fontWeight: bold ? 'bold' : 'normal', fill: color,
       },
     });
-    t.anchor.set(0.5, 0);
+    const ax = anchor === 'left' ? 0 : anchor === 'right' ? 1 : 0.5;
+    t.anchor.set(ax, 0);
     return t;
   }
 
   private _updatePips(dieValue: number, context?: EffectContext): void {
     const eff = this._equipment.effect(dieValue, context);
-    const count = effectPips(eff);
     this._pipBar.setMax(maxPips(this._equipment));
-    this._pipBar.fillPips(count);
+    this._pipBar.fillPips(effectPips(eff));
     this._pipBar.visible = true;
   }
 
   private _layoutTexts(): void {
+    const pad = PLATE_MARGIN + 4;
+    const right = this._w - PLATE_MARGIN - 4;
     const cx = this._w / 2;
-    this._glyphText.position.set(cx, PLATE_MARGIN + 6);
-    this._rangeText.position.set(cx, this._h - PLATE_MARGIN - 14);
-    this._valueText.position.set(cx, PLATE_MARGIN + 8);
-    this._effectText.position.set(cx, this._h - PLATE_MARGIN - 16);
-    this._passiveBonusText.position.set(cx, this._h - PLATE_MARGIN - 4);
-    // Pip bar below the plate
+    const bottom = this._h - PLATE_MARGIN - 2;
+
+    // Row 1: glyph (left) + effect (right) — top of compartment
+    this._glyphText.position.set(pad, pad);
+    this._effectText.position.set(right, pad + 2);
+
+    // Name: bottom area, always visible
+    this._nameText.position.set(cx, bottom - 22);
+
+    // Range: below name
+    this._rangeText.position.set(cx, bottom - 10);
+
+    // Passive bonus (right of effect)
+    this._passiveBonusText.position.set(right, pad + 14);
+
+    // Pip bar below plate
     const pipW = this._pipBar.totalWidth;
-    this._pipBar.position.set(
-      cx - pipW / 2, this._h + 2,
-    );
+    this._pipBar.position.set(cx - pipW / 2, this._h + 2);
+
+    // Reposition die if present
+    if (this._placedDie) {
+      const dieW = 52 * 0.6;
+      this._placedDie.position.set(
+        (this._w - dieW) / 2,
+        PLATE_MARGIN + 4,
+      );
+    }
   }
 
   private _toggleFilled(filled: boolean): void {
-    if (this._placedDie) {
-      // Die sprite is visible, hide all text
-      this._glyphText.visible = false;
-      this._rangeText.visible = false;
-    } else {
-      this._glyphText.visible = !filled;
-      this._rangeText.visible = !filled;
+    // Glyph: hidden when die sprite is present
+    if (!this._placedDie) {
+      this._glyphText.visible = true;
     }
-    this._valueText.visible = filled && !this._placedDie;
-    this._effectText.visible = filled;
+    // Range: hidden when die is placed
+    const rng = formatRange(
+      this._equipment.minDie, this._equipment.maxDie,
+    );
+    this._rangeText.visible = !filled && rng.length > 0;
+    // Name always visible
+    this._nameText.visible = true;
+    // Effect always visible
+    this._effectText.visible = true;
   }
 
   private _draw(): void {
@@ -330,7 +358,6 @@ export class ToolBoxCompartment extends Container implements SlotLike {
     const ph = this._h - PLATE_MARGIN * 2;
     const tc = typeColor(this._equipment.type);
 
-    // Metal plate fill
     let fillColor = IRON_FILL;
     let fillAlpha = 1;
     let borderColor = IRON_BORDER;
@@ -363,27 +390,11 @@ export class ToolBoxCompartment extends Container implements SlotLike {
 
     if (this._state !== 'dimmed') this.alpha = 1;
 
-    // Plate
     g.rect(PLATE_MARGIN, PLATE_MARGIN, pw, ph);
     g.fill({ color: fillColor, alpha: fillAlpha });
     g.rect(PLATE_MARGIN, PLATE_MARGIN, pw, ph);
     g.stroke({ color: borderColor, width: borderWidth });
 
-    // Corner rivets
-    const rivets = [
-      [PLATE_MARGIN + 4, PLATE_MARGIN + 4],
-      [this._w - PLATE_MARGIN - 4, PLATE_MARGIN + 4],
-      [PLATE_MARGIN + 4, this._h - PLATE_MARGIN - 4],
-      [this._w - PLATE_MARGIN - 4, this._h - PLATE_MARGIN - 4],
-    ];
-    for (const [rx, ry] of rivets) {
-      g.circle(rx, ry, RIVET_R);
-      g.fill(RIVET_SHADOW);
-      g.circle(rx - 0.3, ry - 0.3, RIVET_INNER);
-      g.fill(RIVET_FILL);
-    }
-
-    // Hit area
     this.hitArea = {
       contains: (x: number, y: number) =>
         x >= 0 && x <= this._w && y >= 0 && y <= this._h,

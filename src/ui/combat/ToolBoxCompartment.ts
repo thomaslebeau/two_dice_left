@@ -249,14 +249,7 @@ export class ToolBoxCompartment extends Container implements SlotLike {
   receiveDie(die: DiceSprite): void {
     this._placedDie = die;
     this.addChild(die);
-    // Center die in the upper portion of the compartment
-    const dieScale = 0.6;
-    const dieW = 52 * dieScale;
-    die.scale.set(dieScale);
-    die.position.set(
-      (this._w - dieW) / 2,
-      PLATE_MARGIN + 4,
-    );
+    this._positionDie(die);
     die.visible = true;
     die.setState('placed');
     this._glyphText.visible = false;
@@ -301,37 +294,57 @@ export class ToolBoxCompartment extends Container implements SlotLike {
     this._pipBar.visible = true;
   }
 
+  /** Position and scale the die centered in the middle zone. */
+  private _positionDie(die: DiceSprite): void {
+    const nameH = 14;
+    const bottomH = 14;
+    const top = PLATE_MARGIN + nameH + 2;
+    const bot = this._h - PLATE_MARGIN - bottomH - 2;
+    const zoneH = bot - top;
+    const maxSize = Math.min(zoneH - 2, this._w - PLATE_MARGIN * 2 - 8);
+    const s = maxSize / 52;
+    const dieW = 52 * s;
+    die.scale.set(s);
+    die.position.set(
+      (this._w - dieW) / 2,
+      top + (zoneH - dieW) / 2,
+    );
+  }
+
   private _layoutTexts(): void {
-    const pad = PLATE_MARGIN + 4;
-    const right = this._w - PLATE_MARGIN - 4;
     const cx = this._w / 2;
-    const bottom = this._h - PLATE_MARGIN - 2;
+    const pad = PLATE_MARGIN + 4;
+    const nameH = 14;
+    const bottomH = 14;
 
-    // Row 1: glyph (left) + effect (right) — top of compartment
-    this._glyphText.position.set(pad, pad);
-    this._effectText.position.set(right, pad + 2);
+    // Top zone: name
+    this._nameText.anchor.set(0.5, 0);
+    this._nameText.position.set(cx, PLATE_MARGIN + 2);
 
-    // Name: bottom area, always visible
-    this._nameText.position.set(cx, bottom - 22);
+    // Middle zone: glyph centered
+    const midTop = PLATE_MARGIN + nameH + 2;
+    const midBot = this._h - PLATE_MARGIN - bottomH - 2;
+    const midCy = midTop + (midBot - midTop) / 2;
+    this._glyphText.anchor.set(0.5, 0.5);
+    this._glyphText.position.set(cx, midCy);
 
-    // Range: below name
-    this._rangeText.position.set(cx, bottom - 10);
+    // Bottom zone: effect (left) + range (right)
+    const btmY = this._h - PLATE_MARGIN - bottomH;
+    this._effectText.anchor.set(0, 0);
+    this._effectText.position.set(pad, btmY);
+    this._rangeText.anchor.set(1, 0);
+    this._rangeText.position.set(this._w - pad, btmY);
 
-    // Passive bonus (right of effect)
-    this._passiveBonusText.position.set(right, pad + 14);
+    // Passive bonus next to effect
+    this._passiveBonusText.anchor.set(1, 0);
+    this._passiveBonusText.position.set(this._w - pad, btmY);
 
     // Pip bar below plate
     const pipW = this._pipBar.totalWidth;
     this._pipBar.position.set(cx - pipW / 2, this._h + 2);
 
     // Reposition die if present
-    if (this._placedDie) {
-      const dieW = 52 * 0.6;
-      this._placedDie.position.set(
-        (this._w - dieW) / 2,
-        PLATE_MARGIN + 4,
-      );
-    }
+    if (this._placedDie) this._positionDie(this._placedDie);
   }
 
   private _toggleFilled(filled: boolean): void {

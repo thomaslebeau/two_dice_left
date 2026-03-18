@@ -134,10 +134,10 @@ export class CombatScene extends Container implements Scene {
     const enemyY = 0;
     const enemyH = h * 0.12;
     const illusY = enemyH;
-    const illusH = h * 0.30;
-    const diceY = h * 0.44;
-    const playerY = h * 0.52;
-    const btnY = h * 0.82;
+    const illusH = h * 0.20;
+    const diceY = h * 0.34;
+    const playerY = h * 0.42;
+    const btnY = h * 0.88;
 
     // Enemy zone — top 12%
     this._enemyZone.position.set(PADDING, enemyY + PADDING);

@@ -60,9 +60,9 @@ export class ToolBox extends Container {
     this._drawBg();
   }
 
-  layout(w: number, h: number): void {
+  layout(w: number, _h: number): void {
     this._boxW = w;
-    this._boxH = h;
+    this._boxH = this.computedHeight;
     this._drawBg();
     this._repositionCompartments();
   }
@@ -118,11 +118,15 @@ export class ToolBox extends Container {
     );
   }
 
+  /** Square cells: height = width. */
   private _cellH(): number {
+    return this._cellW();
+  }
+
+  /** Compute actual box height from square cells. */
+  get computedHeight(): number {
     const rows = this._rows();
-    return Math.floor(
-      (this._boxH - BORDER_W * 2 - SEP_W * (rows - 1)) / rows,
-    );
+    return rows * this._cellW() + (rows - 1) * SEP_W + BORDER_W * 2;
   }
 
   private _cellX(col: number): number {

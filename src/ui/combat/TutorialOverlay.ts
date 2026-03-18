@@ -25,6 +25,7 @@ export class TutorialOverlay extends Container {
   private _sw: number;
   private _sh: number;
   private _dim = new Graphics();
+  private _border = new Graphics();
   private _msgContainer = new Container();
   private _msgBg = new Graphics();
   private _msgText: Text;
@@ -40,6 +41,7 @@ export class TutorialOverlay extends Container {
     this.eventMode = 'static';
 
     this.addChild(this._dim);
+    this.addChild(this._border);
 
     this._msgText = new Text({
       text: '',
@@ -82,12 +84,14 @@ export class TutorialOverlay extends Container {
   async run(splitY: number): Promise<void> {
     // Phase 1: dim below splitY — enemy visible at top
     this._drawDim(0, splitY, this._sw, this._sh - splitY);
+    this._drawBorder(0, 0, this._sw, splitY);
     this._showMsg(STRINGS.TUTO_PHASE1, splitY + 24);
     await this._waitBtn(STRINGS.TUTO_NEXT);
     if (this._skipped) return;
 
     // Phase 2: dim above splitY — player + dice visible at bottom
     this._drawDim(0, 0, this._sw, splitY);
+    this._drawBorder(0, splitY, this._sw, this._sh - splitY);
     this._showMsg(STRINGS.TUTO_PHASE2, 24);
     await this._waitBtn(STRINGS.TUTO_GOT_IT);
     if (this._skipped) return;
@@ -105,6 +109,15 @@ export class TutorialOverlay extends Container {
     this._dim.clear();
     this._dim.rect(x, y, w, h);
     this._dim.fill({ color: CHARCOAL, alpha: OVERLAY_ALPHA });
+  }
+
+  /** Red-ish border around the visible (non-dimmed) zone. */
+  private _drawBorder(
+    x: number, y: number, w: number, h: number,
+  ): void {
+    this._border.clear();
+    this._border.rect(x + 2, y + 2, w - 4, h - 4);
+    this._border.stroke({ color: 0xE85555, width: 2, alpha: 0.7 });
   }
 
   private _showMsg(text: string, y: number): void {

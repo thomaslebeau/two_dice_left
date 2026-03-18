@@ -32,7 +32,7 @@ Narrative of a run: Each run tells the story of a lone survivor venturing into t
 2. INPUT RANDOMNESS ONLY: Dice are rolled BEFORE the decision. No randomness after a player choice.
 3. EQUIPMENT = IDENTITY: Each survivor's identity comes from their starting loadout AND passive, not flat stat bonuses.
 4. LOOT, NOT BONUSES: Events give new equipment (choice of 2-3), not +1 ATK. The player builds their loadout during the run.
-5. ZERO DEAD TURNS: Asymmetric minimum 1 damage rule (player weapons only). No stalemates.
+5. ZERO DEAD TURNS: Diverse damage types (direct, poison, bypass) ensure the player always has options against any enemy.
 6. SYNERGY BUILDING: Loot choices create emergent build archetypes (Poison, Reflect, Combo, Bypass). The player constructs toward a strategy, not just picking the best individual piece.
 
 ## Game architecture
@@ -63,7 +63,7 @@ Each round:
 3. Enemy dice auto-allocated by pattern (aggressive, defensive, neutral)
 4. Simultaneous resolution: player damage = weapon effects - enemy shield total. Enemy damage = weapon effects - player shield total.
 
-Asymmetric anti-stalemate rule: If the player uses a weapon, total damage is min 1 (even if enemy shield absorbs everything). This does NOT apply to enemies.
+No minimum damage rule. If block exceeds attack, damage is 0. Bypass tools (Molotov, poison) counter high-block enemies.
 
 Speed kill recovery: Win in ≤3 rounds → recover 3 HP (capped at max). Player-only, asymmetric. Rewards aggressive play.
 
@@ -155,8 +155,8 @@ Narrative framing: exploration scenes (ruined workshop, overgrown armory, abando
    - Does it create a new synergy path or strengthen an existing archetype?
 
 6. DESIGN TRAPS — learned from v1-v5 iterations:
-   - STALEMATE TRAP: ATK vs DEF direct comparison creates zero-damage rounds when both sides have equal stats. The equipment system + min 1 damage rule eliminates this.
-   - SYMMETRY TRAP: A mechanic that applies equally to player and enemy won't shift strategy balance. Anti-stalemate min 1 damage is player-only for this reason.
+   - STALEMATE TRAP: ATK vs DEF direct comparison creates zero-damage rounds when both sides have equal stats. The equipment system + diverse damage types (poison, bypass) mitigate this.
+   - SYMMETRY TRAP: A mechanic that applies equally to player and enemy won't shift strategy balance. Asymmetric tools (bypass, speed kill) are player-favored for this reason.
    - STAT IDENTITY TRAP: Flat stats (+1 ATK, +1 DEF) don't create distinct play patterns. Equipment with die-range conditions creates real identity — a Clé Lourde (4-6 only) plays fundamentally differently from a Double Fourche (1-4 only).
    - VARIANCE CEILING: With 2D6, realistic allocation spread is 2-3× between optimal and random. Design supporting systems (speed kill, loot diversity) rather than expecting dice alone to create huge strategic gaps.
    - LOOT INFLATION: More equipment slots = more options, but also more cognitive load. Cap the practical loadout at ~6 pieces. Beyond that, the allocation puzzle becomes overwhelming.
@@ -211,7 +211,7 @@ src/
 │ ├── types.ts # Equipment, Survivor, Enemy, Allocation, CombatResult, Passive
 │ ├── dice.ts # rollDie, rollDice, canUseDie
 │ ├── allocation.ts # allocateOptimal, allocateEnemy, scoring functions
-│ ├── combat.ts # simulateCombat (resolution, min 1 dmg rule, poison, heal, passives)
+│ ├── combat.ts # simulateCombat (resolution, poison, heal, passives)
 │ ├── passives.ts # Passive definitions and resolution logic (pure functions)
 │ ├── run.ts # simulateRun (5 combats + events)
 │ └── index.ts # re-exports
@@ -351,8 +351,8 @@ UI side (src/ui/combat/):
 1. Player places dice → commits
 2. Enemy allocation computed (automatic, by pattern)
 3. Apply passive pre-modifiers (Survivant +1 dmg, Ingénieux +1, Élan +1 round 1)
-4. Player damage = sum of weapon effects - sum of enemy shield effects (min 1 if any weapon used, player only)
-5. Enemy damage = sum of weapon effects - sum of player shield effects (no min 1)
+4. Player damage = max(0, sum of weapon effects - sum of enemy shield effects)
+5. Enemy damage = max(0, sum of weapon effects - sum of player shield effects)
 6. Apply Rempart: check excess shield, carry +1 to next round
 7. Poison ticks (1 dmg/turn per active poison)
 8. Heal applied (capped at maxHp)
@@ -468,14 +468,14 @@ Each round:
    - With 2 dice and N slots (N > 2 typical), player picks the best 2 allocations
 3. Enemy dice auto-allocated by pattern (aggressive/defensive/neutral)
 4. Simultaneous resolution:
-   - Player damage to enemy = sum(weapon effects) - sum(enemy shield effects). Min 1 if any weapon used (asymmetric).
-   - Enemy damage to player = sum(weapon effects) - sum(player shield effects). No min 1.
+   - Player damage to enemy = max(0, sum(weapon effects) - sum(enemy shield effects)).
+   - Enemy damage to player = max(0, sum(weapon effects) - sum(player shield effects)).
    - Poison ticks: 1 dmg/turn per active poison stack
    - Heal applied after damage (capped at maxHp)
 
 Key difference from v5: No more ATK/DEF flat stats. No more `max(0, atkTotal - defTotal)`. Equipment effects are the entire damage model. A Lame Cassée (1-6→die+1 dmg) placed with a 5 deals 6 damage. A Panneau Stop (1-6→die abs) placed with a 3 absorbs 3 damage. Net: 6-3 = 3 damage to enemy.
 
-Anti-stalemate: Player weapon use guarantees min 1 damage regardless of enemy shields. This is player-only — enemies can be fully blocked. Simulation shows 0.03 zero-rounds/combat (vs 2.16 in v5).
+No minimum damage rule. If block exceeds attack, damage is 0. Bypass tools (Molotov, poison) and equipment diversity counter high-block enemies. Simulation shows 0.28 zero-rounds/combat (smart strategy).
 
 Speed kill recovery: Win in ≤3 rounds → +3 HP (capped). Player-only, asymmetric.
 
@@ -633,7 +633,7 @@ Target: "balanced" strategy (heal when HP < 40%, loot otherwise) should be withi
 
 V5 problem: 2.16 zero-damage rounds per combat (ATK ≤ DEF on both sides).
 V6 target: < 0.1 zero-damage rounds per combat.
-V6 actual: 0.03 (validated). The min 1 damage rule + equipment variety virtually eliminates stalemates.
+V6.2 actual: 0.28 (smart strategy). Min-1 rule removed; equipment diversity (poison, bypass) controls stalemates.
 
 Monitor: if new equipment or enemies create stalemate patterns, flag immediately.
 
@@ -717,8 +717,8 @@ RULE: Never tune numbers for problems at levels 1-4. Fix equipment/passive desig
 
 ## Balance history (lessons from v1-v5)
 
-1. **Min damage kills single-card runs.** BUT asymmetric min 1 (player only, weapon only) is safe — it prevents stalemate without guaranteeing unavoidable damage to the player.
-2. **Symmetric mechanics don't shift strategy.** Anti-stalemate must be asymmetric.
+1. **Min damage was removed (v6.2).** Originally prevented stalemates, but bypass tools (Molotov, poison) and equipment diversity make it unnecessary. If block > attack, damage is 0.
+2. **Symmetric mechanics don't shift strategy.** Asymmetric tools (bypass, speed kill) favor the player.
 3. **Flat stats (+1 ATK/+1 DEF) don't create identity.** Equipment with die-range conditions creates real identity. A Clé Lourde (4-6) plays fundamentally differently from a Double Fourche (1-4).
 4. **2D6 variance ceiling.** Allocation spread maxes at 2-3×. Don't target higher.
 5. **HP heals are disproportionately powerful** in a no-heal game. +2 HP heal (not +3) per event.

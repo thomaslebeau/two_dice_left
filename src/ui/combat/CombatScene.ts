@@ -20,6 +20,7 @@ import { CombatState, type PoisonSnapshot } from './CombatState';
 import { PassiveFeedback } from './PassiveFeedback';
 import { tickerWait } from './tickerUtils';
 import { OnboardingHint } from './OnboardingHint';
+import { TutorialOverlay } from './TutorialOverlay';
 import { STRINGS } from '../../data/strings';
 
 const BONE = 0xD9CFBA, RUST = 0x8B3A1A, MOSS = 0x2D4A2E;
@@ -212,26 +213,45 @@ export class CombatScene extends Container implements Scene {
         this._enemyZone.dimUnplacedDice(placedValues);
         this._precomputedEnemyAlloc = ea;
       }
-      this._phase = 'allocating';
-      this._allocator.setEnabled(true);
-      // Onboarding hint — first round, first ever combat
-      if (this._state?.round === 1 && OnboardingHint.shouldShow()) {
-        const diceY = this._sh * 0.44;
-        this._onboarding.show(this._sw / 2, diceY - 56);
+      // Tutorial on very first combat (blocks input until complete)
+      if (this._state?.round === 1 && TutorialOverlay.shouldShow()) {
+        this._runTutorial().then(() => this._enableAllocating());
+      } else {
+        this._enableAllocating();
       }
-      // Survivant: toggle danger pulse based on HP
-      if (this._passiveId === 'survivant' && this._state) {
-        this._passiveFeedback.updateSurvivantDanger(
-          this._playerZone.badge, this._state.playerHp / this._state.playerMaxHp,
-        );
-      }
-      // Elan: glow weapon slots on round 1
-      if (this._passiveId === 'elan' && this._data?.passiveState?.elanActive && this._state?.round === 1) {
-        this._passiveFeedback.setElanGlow([...this._playerZone.toolBox.slots], true);
-      }
-      // Recycleur: interactive die=1 adjust
-      this._trySetupRecycleur();
     });
+  }
+
+  private _enableAllocating(): void {
+    this._phase = 'allocating';
+    this._allocator.setEnabled(true);
+    // Onboarding hint (legacy, for non-tutorial users)
+    if (this._state?.round === 1 && OnboardingHint.shouldShow()) {
+      const diceY = this._sh * 0.34;
+      this._onboarding.show(this._sw / 2, diceY - 56);
+    }
+    if (this._passiveId === 'survivant' && this._state) {
+      this._passiveFeedback.updateSurvivantDanger(
+        this._playerZone.badge,
+        this._state.playerHp / this._state.playerMaxHp,
+      );
+    }
+    if (this._passiveId === 'elan'
+      && this._data?.passiveState?.elanActive
+      && this._state?.round === 1) {
+      this._passiveFeedback.setElanGlow(
+        [...this._playerZone.toolBox.slots], true,
+      );
+    }
+    this._trySetupRecycleur();
+  }
+
+  private async _runTutorial(): Promise<void> {
+    const overlay = new TutorialOverlay(this._sw, this._sh);
+    this.addChild(overlay);
+    // splitY: boundary between enemy area and player area (dice row)
+    const splitY = this._sh * 0.32;
+    await overlay.run(splitY);
   }
 
   private async _handleCommit(): Promise<void> {

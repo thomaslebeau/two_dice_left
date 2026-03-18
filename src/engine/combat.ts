@@ -4,8 +4,8 @@
  * Resolution is simultaneous per round:
  * 1. Both sides roll 2d6 and allocate to equipment slots
  * 2. Compute weapon effects, shield effects, utility effects
- * 3. Player damage = sum(weapon effects) - sum(enemy shields), min 1 if any weapon used
- * 4. Enemy damage = sum(enemy weapons) - sum(player shields), NO min 1 (asymmetric)
+ * 3. Player damage = sum(weapon effects) - sum(enemy shields), min 0
+ * 4. Enemy damage = sum(enemy weapons) - sum(player shields), min 0
  * 5. Apply poison ticks, then heals
  * 6. Check for death
  *
@@ -97,7 +97,6 @@ export interface RoundOutcome {
   playerBypassDmg: number;
   enemyShieldTotal: number;
   normalDmgToEnemy: number;
-  minRuleApplied: boolean;
 }
 
 /** Sum bypass damage from allocations where equipment has bypassShield */
@@ -167,15 +166,8 @@ export function resolveRound(
   const playerUsedWeapon = player.weapons.length > 0
     || playerNormalUtilDmg > 0 || playerBypassDmg > 0;
 
-  // Normal damage: reduced by enemy shields, min 1 if weapon used
-  const rawNormalDmg = totalNormalPlayerDmg - totalEnemyShield;
-  const minRuleApplied = playerUsedWeapon && rawNormalDmg < 1;
-  let normalDmgToEnemy: number;
-  if (playerUsedWeapon) {
-    normalDmgToEnemy = Math.max(1, rawNormalDmg);
-  } else {
-    normalDmgToEnemy = Math.max(0, rawNormalDmg);
-  }
+  // Normal damage: reduced by enemy shields, no minimum
+  const normalDmgToEnemy = Math.max(0, totalNormalPlayerDmg - totalEnemyShield);
 
   // Total: normal + bypass (bypass not reduced by shields)
   const damageToEnemy = normalDmgToEnemy + playerBypassDmg;
@@ -196,7 +188,6 @@ export function resolveRound(
     playerBypassDmg,
     enemyShieldTotal: totalEnemyShield,
     normalDmgToEnemy,
-    minRuleApplied,
   };
 }
 
@@ -318,11 +309,6 @@ export function simulateCombat(
     if (state.rempartCarryShield > 0) {
       dmgToPlayer = Math.max(0, dmgToPlayer - state.rempartCarryShield);
       state.rempartCarryShield = 0;
-    }
-
-    // Re-apply min-1 rule after passive mods (only if weapon used)
-    if (outcome.playerUsedWeapon) {
-      dmgToEnemy = Math.max(1, dmgToEnemy);
     }
 
     // Apply damage (simultaneous)

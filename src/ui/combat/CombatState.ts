@@ -163,11 +163,6 @@ export class CombatState {
         passiveId: 'rempart', triggered: true, value: rempartConsumed,
       });
     }
-    // Re-apply min-1
-    if (outcome.playerUsedWeapon) {
-      dmgToEnemy = Math.max(1, dmgToEnemy);
-    }
-
     const playerHpBefore = this._playerHp;
     const enemyHpBefore = this._enemyHp;
 
@@ -235,7 +230,6 @@ export class CombatState {
       normalDmgToEnemy: outcome.normalDmgToEnemy,
       playerBypassDmg: outcome.playerBypassDmg,
       playerPassiveBonus: Math.max(0, passiveBonus),
-      minRuleApplied: outcome.minRuleApplied,
       playerDamageToEnemy: dmgToEnemy,
       playerShieldFromEquip: outcome.playerShieldTotal,
       playerPassiveShield: passiveShield,

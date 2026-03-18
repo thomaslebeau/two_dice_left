@@ -30,7 +30,7 @@ src/
 │   ├── types.ts      # Equipment (consumable?, bypassShield?), Survivor, Enemy, Allocation, CombatResult, Passive
 │   ├── dice.ts       # rollDie, rollDice, canUseDie
 │   ├── allocation.ts # allocateOptimal, allocateEnemy, scoring
-│   ├── combat.ts     # simulateCombat (resolution, min 1 rule, poison, heal, passives)
+│   ├── combat.ts     # simulateCombat (resolution, poison, heal, passives)
 │   ├── passives.ts   # Passive definitions and resolution (pure functions)
 │   ├── run.ts        # simulateRun (5 combats + loot events)
 │   └── index.ts
@@ -79,12 +79,10 @@ Equipment has: type (weapon/shield/utility), die range (minDie-maxDie), effect f
 
 ```typescript
 // Resolution
-playerDamageToEnemy = sum(weaponEffects) - sum(enemyShieldEffects);
-enemyDamageToPlayer = sum(enemyWeaponEffects) - sum(playerShieldEffects);
-
-// Anti-stalemate (asymmetric, player only)
-if (playerUsedAnyWeapon) playerDamageToEnemy = max(1, playerDamageToEnemy);
-// Enemies have NO min damage — player can fully block
+playerDamageToEnemy = max(0, sum(weaponEffects) - sum(enemyShieldEffects));
+enemyDamageToPlayer = max(0, sum(enemyWeaponEffects) - sum(playerShieldEffects));
+// No minimum damage. If block exceeds attack, damage is 0.
+// Bypass tools (Molotov, poison) exist to counter high-block enemies.
 ```
 
 ### Speed kill recovery
@@ -245,7 +243,7 @@ Spread: 8.4pp (Sentinelle 45.5% − Rescapé 37.1%). Accepted.
 
 ## Balance history (hard-won lessons from v1-v6)
 
-1. **Min damage kills single-card runs.** `max(1, ...)` guarantees ~25 unavoidable damage across 5 combats. The v6 fix: min 1 on PLAYER WEAPONS ONLY (asymmetric). Player can still be fully blocked.
+1. **Min damage was removed (v6.2).** Originally `max(1, ...)` guaranteed chip damage. Removed because bypass tools (Molotov, poison) and equipment diversity provide enough options against high-block enemies. If block > attack, damage is 0.
 
 2. **Symmetric mechanics don't shift strategy.** Tested in v5 with overkill damage — helped enemies as much as player. Any balance mechanic must be asymmetric to change strategy hierarchy.
 

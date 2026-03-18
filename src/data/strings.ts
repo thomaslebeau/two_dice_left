@@ -22,6 +22,13 @@ export const STRINGS = {
   LOCKED: '???',
   DRAG_HINT: 'DRAG A DIE TO A SLOT',
   NO_DAMAGE: 'No damage',
+
+  // Tutorial
+  TUTO_PHASE1: 'This is your enemy. They have weapons \u{1F5E1} and shields \u{1F6E1}. Their dice are already placed \u2014 you can see what they\'ll do this turn.',
+  TUTO_PHASE2: 'These are your dice and equipment. Drag each die into a slot to assign it. Tap a placed die to remove it. When both dice are placed, tap VALIDATE.',
+  TUTO_NEXT: 'NEXT',
+  TUTO_GOT_IT: 'GOT IT',
+  TUTO_SKIP: 'SKIP',
   SPEED_KILL: (hp: number) => `Speed kill! +${hp} HP`,
 
   // Resolution (impact numbers, not formulas)
@@ -33,7 +40,6 @@ export const STRINGS = {
   RES_PLAYER_POISON_TICK: '\u2620 1',
   RES_NEW_POISON: (n: number) => `\u2620 +${n}`,
   RES_HEAL: (n: number) => `\u2764 +${n}`,
-  RES_MIN: '(min)',
   RES_HP: (label: string, hp: number, max: number) =>
     `${label} ${hp}/${max} HP`,
 

@@ -26,7 +26,6 @@ export interface ResolutionData {
   normalDmgToEnemy: number;
   playerBypassDmg: number;
   playerPassiveBonus: number;
-  minRuleApplied: boolean;
   playerDamageToEnemy: number;
   playerShieldFromEquip: number;
   playerPassiveShield: number;
@@ -121,7 +120,6 @@ function buildYouDealBloc(d: ResolutionData, cx: number): Container {
   // Net result (big)
   const net = mkCentered(FONTS.HEADING, 28, TEXT_COLORS.PLAYER_ACTION, true);
   let netText = `= \u{1F5E1} ${d.playerDamageToEnemy}`;
-  if (d.minRuleApplied) netText += ` ${STRINGS.RES_MIN}`;
   net.text = netText;
   net.position.set(cx, y);
   bloc.addChild(net);

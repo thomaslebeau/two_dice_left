@@ -40,7 +40,7 @@ const BORDER_W = 2;
 
 /** Map survivor id → portrait asset path. Only illustrated survivors. */
 const PORTRAIT_ASSETS: Record<number, string> = {
-  1: '/assets/survivors/rescape.png',
+  1: 'assets/survivors/rescape.png',
 };
 
 // ---------------------------------------------------------------------------
